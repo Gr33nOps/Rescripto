@@ -36,7 +36,18 @@ class _RewriteScreenState extends State<RewriteScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rescripto'),
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image(
+              image: AssetImage('assets/icon/app_icon_foreground.png'),
+              height: 26,
+              width: 26,
+            ),
+            SizedBox(width: 10),
+            Text('Rescripto'),
+          ],
+        ),
         actions: [
           if (controller.isRunning)
             IconButton(
