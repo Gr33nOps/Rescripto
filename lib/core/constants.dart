@@ -7,7 +7,7 @@ abstract final class AppConstants {
   static const String sourceUrl = 'https://github.com/Gr33nOps/Rescripto';
   static const String issuesUrl =
       'https://github.com/Gr33nOps/Rescripto/issues';
-  static const String versionName = '1.0.0';
+  static const String versionName = '1.0.1';
 
   // Storage keys (shared_preferences).
   static const String keySelectedModel = 'selected_model_id';
