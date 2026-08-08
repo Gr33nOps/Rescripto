@@ -14,15 +14,16 @@ import 'speech_controller.dart';
 
 /// Registers all services + controllers with provider.
 class AppProviders extends StatelessWidget {
-  const AppProviders({super.key, required this.child});
+  const AppProviders({super.key, required this.settings, required this.child});
 
+  final SettingsService settings;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<SettingsService>(create: (_) => SettingsService()),
+        Provider<SettingsService>(create: (_) => settings),
         Provider<StorageService>(create: (_) => StorageService()),
         Provider<LocalLlmService>(create: (_) => LocalLlmService()),
         Provider<SpeechService>(create: (_) => SpeechService()),

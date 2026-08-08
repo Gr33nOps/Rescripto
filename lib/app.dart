@@ -3,16 +3,19 @@ import 'package:provider/provider.dart';
 
 import 'core/app_theme.dart';
 import 'screens/home_shell.dart';
+import 'services/settings_service.dart';
 import 'state/app_providers.dart';
 import 'state/settings_controller.dart';
 
 /// Rescripto root widget.
 class RescriptoApp extends StatelessWidget {
-  const RescriptoApp({super.key});
+  const RescriptoApp({super.key, required this.settings});
+
+  final SettingsService settings;
 
   @override
   Widget build(BuildContext context) {
-    return const AppProviders(child: _RescriptoMaterialApp());
+    return AppProviders(settings: settings, child: const _RescriptoMaterialApp());
   }
 }
 
