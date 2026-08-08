@@ -2,8 +2,14 @@
 
 Rescripto is a Flutter app for private, on-device text rewriting. User text,
 recordings, generated output, settings, and history stay on the device. The app
-does use the network to download the AI/voice model files selected by the user;
-after download, inference runs locally without an account or API key.
+uses the network only to download the AI and voice models you choose; after
+download, rewriting and dictation run locally without an account or API key.
+
+Source, releases, and issue tracking live on GitHub:
+
+- Source: https://github.com/Gr33nOps/Rescripto
+- Issues: https://github.com/Gr33nOps/Rescripto/issues
+- Releases: https://github.com/Gr33nOps/Rescripto/releases
 
 ## Features
 
@@ -14,7 +20,7 @@ after download, inference runs locally without an account or API key.
 - Android microphone dictation through whisper.cpp
 - Light, dark, and system themes
 
-## Current platform support
+## Platform support
 
 | Platform | Text rewriting | Voice dictation |
 | --- | --- | --- |
@@ -22,15 +28,15 @@ after download, inference runs locally without an account or API key.
 | Android armeabi-v7a / x86_64 | Not currently packaged with llama | Not fully supported |
 | iOS | Source integration present; requires macOS/Xcode verification | Not implemented |
 
-Do not advertise unsupported Android ABIs for production. Release ABI policy,
-signing, and automation are intentionally handled separately from app code.
+Only Android arm64-v8a is packaged for release. Release ABI policy, signing,
+and automation are intentionally handled separately from app code.
 
 ## Storage and downloads
 
 Text models currently require approximately 769 MiB to 1.93 GiB each. Voice
-models range from approximately 74 MiB (Tiny) to 2.88 GiB (Large v3). Downloads
-come from Hugging Face. Temporary microphone recordings are deleted after
-transcription or cancellation.
+models range from approximately 74 MiB (Tiny) to 2.88 GiB (Large v3).
+Downloads come from Hugging Face. Temporary microphone recordings are deleted
+after transcription or cancellation.
 
 ## Development setup
 
@@ -40,7 +46,8 @@ Prerequisites:
 - Java 17
 - Android SDK and NDK `26.1.10909125`
 - CMake/Ninja installed through Android SDK tools
-- For iOS work: macOS, Xcode, CocoaPods, and a real device/simulator build check
+- For iOS work: macOS, Xcode, CocoaPods, and a real device/simulator build
+  check
 
 From the repository root:
 
@@ -64,6 +71,18 @@ flutter analyze lib
 flutter test
 ```
 
+## GitHub workflow
+
+The repository is set up so GitHub can validate the app without extra manual
+steps:
+
+- Pushes and pull requests run analysis, tests, and an Android debug build
+- Tagged releases build signed Android APK and AAB artifacts
+- Release notes are generated from the GitHub release workflow
+
+If you change dependencies, model paths, or platform support, update both this
+README and the in-app About section so they stay aligned.
+
 ## Architecture
 
 - `lib/state`: UI operation state and controllers
@@ -77,5 +96,5 @@ flutter test
 This repository does not currently include a root project license. The vendored
 `flutter_llama` wrapper uses the NativeMindNONC license, which requires written
 permission for commercial use. The downloadable Gemma, Llama, and Qwen models
-also have their own terms. Resolve those obligations and add appropriate notices
-before distributing the app, especially for commercial use.
+also have their own terms. Resolve those obligations and add appropriate
+notices before distributing the app, especially for commercial use.

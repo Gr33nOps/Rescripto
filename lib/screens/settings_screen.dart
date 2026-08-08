@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants.dart';
 import '../state/settings_controller.dart';
@@ -130,7 +131,7 @@ class SettingsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppConstants.appName,
+                      '${AppConstants.appName} v${AppConstants.versionName}',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -145,12 +146,24 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'No accounts, ads, tracking, or cloud processing. Your text '
-                      'and recordings stay on this device. AI and voice model files '
-                      'are downloaded from Hugging Face when you choose to use them.',
+                      'No accounts, ads, or tracking. Your text, recordings, and '
+                      'rewrite history stay on this device. AI and voice model '
+                      'files are downloaded from Hugging Face only when you choose '
+                      'to use them.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    _LinkTile(
+                      icon: Icons.code_outlined,
+                      label: 'Source code on GitHub',
+                      url: AppConstants.sourceUrl,
+                    ),
+                    _LinkTile(
+                      icon: Icons.bug_report_outlined,
+                      label: 'Report an issue',
+                      url: AppConstants.issuesUrl,
                     ),
                   ],
                 ),
@@ -159,6 +172,35 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LinkTile extends StatelessWidget {
+  const _LinkTile({required this.icon, required this.label, required this.url});
+
+  final IconData icon;
+  final String label;
+  final String url;
+
+  Future<void> _open(BuildContext context) async {
+    final uri = Uri.parse(url);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open the link.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon),
+      title: Text(label),
+      trailing: const Icon(Icons.open_in_new),
+      onTap: () => _open(context),
     );
   }
 }

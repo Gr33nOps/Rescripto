@@ -4,6 +4,10 @@ abstract final class AppConstants {
   static const String tagline = 'Polished text. Private, on-device AI.';
   static const String privacyPromise =
       'No accounts · No cloud processing · Your content stays local';
+  static const String sourceUrl = 'https://github.com/Gr33nOps/Rescripto';
+  static const String issuesUrl =
+      'https://github.com/Gr33nOps/Rescripto/issues';
+  static const String versionName = '1.0.0';
 
   // Storage keys (shared_preferences).
   static const String keySelectedModel = 'selected_model_id';
