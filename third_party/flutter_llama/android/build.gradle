@@ -47,7 +47,7 @@ android {
         minSdk = 24
 
         // NDK configuration
-        ndkVersion = "26.1.10909125"
+        ndkVersion = "28.2.13676358"
         ndk {
             // Specify ABIs to build (arm64 only for modern devices)
             abiFilters 'arm64-v8a'
@@ -62,16 +62,26 @@ android {
                     '-DANDROID_PLATFORM=android-28',
                     '-DCMAKE_BUILD_TYPE=Release'
                 ]
-                // llama.cpp's ggml-vulkan backend needs a working glslc to
-                // generate its shaders. The Android NDK ships one under
-                // shader-tools/, but CMake's FindVulkan won't locate it, so
-                // point it there explicitly when no Vulkan SDK glslc exists.
+                // llama.cpp's ggml-vulkan backend needs the host glslc binary
+                // to generate shaders while cross-compiling for Android.
                 def sdkDir = android.sdkDirectory.absolutePath
-                def ndkVer = '26.1.10909125'
-                def glslc = new File("$sdkDir/ndk/$ndkVer/shader-tools/windows-x86_64/glslc.exe")
-                if (glslc.exists()) {
-                    cmakeArgs.add("-DVulkan_GLSLC_EXECUTABLE=${glslc.absolutePath.replace('\\', '/')}")
+                def ndkVer = '28.2.13676358'
+                def osName = System.getProperty('os.name').toLowerCase()
+                def shaderToolsHost
+                def glslcName = 'glslc'
+                if (osName.contains('windows')) {
+                    shaderToolsHost = 'windows-x86_64'
+                    glslcName = 'glslc.exe'
+                } else if (osName.contains('mac')) {
+                    shaderToolsHost = 'darwin-x86_64'
+                } else {
+                    shaderToolsHost = 'linux-x86_64'
                 }
+                def glslc = new File("$sdkDir/ndk/$ndkVer/shader-tools/$shaderToolsHost/$glslcName")
+                if (!glslc.exists()) {
+                    throw new GradleException("Android NDK glslc not found: ${glslc.absolutePath}")
+                }
+                cmakeArgs.add("-DVulkan_GLSLC_EXECUTABLE=${glslc.absolutePath.replace('\\', '/')}")
                 arguments(*cmakeArgs)
             }
         }
