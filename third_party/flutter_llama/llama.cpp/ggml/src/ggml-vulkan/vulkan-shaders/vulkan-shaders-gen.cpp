@@ -13,6 +13,7 @@
 #include <future>
 #include <queue>
 #include <condition_variable>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -34,6 +35,7 @@
 
 std::mutex lock;
 std::vector<std::pair<std::string, std::string>> shader_fnames;
+static std::atomic<bool> compile_failed{false};
 
 std::string GLSLC = "glslc";
 std::string input_dir = "vulkan-shaders";
@@ -75,7 +77,7 @@ enum MatMulIdType {
 };
 
 namespace {
-void execute_command(const std::string& command, std::string& stdout_str, std::string& stderr_str) {
+int execute_command(const std::string& command, std::string& stdout_str, std::string& stderr_str) {
 #ifdef _WIN32
     HANDLE stdout_read, stdout_write;
     HANDLE stderr_read, stderr_write;
@@ -122,8 +124,11 @@ void execute_command(const std::string& command, std::string& stdout_str, std::s
     CloseHandle(stdout_read);
     CloseHandle(stderr_read);
     WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exit_code = 1;
+    GetExitCodeProcess(pi.hProcess, &exit_code);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
+    return static_cast<int>(exit_code);
 #else
     int stdout_pipe[2];
     int stderr_pipe[2];
@@ -163,7 +168,9 @@ void execute_command(const std::string& command, std::string& stdout_str, std::s
 
         close(stdout_pipe[0]);
         close(stderr_pipe[0]);
-        waitpid(pid, nullptr, 0);
+        int status = 0;
+        waitpid(pid, &status, 0);
+        return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     }
 #endif
 }
@@ -237,7 +244,24 @@ static uint32_t compile_count = 0;
 static std::mutex compile_count_mutex;
 static std::condition_variable compile_count_cond;
 
+void release_compile_slot() {
+    {
+        std::lock_guard<std::mutex> guard(compile_count_mutex);
+        assert(compile_count > 0);
+        compile_count--;
+    }
+    compile_count_cond.notify_all();
+}
+
+class compile_slot_guard {
+public:
+    ~compile_slot_guard() {
+        release_compile_slot();
+    }
+};
+
 void string_to_spv_func(const std::string& _name, const std::string& in_fname, const std::map<std::string, std::string>& defines, bool fp16 = true, bool coopmat = false, bool coopmat2 = false, bool f16acc = false) {
+    compile_slot_guard slot_guard;
     std::string name = _name + (f16acc ? "_f16acc" : "") + (coopmat ? "_cm1" : "") + (coopmat2 ? "_cm2" : (fp16 ? "" : "_fp32"));
     std::string out_fname = join_paths(output_dir, name + ".spv");
     std::string in_path = join_paths(input_dir, in_fname);
@@ -275,23 +299,24 @@ void string_to_spv_func(const std::string& _name, const std::string& in_fname, c
         // }
         // std::cout << std::endl;
 
-        execute_command(command, stdout_str, stderr_str);
-        if (!stderr_str.empty()) {
-            std::cerr << "cannot compile " << name << "\n\n" << command << "\n\n" << stderr_str << std::endl;
+        const int exit_code = execute_command(command, stdout_str, stderr_str);
+        if (exit_code != 0) {
+            std::cerr << "cannot compile " << name << " (exit code " << exit_code << ")\n\n"
+                      << command << "\n\n" << stderr_str << std::endl;
+            compile_failed = true;
             return;
+        }
+
+        if (!stderr_str.empty()) {
+            std::cerr << stderr_str;
         }
 
         std::lock_guard<std::mutex> guard(lock);
         shader_fnames.push_back(std::make_pair(name, out_fname));
     } catch (const std::exception& e) {
         std::cerr << "Error executing command for " << name << ": " << e.what() << std::endl;
+        compile_failed = true;
     }
-    {
-        std::lock_guard<std::mutex> guard(compile_count_mutex);
-        assert(compile_count > 0);
-        compile_count--;
-    }
-    compile_count_cond.notify_all();
 }
 
 std::map<std::string, std::string> merge_maps(const std::map<std::string, std::string>& a, const std::map<std::string, std::string>& b) {
@@ -304,15 +329,21 @@ static std::vector<std::future<void>> compiles;
 void string_to_spv(const std::string& _name, const std::string& in_fname, const std::map<std::string, std::string>& defines, bool fp16 = true, bool coopmat = false, bool coopmat2 = false, bool f16acc = false) {
     {
         // wait until fewer than N compiles are in progress.
-        // 16 is an arbitrary limit, the goal is to avoid "failed to create pipe" errors.
-        uint32_t N = 16;
+        // Match shader compilation pressure to the host instead of starting
+        // sixteen glslc processes on a small CI runner.
+        const uint32_t N = std::max(1u, std::min(16u, std::thread::hardware_concurrency()));
         std::unique_lock<std::mutex> guard(compile_count_mutex);
         while (compile_count >= N) {
             compile_count_cond.wait(guard);
         }
         compile_count++;
     }
-    compiles.push_back(std::async(string_to_spv_func, _name, in_fname, defines, fp16, coopmat, coopmat2, f16acc));
+    try {
+        compiles.push_back(std::async(std::launch::async, string_to_spv_func, _name, in_fname, defines, fp16, coopmat, coopmat2, f16acc));
+    } catch (...) {
+        release_compile_slot();
+        throw;
+    }
 }
 
 void matmul_shaders(bool fp16, MatMulIdType matmul_id_type, bool coopmat, bool coopmat2, bool f16acc) {
@@ -996,6 +1027,11 @@ int main(int argc, char** argv) {
     }
 
     process_shaders();
+
+    if (compile_failed) {
+        std::cerr << "vulkan-shaders-gen: one or more shaders failed to compile" << std::endl;
+        return EXIT_FAILURE;
+    }
 
     write_output_files();
 
