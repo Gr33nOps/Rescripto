@@ -56,7 +56,7 @@ class SettingsScreen extends StatelessWidget {
                     secondary: const Icon(Icons.speed_outlined),
                     title: const Text('GPU acceleration'),
                     subtitle: const Text(
-                      'Much faster on supported phones (Metal / Vulkan).',
+                      'Faster rewrites on supported phones.',
                     ),
                     value: settings.useGpu,
                     onChanged: settings.setUseGpu,
@@ -96,17 +96,21 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     for (final m in const [
-                      ('tiny', 'Fastest, multilingual (74 MB)'),
-                      ('base', 'Fast, multilingual (141 MB)'),
-                      ('small', 'Recommended, multilingual (465 MB)'),
-                      ('medium', 'Accurate, multilingual (1.43 GB)'),
-                      ('large', 'Best quality, multilingual (2.88 GB)'),
+                      ('Tiny', 'Fastest · multilingual · 74 MB', 'tiny'),
+                      ('Base', 'Fast · multilingual · 141 MB', 'base'),
+                      ('Small', 'Recommended · multilingual · 465 MB', 'small'),
+                      ('Medium', 'Accurate · multilingual · 1.43 GB', 'medium'),
+                      (
+                        'Large',
+                        'Best quality · multilingual · 2.88 GB',
+                        'large',
+                      ),
                     ])
                       _RadioTile(
                         icon: Icons.record_voice_over_outlined,
                         label: m.$1,
                         subtitle: m.$2,
-                        value: m.$1,
+                        value: m.$3,
                       ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -184,12 +188,20 @@ class _LinkTile extends StatelessWidget {
   final String url;
 
   Future<void> _open(BuildContext context) async {
-    final uri = Uri.parse(url);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open the link.')));
+    try {
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched || !context.mounted) return;
+    } catch (_) {
+      if (!context.mounted) return;
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Couldn’t open that link. Try again.')),
+      );
     }
   }
 

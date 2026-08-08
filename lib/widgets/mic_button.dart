@@ -166,9 +166,9 @@ class _MicButtonState extends State<MicButton>
 
   String _phaseLabel(SpeechPhase phase) => switch (phase) {
     SpeechPhase.idle => 'Tap to dictate',
-    SpeechPhase.requestingPermission => 'Requesting microphone permission…',
-    SpeechPhase.initializing => 'Preparing the speech model…',
+    SpeechPhase.requestingPermission => 'Checking microphone access…',
+    SpeechPhase.initializing => 'Preparing voice input…',
     SpeechPhase.recording => 'Tap to stop',
-    SpeechPhase.transcribing => 'Transcribing on this device…',
+    SpeechPhase.transcribing => 'Creating transcript…',
   };
 }

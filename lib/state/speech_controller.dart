@@ -87,7 +87,7 @@ class SpeechController extends ChangeNotifier {
     } catch (e) {
       _lastError = e is UnsupportedError
           ? (e.message ?? 'Voice input is not supported on this platform.')
-          : 'Could not start voice input: $e';
+          : _friendlySpeechError(e, starting: true);
       _phase = SpeechPhase.idle;
       notifyListeners();
     }
@@ -114,7 +114,7 @@ class SpeechController extends ChangeNotifier {
       return result;
     } catch (e) {
       if (operationId == _operationId) {
-        _lastError = 'Could not transcribe the recording: $e';
+        _lastError = _friendlySpeechError(e, starting: false);
       }
       return const SpeechResult(text: '', language: '');
     } finally {
@@ -124,6 +124,21 @@ class SpeechController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  String _friendlySpeechError(Object error, {required bool starting}) {
+    final text = error.toString().toLowerCase();
+    if (text.contains('space') || text.contains('storage')) {
+      return 'Not enough storage for voice input. Free some space and try again.';
+    }
+    if (text.contains('network') ||
+        text.contains('connection') ||
+        text.contains('timeout')) {
+      return 'Couldn’t download the voice model. Check your connection and try again.';
+    }
+    return starting
+        ? 'Couldn’t start voice input. Try again.'
+        : 'Couldn’t transcribe this recording. Try recording again.';
   }
 
   Future<void> cancel() async {

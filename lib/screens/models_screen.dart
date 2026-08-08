@@ -39,8 +39,7 @@ class ModelsScreen extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Model files download from Hugging Face once. Your text '
-                            'stays on this device and rewriting then runs locally.',
+                            'Download a model once to rewrite privately on this device.',
                             style: TextStyle(
                               color: scheme.onSecondaryContainer,
                             ),
@@ -257,7 +256,7 @@ class _ModelTile extends StatelessWidget {
                   icon: const Icon(Icons.download_outlined),
                   label: Text(
                     downloadBlocked
-                        ? 'Another download is in progress'
+                        ? 'Finish current download first'
                         : 'Download · ${_mb(model.sizeMb)}',
                   ),
                 ),
@@ -326,12 +325,15 @@ class _DownloadProgress extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: 10),
-            Text(
-              'Downloading… ${_mb(progress.receivedMb)} / '
-              '${_mb(progress.totalMb)} ($pct%)',
-              style: Theme.of(context).textTheme.bodySmall,
+            Expanded(
+              child: Text(
+                'Downloading model',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ),
-            const Spacer(),
+            Text('$pct%', style: Theme.of(context).textTheme.bodySmall),
             IconButton(
               tooltip: 'Cancel',
               visualDensity: VisualDensity.compact,
@@ -342,7 +344,15 @@ class _DownloadProgress extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.only(left: 24, bottom: 8),
+          child: Text(
+            '${_mb(progress.receivedMb)} of ${_mb(progress.totalMb)}',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(

@@ -255,6 +255,7 @@ class RewriteController extends ChangeNotifier {
       return 'This text is too long for the selected context size. Shorten it '
           'or increase Context size in Settings.';
     }
-    return 'Rewrite failed: $e';
+    return 'Couldn’t complete the rewrite. Try again. If it keeps happening, '
+        'restart the app.';
   }
 }

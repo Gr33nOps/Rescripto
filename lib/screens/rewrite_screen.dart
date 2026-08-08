@@ -296,17 +296,21 @@ class _AudienceSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final a in _RewriteScreenState._audiences)
-          FilterChip(
-            label: Text(a),
-            selected: selected.contains(a),
-            onSelected: (_) => onToggle(a),
-          ),
-      ],
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.start,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final a in _RewriteScreenState._audiences)
+            FilterChip(
+              label: Text(a),
+              selected: selected.contains(a),
+              onSelected: (_) => onToggle(a),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -159,20 +159,51 @@ class ModelManager extends ChangeNotifier {
         _progress[model.id] = DownloadProgress(
           modelId: model.id,
           status: DownloadStatus.failed,
-          error: e.message,
+          error: _downloadError(e),
         );
       }
     } catch (e) {
       _progress[model.id] = DownloadProgress(
         modelId: model.id,
         status: DownloadStatus.failed,
-        error: e.toString(),
+        error: _downloadError(e),
       );
     } finally {
       _cancelTokens.remove(model.id);
       _activeModelId = '';
       notifyListeners();
     }
+  }
+
+  String _downloadError(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+        case DioExceptionType.transformTimeout:
+          return 'Download timed out. Check your connection and try again.';
+        case DioExceptionType.connectionError:
+          return 'Couldn’t connect. Check your internet connection and try again.';
+        case DioExceptionType.badCertificate:
+          return 'A secure connection couldn’t be established. Try again later.';
+        case DioExceptionType.badResponse:
+          return 'This model file is unavailable right now. Try again later.';
+        case DioExceptionType.cancel:
+          return 'Download cancelled.';
+        case DioExceptionType.unknown:
+          break;
+      }
+    }
+
+    final text = error.toString().toLowerCase();
+    if (text.contains('space') || text.contains('storage')) {
+      return 'Not enough storage. Free some space and try again.';
+    }
+    if (text.contains('checksum') || text.contains('verification')) {
+      return 'The downloaded file couldn’t be verified. Try downloading it again.';
+    }
+    return 'Download failed. Check your connection and try again.';
   }
 
   Future<void> cancelDownload(AiModel model) async {

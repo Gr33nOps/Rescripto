@@ -47,8 +47,9 @@ class ModelsController extends ChangeNotifier {
       _installed
         ..clear()
         ..addAll(await _manager.installedIds());
-    } catch (e) {
-      _error = 'Could not scan installed models: $e';
+    } catch (_) {
+      _error =
+          'Couldn’t check installed models. Restart the app and try again.';
     } finally {
       _scanning = false;
       notifyListeners();

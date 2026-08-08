@@ -20,35 +20,44 @@ class RewriteControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionLabel(label: 'Intensity'),
         const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final value in RewriteIntensity.values)
-              ChoiceChip(
-                label: Text(value.label),
-                selected: intensity == value,
-                onSelected: (_) => onIntensityChanged(value),
-              ),
-          ],
+        SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            alignment: WrapAlignment.start,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final value in RewriteIntensity.values)
+                ChoiceChip(
+                  label: Text(value.label),
+                  selected: intensity == value,
+                  onSelected: (_) => onIntensityChanged(value),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 18),
         _SectionLabel(label: 'Length'),
         const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final value in RewriteLength.values)
-              ChoiceChip(
-                label: Text(value.label),
-                selected: length == value,
-                onSelected: (_) => onLengthChanged(value),
-              ),
-          ],
+        SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            alignment: WrapAlignment.start,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final value in RewriteLength.values)
+                ChoiceChip(
+                  label: Text(value.label),
+                  selected: length == value,
+                  onSelected: (_) => onLengthChanged(value),
+                ),
+            ],
+          ),
         ),
       ],
     );

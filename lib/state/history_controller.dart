@@ -24,8 +24,8 @@ class HistoryController extends ChangeNotifier {
     notifyListeners();
     try {
       _entries = await _storage.getHistory();
-    } catch (e) {
-      _error = 'Could not load rewrite history: $e';
+    } catch (_) {
+      _error = 'Couldn’t load your history. Try again.';
     } finally {
       _loading = false;
       notifyListeners();
@@ -37,8 +37,8 @@ class HistoryController extends ChangeNotifier {
     try {
       await _storage.deleteHistory(id);
       _entries.removeWhere((e) => e.id == id);
-    } catch (e) {
-      _error = 'Could not delete that history item: $e';
+    } catch (_) {
+      _error = 'Couldn’t delete that rewrite. Try again.';
     }
     notifyListeners();
   }
@@ -48,8 +48,8 @@ class HistoryController extends ChangeNotifier {
     try {
       await _storage.clearHistory();
       _entries = [];
-    } catch (e) {
-      _error = 'Could not clear rewrite history: $e';
+    } catch (_) {
+      _error = 'Couldn’t clear your history. Try again.';
     }
     notifyListeners();
   }

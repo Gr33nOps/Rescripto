@@ -168,7 +168,7 @@ abstract final class AppTheme {
           return TextStyle(
             fontSize: 12,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+            color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
           );
         }),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,

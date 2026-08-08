@@ -179,7 +179,8 @@ class _EmptyHistory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Center(
+    return Align(
+      alignment: const Alignment(0, -0.18),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -193,7 +194,7 @@ class _EmptyHistory extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Your rewrites are saved here, only on this device.',
+              'Completed rewrites will appear here and stay on this device.',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
