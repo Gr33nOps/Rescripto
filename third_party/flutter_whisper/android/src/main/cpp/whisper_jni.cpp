@@ -37,6 +37,43 @@ static jobject g_target = nullptr;        // global ref to WhisperContext
 static jmethodID g_onProgress = nullptr;  // (I)V
 static std::atomic<bool> g_abort{false};
 
+static jstring utf8_to_jstring(JNIEnv* env, const std::string& input) {
+    std::vector<jchar> output;
+    output.reserve(input.size());
+    for (size_t i = 0; i < input.size();) {
+        const uint8_t first = static_cast<uint8_t>(input[i]);
+        uint32_t codepoint = 0xFFFD;
+        size_t count = 1;
+        if (first < 0x80) {
+            codepoint = first;
+        } else if ((first & 0xE0) == 0xC0 && i + 1 < input.size()) {
+            codepoint = ((first & 0x1F) << 6) |
+                        (static_cast<uint8_t>(input[i + 1]) & 0x3F);
+            count = 2;
+        } else if ((first & 0xF0) == 0xE0 && i + 2 < input.size()) {
+            codepoint = ((first & 0x0F) << 12) |
+                        ((static_cast<uint8_t>(input[i + 1]) & 0x3F) << 6) |
+                        (static_cast<uint8_t>(input[i + 2]) & 0x3F);
+            count = 3;
+        } else if ((first & 0xF8) == 0xF0 && i + 3 < input.size()) {
+            codepoint = ((first & 0x07) << 18) |
+                        ((static_cast<uint8_t>(input[i + 1]) & 0x3F) << 12) |
+                        ((static_cast<uint8_t>(input[i + 2]) & 0x3F) << 6) |
+                        (static_cast<uint8_t>(input[i + 3]) & 0x3F);
+            count = 4;
+        }
+        i += count;
+        if (codepoint <= 0xFFFF) {
+            output.push_back(static_cast<jchar>(codepoint));
+        } else {
+            codepoint -= 0x10000;
+            output.push_back(static_cast<jchar>(0xD800 + (codepoint >> 10)));
+            output.push_back(static_cast<jchar>(0xDC00 + (codepoint & 0x3FF)));
+        }
+    }
+    return env->NewString(output.data(), static_cast<jsize>(output.size()));
+}
+
 bool abort_cb(void* /*user_data*/) { return g_abort.load(); }
 
 void progress_cb(whisper_context* /*ctx*/, whisper_state* /*state*/, int progress, void* /*user_data*/) {
@@ -87,7 +124,15 @@ static std::string json_escape(const std::string& s) {
     return out;
 }
 
-static std::string transcribe_json(whisper_context* ctx, const std::string& path, const std::string& language) {
+static std::string transcribe_json(
+    whisper_context* ctx,
+    const std::string& path,
+    const std::string& language,
+    int threads,
+    bool translate,
+    float temperature,
+    bool suppress_blank,
+    bool word_timestamps) {
     std::vector<float> pcm;
     if (!load_audio_16k(path, pcm)) {
         return "{\"error\":\"cannot decode audio (wav/mp3/flac/ogg supported)\"}";
@@ -98,8 +143,12 @@ static std::string transcribe_json(whisper_context* ctx, const std::string& path
     params.print_progress = false;
     params.print_special = false;
     params.print_timestamps = false;
-    params.n_threads = 4;
+    params.n_threads = threads > 0 ? threads : 4;
     params.single_segment = false;
+    params.translate = translate;
+    params.temperature = temperature;
+    params.suppress_blank = suppress_blank;
+    params.token_timestamps = word_timestamps;
     params.progress_callback = progress_cb;
     params.abort_callback = abort_cb;
     if (language.empty()) {
@@ -164,7 +213,16 @@ Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeInit(
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeTranscribe(
-    JNIEnv* env, jobject /*thiz*/, jlong handle, jstring jpath, jstring jlang) {
+    JNIEnv* env,
+    jobject /*thiz*/,
+    jlong handle,
+    jstring jpath,
+    jstring jlang,
+    jint threads,
+    jboolean translate,
+    jfloat temperature,
+    jboolean suppress_blank,
+    jboolean word_timestamps) {
     whisper_context* ctx = reinterpret_cast<whisper_context*>(handle);
     if (!ctx) return env->NewStringUTF("{\"error\":\"whisper not initialized\"}");
 
@@ -179,8 +237,16 @@ Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeTranscribe(
         env->ReleaseStringUTFChars(jlang, clang);
     }
 
-    std::string result = transcribe_json(ctx, path, language);
-    return env->NewStringUTF(result.c_str());
+    std::string result = transcribe_json(
+        ctx,
+        path,
+        language,
+        threads,
+        translate == JNI_TRUE,
+        temperature,
+        suppress_blank == JNI_TRUE,
+        word_timestamps == JNI_TRUE);
+    return utf8_to_jstring(env, result);
 }
 
 extern "C" JNIEXPORT void JNICALL

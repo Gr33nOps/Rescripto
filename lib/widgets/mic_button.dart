@@ -11,12 +11,7 @@ import '../state/speech_controller.dart';
 /// recording. If the platform has no on-device speech support yet, it
 /// explains that clearly.
 class MicButton extends StatefulWidget {
-  const MicButton({
-    super.key,
-    this.size = 84,
-    this.onResult,
-    this.onError,
-  });
+  const MicButton({super.key, this.size = 84, this.onResult, this.onError});
 
   final double size;
 
@@ -46,11 +41,12 @@ class _MicButtonState extends State<MicButton>
   Widget build(BuildContext context) {
     final controller = context.watch<SpeechController>();
     final isRecording = controller.isRecording;
-    final isBusy = controller.isBusy;
+    final phase = controller.phase;
+    final canTap = phase == SpeechPhase.idle || phase == SpeechPhase.recording;
     final scheme = Theme.of(context).colorScheme;
 
     if (isRecording) {
-      _pulse.repeat();
+      if (!_pulse.isAnimating) _pulse.repeat();
     } else {
       _pulse.reset();
     }
@@ -63,10 +59,12 @@ class _MicButtonState extends State<MicButton>
           builder: (context, _) {
             final t = isRecording ? 1.0 + (_pulse.value * 0.35) : 1.0;
             final opacity = isRecording ? (1 - _pulse.value) * 0.35 : 0.0;
+            final pulseSize = widget.size * 1.35;
             return SizedBox(
-              width: widget.size,
-              height: widget.size,
+              width: pulseSize,
+              height: pulseSize,
               child: Stack(
+                clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
                   if (isRecording)
@@ -78,21 +76,33 @@ class _MicButtonState extends State<MicButton>
                         color: scheme.error.withValues(alpha: opacity),
                       ),
                     ),
-                  Material(
-                    shape: const CircleBorder(),
-                    color: isRecording ? scheme.error : scheme.primary,
-                    elevation: 6,
-                    shadowColor: scheme.primary.withValues(alpha: 0.4),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: isBusy ? () => _stop(context) : () => _start(context),
-                      child: SizedBox(
-                        width: widget.size,
-                        height: widget.size,
-                        child: Icon(
-                          isRecording ? Icons.stop : Icons.mic,
-                          color: scheme.onPrimary,
-                          size: widget.size * 0.42,
+                  Semantics(
+                    button: true,
+                    enabled: canTap,
+                    label: isRecording
+                        ? 'Stop recording and transcribe'
+                        : 'Start voice dictation',
+                    value: _phaseLabel(phase),
+                    child: Material(
+                      shape: const CircleBorder(),
+                      color: isRecording ? scheme.error : scheme.primary,
+                      elevation: 6,
+                      shadowColor: scheme.primary.withValues(alpha: 0.4),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: !canTap
+                            ? null
+                            : isRecording
+                            ? () => _stop(context)
+                            : () => _start(context),
+                        child: SizedBox(
+                          width: widget.size,
+                          height: widget.size,
+                          child: Icon(
+                            isRecording ? Icons.stop : Icons.mic,
+                            color: scheme.onPrimary,
+                            size: widget.size * 0.42,
+                          ),
                         ),
                       ),
                     ),
@@ -104,13 +114,21 @@ class _MicButtonState extends State<MicButton>
         ),
         const SizedBox(height: 12),
         Text(
-          isBusy
-              ? (isRecording ? 'Tap to stop' : 'Listening…')
-              : 'Tap to dictate',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+          _phaseLabel(phase),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
+        if (phase == SpeechPhase.initializing ||
+            phase == SpeechPhase.transcribing) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 180,
+            child: LinearProgressIndicator(
+              value: controller.progress > 0 ? controller.progress : null,
+            ),
+          ),
+        ],
         if (controller.lastError.isNotEmpty) ...[
           const SizedBox(height: 6),
           Padding(
@@ -118,9 +136,9 @@ class _MicButtonState extends State<MicButton>
             child: Text(
               controller.lastError,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.error,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.error),
             ),
           ),
         ],
@@ -130,12 +148,6 @@ class _MicButtonState extends State<MicButton>
 
   Future<void> _start(BuildContext context) async {
     final controller = context.read<SpeechController>();
-    if (!controller.isSupported) {
-      widget.onError?.call(
-          'On-device voice input is not available on this platform yet. '
-          'Android is currently supported.');
-      return;
-    }
     await controller.start();
     if (controller.lastError.isNotEmpty) {
       widget.onError?.call(controller.lastError);
@@ -144,14 +156,19 @@ class _MicButtonState extends State<MicButton>
 
   Future<void> _stop(BuildContext context) async {
     final controller = context.read<SpeechController>();
-    if (!controller.isRecording) {
-      await controller.cancel();
-      return;
-    }
+    if (!controller.isRecording) return;
     final result = await controller.stopAndTranscribe();
     if (!mounted) return;
     if (result.text.isNotEmpty) {
       widget.onResult?.call(result.text);
     }
   }
+
+  String _phaseLabel(SpeechPhase phase) => switch (phase) {
+    SpeechPhase.idle => 'Tap to dictate',
+    SpeechPhase.requestingPermission => 'Requesting microphone permission…',
+    SpeechPhase.initializing => 'Preparing the speech model…',
+    SpeechPhase.recording => 'Tap to stop',
+    SpeechPhase.transcribing => 'Transcribing on this device…',
+  };
 }

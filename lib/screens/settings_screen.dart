@@ -23,7 +23,8 @@ class SettingsScreen extends StatelessWidget {
             Card(
               child: RadioGroup<String>(
                 groupValue: settings.themeMode,
-                onChanged: (v) => settings.setThemeMode(v ?? settings.themeMode),
+                onChanged: (v) =>
+                    settings.setThemeMode(v ?? settings.themeMode),
                 child: Column(
                   children: [
                     _RadioTile(
@@ -54,7 +55,8 @@ class SettingsScreen extends StatelessWidget {
                     secondary: const Icon(Icons.speed_outlined),
                     title: const Text('GPU acceleration'),
                     subtitle: const Text(
-                        'Much faster on supported phones (Metal / Vulkan).'),
+                      'Much faster on supported phones (Metal / Vulkan).',
+                    ),
                     value: settings.useGpu,
                     onChanged: settings.setUseGpu,
                   ),
@@ -74,9 +76,9 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.view_agenda_outlined,
                     label: 'Context size',
                     value: settings.contextSize.toDouble(),
-                    min: 512,
+                    min: 2048,
                     max: 8192,
-                    divisions: 5,
+                    divisions: 3,
                     display: '${settings.contextSize} tokens',
                     onChanged: (v) => settings.setContextSize(v.round()),
                   ),
@@ -93,11 +95,11 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     for (final m in const [
-                      ('tiny', 'Fastest, English only (39 MB)'),
-                      ('base', 'Fast, English only (75 MB)'),
-                      ('small', 'Recommended, multilingual (150 MB)'),
-                      ('medium', 'Accurate, multilingual (300 MB)'),
-                      ('large', 'Best quality, multilingual (1.5 GB)'),
+                      ('tiny', 'Fastest, multilingual (74 MB)'),
+                      ('base', 'Fast, multilingual (141 MB)'),
+                      ('small', 'Recommended, multilingual (465 MB)'),
+                      ('medium', 'Accurate, multilingual (1.43 GB)'),
+                      ('large', 'Best quality, multilingual (2.88 GB)'),
                     ])
                       _RadioTile(
                         icon: Icons.record_voice_over_outlined,
@@ -111,8 +113,8 @@ class SettingsScreen extends StatelessWidget {
                         'Voice model downloads automatically the first time you '
                         'dictate. Android is currently supported.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ],
@@ -138,17 +140,17 @@ class SettingsScreen extends StatelessWidget {
                     Text(
                       '${AppConstants.tagline}\n${AppConstants.privacyPromise}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'No accounts. No ads. No tracking. No cloud processing. '
-                      'No data ever leaves your phone. This app is completely '
-                      'free forever and open source.',
+                      'No accounts, ads, tracking, or cloud processing. Your text '
+                      'and recordings stay on this device. AI and voice model files '
+                      'are downloaded from Hugging Face when you choose to use them.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -172,9 +174,9 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -240,13 +242,18 @@ class _SliderTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(label, style: Theme.of(context).textTheme.bodyMedium),
-                    const Spacer(),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       display,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),

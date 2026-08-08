@@ -15,7 +15,10 @@ class RescriptoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppProviders(settings: settings, child: const _RescriptoMaterialApp());
+    return AppProviders(
+      settings: settings,
+      child: const _RescriptoMaterialApp(),
+    );
   }
 }
 

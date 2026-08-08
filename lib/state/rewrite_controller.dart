@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/constants.dart';
 import '../models/ai_model.dart';
 import '../models/history_entry.dart';
 import '../models/rewrite_output.dart';
@@ -45,6 +46,9 @@ class RewriteController extends ChangeNotifier {
 
   // Run state.
   bool _isRunning = false;
+  bool _isCancelling = false;
+  int _operationId = 0;
+  int? _cancelledOperationId;
   String _streamingText = '';
   RewriteResult? _lastResult;
   String? _lastError;
@@ -58,6 +62,7 @@ class RewriteController extends ChangeNotifier {
   int get variantCount => _variantCount;
 
   bool get isRunning => _isRunning;
+  bool get isCancelling => _isCancelling;
   String get streamingText => _streamingText;
   RewriteResult? get lastResult => _lastResult;
   String? get lastError => _lastError;
@@ -105,14 +110,14 @@ class RewriteController extends ChangeNotifier {
   }
 
   RewriteRequest get _request => RewriteRequest(
-        sourceText: _sourceText,
-        toneId: _toneId,
-        intensity: _intensity,
-        length: _length,
-        audience: List.of(_audience),
-        customInstruction: _customInstruction,
-        variantCount: _variantCount,
-      );
+    sourceText: _sourceText,
+    toneId: _toneId,
+    intensity: _intensity,
+    length: _length,
+    audience: List.of(_audience),
+    customInstruction: _customInstruction,
+    variantCount: _variantCount,
+  );
 
   /// Runs the on-device rewrite. Throws [RewriteException] on failure.
   Future<RewriteResult> rewrite() async {
@@ -121,7 +126,11 @@ class RewriteController extends ChangeNotifier {
       throw RewriteException('Nothing to rewrite yet.');
     }
 
+    final operationId = ++_operationId;
+    final request = _request;
     _isRunning = true;
+    _isCancelling = false;
+    _cancelledOperationId = null;
     _streamingText = '';
     _lastError = null;
     _lastResult = null;
@@ -136,22 +145,31 @@ class RewriteController extends ChangeNotifier {
         useGpu: _settings.useGpu,
       );
 
-      final prompt = PromptBuilder.build(_request, modelFamily: model.family);
+      final prompt = PromptBuilder.build(request, modelFamily: model.family);
       final tone = ToneLibrary.byId(_toneId);
 
       final output = await _llm.generate(
         prompt,
         temperature: tone.temperature,
-        maxTokens: AppContext.maxTokens,
+        maxTokens: AppConstants.defaultMaxTokens,
         onToken: (partial) {
+          if (_operationId != operationId ||
+              _cancelledOperationId == operationId) {
+            return;
+          }
           _streamingText = partial;
           notifyListeners();
         },
       );
 
+      if (_cancelledOperationId == operationId) {
+        return RewriteResult.empty(request);
+      }
+
       if (output.isEmpty) {
         throw RewriteException(
-            'The model returned an empty result. Try a different intensity.');
+          'The model returned an empty result. Try a different intensity.',
+        );
       }
 
       final variants = PromptBuilder.parseVariants(
@@ -159,20 +177,22 @@ class RewriteController extends ChangeNotifier {
         expected: _variantCount,
       );
       final outputs = variants
-          .map((v) => RewriteOutput(
-                text: v,
-                tokensGenerated: output.tokensGenerated,
-                generationTimeMs: output.generationTimeMs,
-              ))
+          .map(
+            (v) => RewriteOutput(
+              text: v,
+              tokensGenerated: output.tokensGenerated,
+              generationTimeMs: output.generationTimeMs,
+            ),
+          )
           .toList();
 
       final result = RewriteResult(
         outputs: outputs,
-        request: _request,
+        request: request,
         createdAt: DateTime.now(),
       );
 
-      await _saveToHistory(result, output.text);
+      await _saveToHistory(result);
       _lastResult = result;
       _streamingText = '';
       return result;
@@ -186,28 +206,37 @@ class RewriteController extends ChangeNotifier {
         code: msg.contains('not downloaded') ? 'model_missing' : null,
       );
     } finally {
-      _isRunning = false;
-      notifyListeners();
+      if (_operationId == operationId) {
+        _isRunning = false;
+        _isCancelling = false;
+        _cancelledOperationId = null;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> stop() async {
-    await _llm.stopGeneration();
-    _isRunning = false;
+    if (!_isRunning || _isCancelling) return;
+    _isCancelling = true;
+    _cancelledOperationId = _operationId;
     notifyListeners();
+    await _llm.stopGeneration();
   }
 
-  Future<void> _saveToHistory(RewriteResult result, String primaryText) async {
+  Future<void> _saveToHistory(RewriteResult result) async {
     try {
-      await _storage.insertHistory(HistoryEntry(
-        id: 0,
-        original: _sourceText,
-        rewritten: primaryText,
-        toneId: _toneId,
-        intensityLabel: _intensity.label,
-        lengthLabel: _length.label,
-        createdAt: DateTime.now(),
-      ));
+      final request = result.request;
+      await _storage.insertHistory(
+        HistoryEntry(
+          id: 0,
+          original: request.sourceText,
+          rewritten: result.primary.text,
+          toneId: request.toneId,
+          intensityLabel: request.intensity.label,
+          lengthLabel: request.length.label,
+          createdAt: result.createdAt ?? DateTime.now(),
+        ),
+      );
     } catch (_) {
       // History is best-effort; never fail the rewrite because of it.
     }
@@ -222,11 +251,10 @@ class RewriteController extends ChangeNotifier {
       return 'Not enough memory on this device. Try a smaller model or lower '
           'context size in Settings.';
     }
+    if (s.contains('context') || s.contains('input is too long')) {
+      return 'This text is too long for the selected context size. Shorten it '
+          'or increase Context size in Settings.';
+    }
     return 'Rewrite failed: $e';
   }
-}
-
-/// Small holder so max tokens can be tuned in one place.
-abstract final class AppContext {
-  static int maxTokens = 1024;
 }

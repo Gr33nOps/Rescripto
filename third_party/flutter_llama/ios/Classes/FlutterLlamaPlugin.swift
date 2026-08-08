@@ -65,6 +65,7 @@ public class FlutterLlamaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         self.eventSink = nil
         shouldStop = true
+        rescripto_llama_stop_generation()
         return nil
     }
     
@@ -108,15 +109,17 @@ public class FlutterLlamaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             self.modelPath = modelPath
             
             // Initialize model through llama.cpp C++ bridge
-            let success = llama_init_model(
-                modelPath,
-                Int32(nThreads),
-                Int32(nGpuLayers),
-                Int32(contextSize),
-                Int32(batchSize),
-                useGpu,
-                verbose
-            )
+            let success = modelPath.withCString { path in
+                rescripto_llama_init_model(
+                    path,
+                    Int32(nThreads),
+                    Int32(nGpuLayers),
+                    Int32(contextSize),
+                    Int32(batchSize),
+                    useGpu,
+                    verbose
+                )
+            }
             
             self.modelLoaded = success
             
@@ -167,31 +170,43 @@ public class FlutterLlamaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             let topK = (args["topK"] as? Int) ?? 40
             let maxTokens = (args["maxTokens"] as? Int) ?? 512
             let repeatPenalty = (args["repeatPenalty"] as? Double) ?? 1.1
+            let stopSequences = (args["stopSequences"] as? [String]) ?? []
             
             self.shouldStop = false
             let startTime = Date()
             
             // Generate through llama.cpp C++ bridge
-            var outputBuffer = [CChar](repeating: 0, count: 16384)
-            var tokensGenerated: Int32 = 0
-            
-            let success = llama_generate(
-                prompt,
-                Float(temperature),
-                Float(topP),
-                Int32(topK),
-                Int32(maxTokens),
-                Float(repeatPenalty),
-                &outputBuffer,
-                Int32(outputBuffer.count),
-                &tokensGenerated
+            var outputBuffer = [CChar](
+                repeating: 0,
+                count: max(65_536, maxTokens * 32)
             )
+            var tokensGenerated: Int32 = 0
+
+            let outputCount = outputBuffer.count
+            let success = prompt.withCString { promptPointer in
+                outputBuffer.withUnsafeMutableBufferPointer { outputPointer in
+                    rescripto_llama_generate(
+                        promptPointer,
+                        Float(temperature),
+                        Float(topP),
+                        Int32(topK),
+                        Int32(maxTokens),
+                        Float(repeatPenalty),
+                        outputPointer.baseAddress!,
+                        Int32(outputCount),
+                        &tokensGenerated
+                    )
+                }
+            }
             
             let generationTime = Int(Date().timeIntervalSince(startTime) * 1000)
             
             DispatchQueue.main.async {
                 if success {
-                    let responseText = String(cString: outputBuffer)
+                    let responseText = self.trimAtStop(
+                        String(cString: outputBuffer),
+                        stopSequences: stopSequences
+                    )
                     let response: [String: Any] = [
                         "text": responseText,
                         "tokensGenerated": Int(tokensGenerated),
@@ -250,35 +265,82 @@ public class FlutterLlamaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             let topK = (args["topK"] as? Int) ?? 40
             let maxTokens = (args["maxTokens"] as? Int) ?? 512
             let repeatPenalty = (args["repeatPenalty"] as? Double) ?? 1.1
+            let stopSequences = (args["stopSequences"] as? [String]) ?? []
             
             self.shouldStop = false
             
             // Initialize streaming generation
-            llama_generate_stream_init(
-                prompt,
-                Float(temperature),
-                Float(topP),
-                Int32(topK),
-                Int32(maxTokens),
-                Float(repeatPenalty)
-            )
+            let initialized = prompt.withCString { promptPointer in
+                rescripto_llama_generate_stream_init(
+                    promptPointer,
+                    Float(temperature),
+                    Float(topP),
+                    Int32(topK),
+                    Int32(maxTokens),
+                    Float(repeatPenalty)
+                )
+            }
+            guard initialized else {
+                DispatchQueue.main.async {
+                    eventSink(FlutterError(
+                        code: "GENERATION_FAILED",
+                        message: "Prompt exceeds context or stream initialization failed",
+                        details: nil
+                    ))
+                    result(FlutterError(
+                        code: "GENERATION_FAILED",
+                        message: "Stream initialization failed",
+                        details: nil
+                    ))
+                }
+                return
+            }
             
             // Stream tokens one by one
-            var tokenBuffer = [CChar](repeating: 0, count: 256)
-            while !self.shouldStop {
-                let hasMore = llama_generate_stream_next(&tokenBuffer, Int32(tokenBuffer.count))
-                
+            var tokenBuffer = [CChar](repeating: 0, count: 4096)
+            var pending = ""
+            let tailLength = max(0, (stopSequences.map(\.count).max() ?? 1) - 1)
+            var stoppedAtSequence = false
+            while true {
+                let tokenCount = tokenBuffer.count
+                let hasMore = tokenBuffer.withUnsafeMutableBufferPointer { pointer in
+                    rescripto_llama_generate_stream_next(
+                        pointer.baseAddress!,
+                        Int32(tokenCount)
+                    )
+                }
+
                 if hasMore {
                     let token = String(cString: tokenBuffer)
-                    DispatchQueue.main.async {
-                        eventSink(token)
+                    pending.append(token)
+                    if let stopIndex = self.firstStopIndex(
+                        in: pending,
+                        stopSequences: stopSequences
+                    ) {
+                        let safe = String(pending[..<stopIndex])
+                        if !safe.isEmpty {
+                            DispatchQueue.main.async { eventSink(safe) }
+                        }
+                        stoppedAtSequence = true
+                        rescripto_llama_stop_generation()
+                        break
+                    }
+                    let safeCount = pending.count - tailLength
+                    if safeCount > 0 {
+                        let end = pending.index(pending.startIndex, offsetBy: safeCount)
+                        let safe = String(pending[..<end])
+                        pending.removeSubrange(..<end)
+                        DispatchQueue.main.async { eventSink(safe) }
                     }
                 } else {
                     break
                 }
             }
-            
-            llama_generate_stream_end()
+            if !stoppedAtSequence && !pending.isEmpty {
+                DispatchQueue.main.async { eventSink(pending) }
+            }
+
+            rescripto_llama_generate_stream_end()
             
             DispatchQueue.main.async {
                 eventSink(FlutterEndOfEventStream)
@@ -290,13 +352,18 @@ public class FlutterLlamaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     // MARK: - Unload Model
     
     private func unloadModel(result: @escaping FlutterResult) {
-        if modelLoaded {
-            llama_cpp_bridge_free_model()
-            modelLoaded = false
-            modelPath = nil
-            NSLog("[FlutterLlama] Model unloaded")
+        shouldStop = true
+        rescripto_llama_stop_generation()
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            if self.modelLoaded {
+                rescripto_llama_free_model()
+                self.modelLoaded = false
+                self.modelPath = nil
+                NSLog("[FlutterLlama] Model unloaded")
+            }
+            DispatchQueue.main.async { result(nil) }
         }
-        result(nil)
     }
     
     // MARK: - Get Model Info
@@ -311,7 +378,7 @@ public class FlutterLlamaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         var nLayers: Int32 = 0
         var contextSize: Int32 = 0
         
-        llama_get_model_info(&nParams, &nLayers, &contextSize)
+        rescripto_llama_get_model_info(&nParams, &nLayers, &contextSize)
         
         let info: [String: Any] = [
             "modelPath": modelPath,
@@ -327,66 +394,24 @@ public class FlutterLlamaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     
     private func stopGeneration(result: @escaping FlutterResult) {
         shouldStop = true
-        llama_stop_generation()
+        rescripto_llama_stop_generation()
         result(nil)
     }
+
+    private func trimAtStop(_ text: String, stopSequences: [String]) -> String {
+        guard let index = firstStopIndex(in: text, stopSequences: stopSequences) else {
+            return text
+        }
+        return String(text[..<index])
+    }
+
+    private func firstStopIndex(
+        in text: String,
+        stopSequences: [String]
+    ) -> String.Index? {
+        stopSequences
+            .filter { !$0.isEmpty }
+            .compactMap { text.range(of: $0)?.lowerBound }
+            .min()
+    }
 }
-
-// MARK: - C++ Bridge Function Declarations
-
-// These functions will be implemented in llama_cpp_bridge.cpp
-@_silgen_name("llama_init_model")
-func llama_init_model(
-    _ modelPath: String,
-    _ nThreads: Int32,
-    _ nGpuLayers: Int32,
-    _ contextSize: Int32,
-    _ batchSize: Int32,
-    _ useGpu: Bool,
-    _ verbose: Bool
-) -> Bool
-
-@_silgen_name("llama_generate")
-func llama_generate(
-    _ prompt: String,
-    _ temperature: Float,
-    _ topP: Float,
-    _ topK: Int32,
-    _ maxTokens: Int32,
-    _ repeatPenalty: Float,
-    _ output: UnsafeMutablePointer<CChar>,
-    _ outputSize: Int32,
-    _ tokensGenerated: UnsafeMutablePointer<Int32>
-) -> Bool
-
-@_silgen_name("llama_generate_stream_init")
-func llama_generate_stream_init(
-    _ prompt: String,
-    _ temperature: Float,
-    _ topP: Float,
-    _ topK: Int32,
-    _ maxTokens: Int32,
-    _ repeatPenalty: Float
-)
-
-@_silgen_name("llama_generate_stream_next")
-func llama_generate_stream_next(
-    _ output: UnsafeMutablePointer<CChar>,
-    _ outputSize: Int32
-) -> Bool
-
-@_silgen_name("llama_generate_stream_end")
-func llama_generate_stream_end()
-
-@_silgen_name("llama_get_model_info")
-func llama_get_model_info(
-    _ nParams: UnsafeMutablePointer<Int64>,
-    _ nLayers: UnsafeMutablePointer<Int32>,
-    _ contextSize: UnsafeMutablePointer<Int32>
-)
-
-@_silgen_name("llama_free_model")
-func llama_cpp_bridge_free_model()
-
-@_silgen_name("llama_stop_generation")
-func llama_stop_generation()

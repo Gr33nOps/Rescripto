@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -31,12 +32,13 @@ class DownloadProgress {
 
 /// Manages model catalog state, downloads and local files.
 class ModelManager extends ChangeNotifier {
-  ModelManager({Dio? dio}) : _dio = dio ?? Dio() {
+  ModelManager({Dio? dio}) : _dio = dio ?? Dio(), _ownsDio = dio == null {
     _dio.options.connectTimeout = const Duration(seconds: 20);
     _dio.options.receiveTimeout = const Duration(seconds: 60);
   }
 
   final Dio _dio;
+  final bool _ownsDio;
   final Map<String, CancelToken> _cancelTokens = {};
   final Map<String, DownloadProgress> _progress = {};
   String _activeModelId = '';
@@ -46,10 +48,11 @@ class ModelManager extends ChangeNotifier {
   DownloadProgress? progressFor(String modelId) => _progress[modelId];
 
   bool get hasActiveDownload => _activeModelId.isNotEmpty;
+  String? get activeModelId => _activeModelId.isEmpty ? null : _activeModelId;
 
   Future<bool> isInstalled(AiModel model) async {
     final path = await LocalLlmService.filePathFor(model);
-    return File(path).existsSync();
+    return _verifyFile(File(path), model, verifyHash: false);
   }
 
   Future<Set<String>> installedIds() async {
@@ -61,10 +64,21 @@ class ModelManager extends ChangeNotifier {
   }
 
   Future<void> download(AiModel model) async {
-    if (_activeModelId.isNotEmpty) return;
+    if (_activeModelId.isNotEmpty) {
+      _progress[model.id] = DownloadProgress(
+        modelId: model.id,
+        status: DownloadStatus.failed,
+        error: 'Another model is already downloading.',
+      );
+      notifyListeners();
+      return;
+    }
 
     final path = await LocalLlmService.filePathFor(model);
-    if (File(path).existsSync()) return;
+    final destination = File(path);
+    if (await _verifyFile(destination, model, verifyHash: false)) return;
+    if (await destination.exists()) await destination.delete();
+    final part = File('$path.part');
 
     _activeModelId = model.id;
     final cancelToken = CancelToken();
@@ -77,22 +91,56 @@ class ModelManager extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _dio.download(
+      var offset = await part.exists() ? await part.length() : 0;
+      if (offset > model.sizeBytes) {
+        await part.delete();
+        offset = 0;
+      }
+
+      final response = await _dio.get<ResponseBody>(
         model.downloadUrl,
-        path,
         cancelToken: cancelToken,
-        onReceiveProgress: (received, total) {
-          final totalBytes = total > 0 ? total : received;
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: offset > 0 ? {'Range': 'bytes=$offset-'} : null,
+          validateStatus: (status) => status == 200 || status == 206,
+        ),
+      );
+      if (response.data == null) {
+        throw StateError('The model server returned no data.');
+      }
+
+      final resumed = offset > 0 && response.statusCode == 206;
+      if (!resumed) offset = 0;
+      final sink = part.openWrite(
+        mode: resumed ? FileMode.append : FileMode.write,
+      );
+      var received = offset;
+      try {
+        await for (final chunk in response.data!.stream) {
+          sink.add(chunk);
+          received += chunk.length;
           _progress[model.id] = DownloadProgress(
             modelId: model.id,
             status: DownloadStatus.downloading,
-            fraction: totalBytes > 0 ? received / totalBytes : 0,
+            fraction: (received / model.sizeBytes).clamp(0, 1),
             receivedMb: received / (1024 * 1024),
-            totalMb: totalBytes / (1024 * 1024),
+            totalMb: model.sizeBytes / (1024 * 1024),
           );
           notifyListeners();
-        },
-      );
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+
+      if (!await _verifyFile(part, model, verifyHash: true)) {
+        await _deleteFile(part.path);
+        throw StateError(
+          'Downloaded file failed its size, format, or checksum verification.',
+        );
+      }
+      await part.rename(path);
 
       _progress[model.id] = DownloadProgress(
         modelId: model.id,
@@ -107,7 +155,6 @@ class ModelManager extends ChangeNotifier {
           modelId: model.id,
           status: DownloadStatus.idle,
         );
-        await _deleteFile(path);
       } else {
         _progress[model.id] = DownloadProgress(
           modelId: model.id,
@@ -115,6 +162,12 @@ class ModelManager extends ChangeNotifier {
           error: e.message,
         );
       }
+    } catch (e) {
+      _progress[model.id] = DownloadProgress(
+        modelId: model.id,
+        status: DownloadStatus.failed,
+        error: e.toString(),
+      );
     } finally {
       _cancelTokens.remove(model.id);
       _activeModelId = '';
@@ -132,6 +185,7 @@ class ModelManager extends ChangeNotifier {
   Future<void> deleteModel(AiModel model) async {
     final path = await LocalLlmService.filePathFor(model);
     await _deleteFile(path);
+    await _deleteFile('$path.part');
     _progress.remove(model.id);
     notifyListeners();
   }
@@ -146,5 +200,31 @@ class ModelManager extends ChangeNotifier {
   double _fileSizeMb(String path) {
     final f = File(path);
     return f.existsSync() ? f.lengthSync() / (1024 * 1024) : 0;
+  }
+
+  Future<bool> _verifyFile(
+    File file,
+    AiModel model, {
+    required bool verifyHash,
+  }) async {
+    if (!await file.exists() || await file.length() != model.sizeBytes) {
+      return false;
+    }
+    final magic = await file
+        .openRead(0, 4)
+        .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
+    if (!listEquals(magic, const [0x47, 0x47, 0x55, 0x46])) return false;
+    if (!verifyHash) return true;
+    final digest = await sha256.bind(file.openRead()).first;
+    return digest.toString() == model.sha256;
+  }
+
+  @override
+  void dispose() {
+    for (final token in _cancelTokens.values) {
+      if (!token.isCancelled) token.cancel('Model manager disposed');
+    }
+    if (_ownsDio) _dio.close(force: true);
+    super.dispose();
   }
 }

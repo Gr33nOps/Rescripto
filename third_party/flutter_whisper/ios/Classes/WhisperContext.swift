@@ -16,8 +16,8 @@ class WhisperContext {
         // context = whisper_init_from_file(modelPath)
         // if context == nil { throw WhisperError.initFailed }
         
-        // For now, we'll use a mock implementation
         self.context = nil
+        throw WhisperError.initFailed
     }
     
     struct TranscriptionResult {
@@ -75,17 +75,8 @@ class WhisperContext {
         case invalidState
     }
     
-    // In real implementation, these would call whisper.cpp C API
     func transcribe(audioPath: String) throws -> TranscriptionResult {
-        // Mock implementation for compilation
-        return TranscriptionResult(
-            fullText: "Mock transcription from: \(audioPath)",
-            segments: [
-                Segment(text: "Mock transcription", start: 0.0, end: 5.0, words: nil)
-            ],
-            language: "en",
-            duration: 5.0
-        )
+        throw WhisperError.invalidState
     }
     
     deinit {

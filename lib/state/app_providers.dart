@@ -24,10 +24,22 @@ class AppProviders extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<SettingsService>(create: (_) => settings),
-        Provider<StorageService>(create: (_) => StorageService()),
-        Provider<LocalLlmService>(create: (_) => LocalLlmService()),
-        Provider<SpeechService>(create: (_) => SpeechService()),
-        Provider<ModelManager>(create: (_) => ModelManager()),
+        Provider<StorageService>(
+          create: (_) => StorageService(),
+          dispose: (_, service) => service.close(),
+        ),
+        Provider<LocalLlmService>(
+          create: (_) => LocalLlmService(),
+          dispose: (_, service) => service.dispose(),
+        ),
+        Provider<SpeechService>(
+          create: (_) => SpeechService(),
+          dispose: (_, service) => service.dispose(),
+        ),
+        Provider<ModelManager>(
+          create: (_) => ModelManager(),
+          dispose: (_, manager) => manager.dispose(),
+        ),
         ChangeNotifierProvider<SettingsController>(
           create: (ctx) => SettingsController(ctx.read<SettingsService>()),
         ),
@@ -35,6 +47,7 @@ class AppProviders extends StatelessWidget {
           create: (ctx) => ModelsController(
             manager: ctx.read<ModelManager>(),
             settings: ctx.read<SettingsService>(),
+            llm: ctx.read<LocalLlmService>(),
           ),
         ),
         ChangeNotifierProvider<RewriteController>(
@@ -48,7 +61,10 @@ class AppProviders extends StatelessWidget {
           create: (ctx) => HistoryController(ctx.read<StorageService>()),
         ),
         ChangeNotifierProvider<SpeechController>(
-          create: (ctx) => SpeechController(ctx.read<SpeechService>()),
+          create: (ctx) => SpeechController(
+            ctx.read<SpeechService>(),
+            ctx.read<SettingsService>(),
+          ),
         ),
       ],
       child: child,

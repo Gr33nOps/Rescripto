@@ -35,7 +35,7 @@ class FlutterLlama {
   String? get modelPath => _modelPath;
 
   /// Initialize and load a GGUF model
-  /// 
+  ///
   /// Returns true if successful, false otherwise
   Future<bool> loadModel(LlamaConfig config) async {
     try {
@@ -50,7 +50,7 @@ class FlutterLlama {
 
       _isModelLoaded = result ?? false;
       _isInitialized = _isModelLoaded;
-      
+
       if (_isModelLoaded) {
         _modelPath = config.modelPath;
         if (kDebugMode) {
@@ -75,7 +75,7 @@ class FlutterLlama {
   }
 
   /// Generate text from a prompt
-  /// 
+  ///
   /// Returns [LlamaResponse] with generated text and metadata
   Future<LlamaResponse> generate(GenerationParams params) async {
     if (!_isModelLoaded) {
@@ -97,7 +97,7 @@ class FlutterLlama {
       }
 
       final response = LlamaResponse.fromMap(Map<String, dynamic>.from(result));
-      
+
       if (kDebugMode) {
         print('[FlutterLlama] Generated: $response');
       }
@@ -112,7 +112,7 @@ class FlutterLlama {
   }
 
   /// Generate text as a stream (token by token)
-  /// 
+  ///
   /// Returns Stream of strings (individual tokens)
   Stream<String> generateStream(GenerationParams params) async* {
     if (!_isModelLoaded) {
@@ -124,17 +124,34 @@ class FlutterLlama {
         print('[FlutterLlama] Streaming generation with params: $params');
       }
 
-      // Set up event channel for streaming
-      final eventChannel = EventChannel('flutter_llama/stream');
-      
-      // Send generation request
-      await _channel.invokeMethod('generateStream', params.toMap());
-
-      // Listen to token stream
-      await for (final token in eventChannel.receiveBroadcastStream()) {
-        if (token is String) {
+      const eventChannel = EventChannel('flutter_llama/stream');
+      final tokens = StreamController<String>();
+      final subscription = eventChannel.receiveBroadcastStream().listen(
+        (event) {
+          if (event is String) tokens.add(event);
+        },
+        onError: tokens.addError,
+        onDone: tokens.close,
+      );
+      try {
+        // Let EventChannel finish its onListen handshake before native code
+        // checks for the event sink.
+        await Future<void>.delayed(Duration.zero);
+        final request = _channel
+            .invokeMethod<void>('generateStream', params.toMap())
+            .then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stackTrace) {
+            if (!tokens.isClosed) tokens.addError(error, stackTrace);
+          },
+        );
+        await for (final token in tokens.stream) {
           yield token;
         }
+        await request;
+      } finally {
+        await subscription.cancel();
+        if (!tokens.isClosed) await tokens.close();
       }
     } catch (e) {
       if (kDebugMode) {
@@ -152,10 +169,10 @@ class FlutterLlama {
       }
 
       await _channel.invokeMethod<void>('unloadModel');
-      
+
       _isModelLoaded = false;
       _modelPath = null;
-      
+
       if (kDebugMode) {
         print('[FlutterLlama] Model unloaded successfully');
       }
@@ -177,7 +194,7 @@ class FlutterLlama {
       final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
         'getModelInfo',
       );
-      
+
       return result != null ? Map<String, dynamic>.from(result) : null;
     } catch (e) {
       if (kDebugMode) {
@@ -197,14 +214,14 @@ class FlutterLlama {
       }
     }
   }
-  
+
   /// Load model with automatic download from HuggingFace or Ollama
-  /// 
+  ///
   /// This method will:
   /// 1. Check if model is already downloaded
   /// 2. If not, download it from the specified source
   /// 3. Load the model into memory
-  /// 
+  ///
   /// Returns true if successful, false otherwise
   Future<bool> loadModelWithAutoDownload({
     required String modelId,
@@ -219,7 +236,7 @@ class FlutterLlama {
       if (kDebugMode) {
         print('[FlutterLlama] Loading model with auto-download: $modelId');
       }
-      
+
       // Create model manager
       final manager = ModelManager(
         modelId: modelId,
@@ -227,28 +244,29 @@ class FlutterLlama {
         variant: variant,
         specificFile: specificFile,
       );
-      
+
       // Ensure model is loaded (with auto-download if needed)
       final modelPath = await manager.ensureModelLoaded(
         onProgress: onProgress,
         autoDownload: autoDownload,
       );
-      
+
       if (kDebugMode) {
         print('[FlutterLlama] Model path: $modelPath');
       }
-      
+
       // Create config or use provided one
-      final llamaConfig = config ?? LlamaConfig(
-        modelPath: modelPath,
-        nThreads: 8,
-        nGpuLayers: -1, // Use all GPU layers
-        contextSize: 2048,
-        batchSize: 512,
-        useGpu: true,
-        verbose: false,
-      );
-      
+      final llamaConfig = config ??
+          LlamaConfig(
+            modelPath: modelPath,
+            nThreads: 8,
+            nGpuLayers: -1, // Use all GPU layers
+            contextSize: 2048,
+            batchSize: 512,
+            useGpu: true,
+            verbose: false,
+          );
+
       // Load model into llama.cpp
       return await loadModel(llamaConfig.copyWith(modelPath: modelPath));
     } catch (e) {
@@ -258,9 +276,9 @@ class FlutterLlama {
       return false;
     }
   }
-  
+
   /// Load preset model with automatic download
-  /// 
+  ///
   /// Convenience method for loading predefined models
   Future<bool> loadPresetModel({
     required PresetModel preset,
@@ -277,8 +295,3 @@ class FlutterLlama {
     );
   }
 }
-
-
-
-
-

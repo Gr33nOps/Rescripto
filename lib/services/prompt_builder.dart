@@ -24,7 +24,9 @@ class PromptBuilder {
       ..writeln('Rules you ALWAYS follow:')
       ..writeln('1. Return ONLY the rewritten text. No commentary, no')
       ..writeln('   explanations, no meta text, no "Here is your rewrite".')
-      ..writeln('2. Keep the meaning, facts, names, numbers and details intact.')
+      ..writeln(
+        '2. Keep the meaning, facts, names, numbers and details intact.',
+      )
       ..writeln('3. Never invent facts that are not in the original text.')
       ..writeln('4. If the text is already excellent, a light polish is fine.')
       ..writeln('')
@@ -32,42 +34,55 @@ class PromptBuilder {
 
     final intensity = request.intensity.factor;
     if (intensity <= 0.3) {
-      buffer.writeln('Intensity: LIGHT POLISH. Keep the structure and wording '
-          'mostly intact, fix awkward phrasing, grammar and flow.');
+      buffer.writeln(
+        'Intensity: LIGHT POLISH. Keep the structure and wording '
+        'mostly intact, fix awkward phrasing, grammar and flow.',
+      );
     } else if (intensity <= 0.65) {
-      buffer.writeln('Intensity: MODERATE. Improve sentence structure and word '
-          'choice while keeping the original order of ideas.');
+      buffer.writeln(
+        'Intensity: MODERATE. Improve sentence structure and word '
+        'choice while keeping the original order of ideas.',
+      );
     } else {
-      buffer.writeln('Intensity: FULL REWRITE. Rework the text completely with '
-          'fresh, strong phrasing while preserving the meaning.');
+      buffer.writeln(
+        'Intensity: FULL REWRITE. Rework the text completely with '
+        'fresh, strong phrasing while preserving the meaning.',
+      );
     }
 
     switch (request.length) {
       case RewriteLength.shorter:
-        buffer.writeln('Length: SHORTER. Trim it down substantially. Cut '
-            'redundant words while keeping every key point.');
+        buffer.writeln(
+          'Length: SHORTER. Trim it down substantially. Cut '
+          'redundant words while keeping every key point.',
+        );
         break;
       case RewriteLength.longer:
-        buffer.writeln('Length: LONGER. Expand with relevant detail, smoother '
-            'transitions and fuller sentences, without padding or fluff.');
+        buffer.writeln(
+          'Length: LONGER. Expand with relevant detail, smoother '
+          'transitions and fuller sentences, without padding or fluff.',
+        );
         break;
       case RewriteLength.same:
         buffer.writeln('Length: SAME as the original.');
     }
 
     if (request.audience.isNotEmpty) {
-      buffer.writeln(
-          'Audience: written for ${request.audience.join(', ')}.');
+      buffer.writeln('Audience: written for ${request.audience.join(', ')}.');
     }
     if (request.customInstruction.trim().isNotEmpty) {
-      buffer.writeln('Additional instruction: ${request.customInstruction.trim()}');
+      buffer.writeln(
+        'Additional instruction: ${request.customInstruction.trim()}',
+      );
     }
 
     if (request.variantCount > 1) {
       buffer.writeln('');
-      buffer.writeln('Produce ${request.variantCount} different versions. '
-          'Separate every version with a line containing exactly '
-          '"$variantMarker".');
+      buffer.writeln(
+        'Produce ${request.variantCount} different versions. '
+        'Separate every version with a line containing exactly '
+        '"$variantMarker".',
+      );
     } else {
       buffer.writeln('');
       buffer.writeln('Write a single version.');
@@ -79,10 +94,10 @@ class PromptBuilder {
   static String _wrapChat(String system, String user, String family) {
     switch (family) {
       case 'gemma':
-        return '<bos><start_of_turn>user\n$system\n\n$user<end_of_turn>\n'
+        return '<start_of_turn>user\n$system\n\n$user<end_of_turn>\n'
             '<start_of_turn>model\n';
       case 'llama':
-        return '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n'
+        return '<|start_header_id|>system<|end_header_id|>\n\n'
             '$system<|eot_id|>'
             '<|start_header_id|>user<|end_header_id|>\n\n$user<|eot_id|>'
             '<|start_header_id|>assistant<|end_header_id|>\n\n';
@@ -104,20 +119,21 @@ class PromptBuilder {
     var parts = text.split(variantMarker);
     parts = parts.map(_cleanPart).where((p) => p.isNotEmpty).toList();
 
-    if (parts.isEmpty) {
+    if (parts.isEmpty && text.isNotEmpty) {
       parts = [text.trim()];
     }
-    if (expected != null && expected > 1) {
-      while (parts.length < expected) {
-        parts.add(parts.first);
-      }
+    if (expected != null && expected > 0 && parts.length > expected) {
+      parts = parts.take(expected).toList();
     }
     return parts;
   }
 
   static String _cleanPart(String raw) {
     var text = raw.trim();
-    text = text.replaceAll(RegExp(r'^Variant\s*\d+[\s:]*', caseSensitive: false), '');
+    text = text.replaceAll(
+      RegExp(r'^Variant\s*\d+[\s:]*', caseSensitive: false),
+      '',
+    );
     text = text.replaceAll(RegExp(r'^-\s*', caseSensitive: false), '');
     text = text.trim();
     return text;

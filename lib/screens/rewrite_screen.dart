@@ -36,23 +36,26 @@ class _RewriteScreenState extends State<RewriteScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Image(
-              image: AssetImage('assets/icon/app_icon_foreground.png'),
+              image: const AssetImage('assets/icon/app_icon_foreground.png'),
               height: 26,
               width: 26,
+              color: Theme.of(context).colorScheme.onSurface,
+              colorBlendMode: BlendMode.srcIn,
+              semanticLabel: 'Rescripto logo',
             ),
-            SizedBox(width: 10),
-            Text('Rescripto'),
+            const SizedBox(width: 10),
+            const Text('Rescripto'),
           ],
         ),
         actions: [
           if (controller.isRunning)
             IconButton(
               tooltip: 'Stop',
-              onPressed: () => controller.stop(),
+              onPressed: controller.isCancelling ? null : controller.stop,
               icon: const Icon(Icons.stop_circle_outlined),
             ),
         ],
@@ -89,7 +92,10 @@ class _RewriteScreenState extends State<RewriteScreen> {
               onToggle: controller.toggleAudience,
             ),
             const SizedBox(height: 20),
-            Text('Extra instructions (optional)', style: _sectionStyle(context)),
+            Text(
+              'Extra instructions (optional)',
+              style: _sectionStyle(context),
+            ),
             const SizedBox(height: 8),
             _InstructionInput(
               value: controller.customInstruction,
@@ -111,12 +117,16 @@ class _RewriteScreenState extends State<RewriteScreen> {
             const SizedBox(height: 24),
             _RewriteButton(
               running: controller.isRunning,
+              cancelling: controller.isCancelling,
               onRewrite: () => _rewrite(controller),
               onStop: controller.stop,
             ),
             const SizedBox(height: 16),
             if (controller.isRunning)
-              _StreamingPanel(text: controller.streamingText),
+              _StreamingPanel(
+                text: controller.streamingText,
+                cancelling: controller.isCancelling,
+              ),
             if (controller.lastResult != null) ...[
               const SizedBox(height: 8),
               ResultView(result: controller.lastResult!),
@@ -135,14 +145,16 @@ class _RewriteScreenState extends State<RewriteScreen> {
 
   TextStyle _sectionStyle(BuildContext context) {
     return Theme.of(context).textTheme.labelLarge!.copyWith(
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.onSurface,
-        );
+      fontWeight: FontWeight.w700,
+      color: Theme.of(context).colorScheme.onSurface,
+    );
   }
 
   void _applyTranscript(RewriteController controller, String transcript) {
     final current = controller.sourceText.trim();
-    controller.setSource(current.isEmpty ? transcript : '$current\n$transcript');
+    controller.setSource(
+      current.isEmpty ? transcript : '$current\n$transcript',
+    );
   }
 
   Future<void> _rewrite(RewriteController controller) async {
@@ -154,9 +166,9 @@ class _RewriteScreenState extends State<RewriteScreen> {
       if (e.isModelMissing) {
         widget.onGoToModels();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -203,6 +215,7 @@ class _SourceInputState extends State<_SourceInput> {
       maxLength: 8000,
       textInputAction: TextInputAction.newline,
       decoration: InputDecoration(
+        labelText: 'Text to rewrite',
         hintText: 'Type or paste your rough text here…',
         alignLabelWithHint: true,
         suffixIcon: Row(
@@ -245,8 +258,9 @@ class _InstructionInput extends StatefulWidget {
 }
 
 class _InstructionInputState extends State<_InstructionInput> {
-  late final TextEditingController _text =
-      TextEditingController(text: widget.value);
+  late final TextEditingController _text = TextEditingController(
+    text: widget.value,
+  );
 
   @override
   void dispose() {
@@ -266,6 +280,7 @@ class _InstructionInputState extends State<_InstructionInput> {
       controller: _text,
       onChanged: widget.onChanged,
       decoration: const InputDecoration(
+        labelText: 'Extra instructions',
         hintText: 'e.g. Make it sound more optimistic',
         prefixIcon: Icon(Icons.edit_note_outlined),
       ),
@@ -299,11 +314,13 @@ class _AudienceSelector extends StatelessWidget {
 class _RewriteButton extends StatelessWidget {
   const _RewriteButton({
     required this.running,
+    required this.cancelling,
     required this.onRewrite,
     required this.onStop,
   });
 
   final bool running;
+  final bool cancelling;
   final VoidCallback onRewrite;
   final VoidCallback onStop;
 
@@ -312,7 +329,7 @@ class _RewriteButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(
-        onPressed: running ? onStop : onRewrite,
+        onPressed: cancelling ? null : (running ? onStop : onRewrite),
         icon: running
             ? const SizedBox(
                 width: 18,
@@ -320,16 +337,19 @@ class _RewriteButton extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.auto_fix_high),
-        label: Text(running ? 'Rewriting…' : 'Rewrite'),
+        label: Text(
+          cancelling ? 'Stopping…' : (running ? 'Stop rewrite' : 'Rewrite'),
+        ),
       ),
     );
   }
 }
 
 class _StreamingPanel extends StatelessWidget {
-  const _StreamingPanel({required this.text});
+  const _StreamingPanel({required this.text, required this.cancelling});
 
   final String text;
+  final bool cancelling;
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +369,9 @@ class _StreamingPanel extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Rewriting on your device…',
+                  cancelling
+                      ? 'Stopping the current rewrite…'
+                      : 'Rewriting on your device…',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ],
@@ -361,9 +383,9 @@ class _StreamingPanel extends StatelessWidget {
                 maxLines: 6,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
-                    ),
+                  color: scheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
           ],
@@ -391,8 +413,10 @@ class _ModelMissingBanner extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Icon(Icons.download_done_outlined,
-                  color: scheme.onPrimaryContainer),
+              Icon(
+                Icons.download_done_outlined,
+                color: scheme.onPrimaryContainer,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

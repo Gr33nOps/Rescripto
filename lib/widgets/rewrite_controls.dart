@@ -23,24 +23,32 @@ class RewriteControls extends StatelessWidget {
       children: [
         _SectionLabel(label: 'Intensity'),
         const SizedBox(height: 6),
-        SegmentedButton<RewriteIntensity>(
-          segments: RewriteIntensity.values
-              .map((v) => ButtonSegment(value: v, label: Text(v.label)))
-              .toList(),
-          selected: {intensity},
-          onSelectionChanged: (s) => onIntensityChanged(s.first),
-          showSelectedIcon: false,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in RewriteIntensity.values)
+              ChoiceChip(
+                label: Text(value.label),
+                selected: intensity == value,
+                onSelected: (_) => onIntensityChanged(value),
+              ),
+          ],
         ),
         const SizedBox(height: 18),
         _SectionLabel(label: 'Length'),
         const SizedBox(height: 6),
-        SegmentedButton<RewriteLength>(
-          segments: RewriteLength.values
-              .map((v) => ButtonSegment(value: v, label: Text(v.label)))
-              .toList(),
-          selected: {length},
-          onSelectionChanged: (s) => onLengthChanged(s.first),
-          showSelectedIcon: false,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in RewriteLength.values)
+              ChoiceChip(
+                label: Text(value.label),
+                selected: length == value,
+                onSelected: (_) => onLengthChanged(value),
+              ),
+          ],
         ),
       ],
     );
@@ -58,9 +66,9 @@ class _SectionLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -44,7 +44,7 @@ class HistoryDetailScreen extends StatelessWidget {
               children: [
                 Chip(avatar: Icon(tone.icon, size: 16), label: Text(tone.name)),
                 if (entry.intensityLabel != null)
-                  Chip(label: Text('${entry.intensityLabel} polish')),
+                  Chip(label: Text(entry.intensityLabel!)),
                 if (entry.lengthLabel != null)
                   Chip(label: Text('Length: ${entry.lengthLabel}')),
                 Chip(
@@ -95,7 +95,9 @@ class HistoryDetailScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: highlighted ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+        color: highlighted
+            ? scheme.primaryContainer
+            : scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -107,9 +109,9 @@ class HistoryDetailScreen extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -126,8 +128,8 @@ class HistoryDetailScreen extends StatelessWidget {
   Future<void> _copy(BuildContext context, String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copied to clipboard')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
   }
 }

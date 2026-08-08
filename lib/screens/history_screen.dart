@@ -30,20 +30,35 @@ class HistoryScreen extends StatelessWidget {
       body: SafeArea(
         child: controller.loading
             ? const Center(child: CircularProgressIndicator())
+            : controller.isEmpty && controller.error != null
+            ? _HistoryError(
+                message: controller.error!,
+                onRetry: controller.refresh,
+              )
             : controller.isEmpty
-                ? _EmptyHistory()
-                : RefreshIndicator(
-                    onRefresh: controller.refresh,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      itemCount: controller.entries.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final entry = controller.entries[index];
-                        return _HistoryCard(entry: entry);
-                      },
-                    ),
-                  ),
+            ? _EmptyHistory()
+            : RefreshIndicator(
+                onRefresh: controller.refresh,
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  itemCount:
+                      controller.entries.length +
+                      (controller.error == null ? 0 : 1),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    if (controller.error != null && index == 0) {
+                      return _HistoryErrorCard(
+                        message: controller.error!,
+                        onRetry: controller.refresh,
+                      );
+                    }
+                    final entryIndex =
+                        index - (controller.error == null ? 0 : 1);
+                    final entry = controller.entries[entryIndex];
+                    return _HistoryCard(entry: entry);
+                  },
+                ),
+              ),
       ),
     );
   }
@@ -54,7 +69,8 @@ class HistoryScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Clear all history?'),
         content: const Text(
-            'This deletes every saved rewrite from this device. This cannot be undone.'),
+          'This deletes every saved rewrite from this device. This cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -88,9 +104,7 @@ class _HistoryCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => HistoryDetailScreen(entry: entry),
-          ),
+          MaterialPageRoute(builder: (_) => HistoryDetailScreen(entry: entry)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -99,23 +113,35 @@ class _HistoryCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(tone.icon, size: 18, color: scheme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    tone.name,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.primary,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(tone.icon, size: 18, color: scheme.primary),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                tone.name,
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: scheme.primary,
+                                    ),
+                              ),
+                            ),
+                          ],
                         ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    date,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
+                        const SizedBox(height: 2),
+                        Text(
+                          date,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
                         ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
                   IconButton(
                     tooltip: 'Delete',
                     onPressed: () =>
@@ -154,20 +180,88 @@ class _EmptyHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.history, size: 64, color: scheme.outlineVariant),
-          const SizedBox(height: 16),
-          Text('No rewrites yet', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            'Your rewrites are saved here, only on this device.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.history, size: 64, color: scheme.outlineVariant),
+            const SizedBox(height: 16),
+            Text(
+              'No rewrites yet',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Your rewrites are saved here, only on this device.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryError extends StatelessWidget {
+  const _HistoryError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+              onPressed: onRetry,
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryErrorCard extends StatelessWidget {
+  const _HistoryErrorCard({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.errorContainer,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: scheme.onErrorContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(color: scheme.onErrorContainer),
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
       ),
     );
   }

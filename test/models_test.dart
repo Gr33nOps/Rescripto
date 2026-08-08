@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rescripto/models/ai_model.dart';
+import 'package:rescripto/models/history_entry.dart';
 import 'package:rescripto/models/rewrite_output.dart';
 import 'package:rescripto/models/rewrite_request.dart';
 import 'package:rescripto/models/tone_preset.dart';
@@ -23,13 +24,32 @@ void main() {
       for (final model in ModelCatalog.models) {
         expect(model.downloadUrl, startsWith('https://huggingface.co/'));
         expect(model.sizeMb, greaterThan(0));
+        expect(model.sizeBytes, greaterThan(0));
+        expect(model.sha256, matches(RegExp(r'^[0-9a-f]{64}$')));
         expect(model.contextSize, greaterThan(0));
       }
     });
 
     test('default model exists in the catalog', () {
-      expect(ModelCatalog.byId(ModelCatalog.defaultModel.id).id,
-          ModelCatalog.defaultModel.id);
+      expect(
+        ModelCatalog.byId(ModelCatalog.defaultModel.id).id,
+        ModelCatalog.defaultModel.id,
+      );
+    });
+  });
+
+  group('HistoryEntry', () {
+    test('can omit its id for SQLite AUTOINCREMENT inserts', () {
+      final entry = HistoryEntry(
+        id: 0,
+        original: 'rough',
+        rewritten: 'polished',
+        toneId: 'professional',
+        createdAt: DateTime.utc(2026),
+      );
+
+      expect(entry.toMap(), containsPair('id', 0));
+      expect(entry.toMap(includeId: false), isNot(contains('id')));
     });
   });
 

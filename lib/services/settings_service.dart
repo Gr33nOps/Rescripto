@@ -20,7 +20,8 @@ class SettingsService {
   }
 
   String get selectedModelId =>
-      _p.getString(AppConstants.keySelectedModel) ?? ModelCatalog.defaultModel.id;
+      _p.getString(AppConstants.keySelectedModel) ??
+      ModelCatalog.defaultModel.id;
 
   Future<void> setSelectedModelId(String id) async {
     await _p.setString(AppConstants.keySelectedModel, id);
@@ -32,7 +33,11 @@ class SettingsService {
     await _p.setString(AppConstants.keyThemeMode, mode);
   }
 
-  int get threads => _p.getInt(AppConstants.keyThreadCount) ?? AppConstants.defaultThreads;
+  int get threads {
+    final value =
+        _p.getInt(AppConstants.keyThreadCount) ?? AppConstants.defaultThreads;
+    return value.clamp(1, 8);
+  }
 
   Future<void> setThreads(int value) async {
     await _p.setInt(AppConstants.keyThreadCount, value);
@@ -44,19 +49,19 @@ class SettingsService {
     await _p.setBool(AppConstants.keyUseGpu, value);
   }
 
-  int get contextSize => _p.getInt(AppConstants.keyContextSize) ?? AppConstants.defaultContextSize;
+  int get contextSize {
+    final value =
+        _p.getInt(AppConstants.keyContextSize) ??
+        AppConstants.defaultContextSize;
+    return value.clamp(2048, 8192);
+  }
 
   Future<void> setContextSize(int value) async {
     await _p.setInt(AppConstants.keyContextSize, value);
   }
 
-  bool get isOnboarded => _p.getBool(AppConstants.keyOnboarded) ?? false;
-
-  Future<void> setOnboarded(bool value) async {
-    await _p.setBool(AppConstants.keyOnboarded, value);
-  }
-
-  String get whisperModel => _p.getString(AppConstants.keyWhisperModel) ?? 'small';
+  String get whisperModel =>
+      _p.getString(AppConstants.keyWhisperModel) ?? 'small';
 
   Future<void> setWhisperModel(String value) async {
     await _p.setString(AppConstants.keyWhisperModel, value);

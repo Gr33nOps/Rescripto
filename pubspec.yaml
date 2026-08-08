@@ -1,5 +1,5 @@
 name: rescripto
-description: "Rescripto - Completely free, fully offline & local AI text rewrite app. 100% on-device, zero data leaves the phone."
+description: "Rescripto - private on-device AI rewriting with locally stored content and downloadable models."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,8 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  cupertino_icons: ^1.0.8
 
   # On-device LLM inference (llama.cpp). GGUF models, Metal/Vulkan GPU acceleration.
   # Vendored because the published package expects llama.cpp checked out at a
@@ -25,8 +23,6 @@ dependencies:
   flutter_whisper:
     path: third_party/flutter_whisper
 
-  # Audio recording used for voice input / dictation.
-  record: ^7.1.1
   # Pinned to v12: v13's android package requires compileSdk 37, which the
   # Android SDK exposes only as the android-37.0 preview platform.
   permission_handler: ^12.0.1
@@ -39,6 +35,7 @@ dependencies:
 
   # Model download manager (HuggingFace GGUF files).
   dio: ^5.11.0
+  crypto: ^3.0.7
 
   # State management.
   provider: ^6.1.5+1

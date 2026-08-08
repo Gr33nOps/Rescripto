@@ -22,7 +22,6 @@ class WhisperContext(
     private var handle: Long = 0
 
     init {
-        System.loadLibrary("ggml-cpu")
         System.loadLibrary("whisper")
         handle = nativeInit(modelPath)
         if (handle == 0L) {
@@ -38,7 +37,16 @@ class WhisperContext(
     }
 
     private external fun nativeInit(modelPath: String): Long
-    private external fun nativeTranscribe(handle: Long, audioPath: String, language: String): String
+    private external fun nativeTranscribe(
+        handle: Long,
+        audioPath: String,
+        language: String,
+        threads: Int,
+        translate: Boolean,
+        temperature: Float,
+        suppressBlank: Boolean,
+        wordTimestamps: Boolean
+    ): String
     private external fun nativeCancel(handle: Long)
     private external fun nativeFree(handle: Long)
 
@@ -47,8 +55,25 @@ class WhisperContext(
      *
      * @throws CancellationException if [cancel] was called mid-transcription.
      */
-    fun transcribe(audioPath: String, language: String = ""): TranscriptionResult {
-        val json = nativeTranscribe(handle, audioPath, language)
+    fun transcribe(
+        audioPath: String,
+        language: String = "",
+        threads: Int = 0,
+        translate: Boolean = false,
+        temperature: Float = 0.0f,
+        suppressBlank: Boolean = true,
+        wordTimestamps: Boolean = false
+    ): TranscriptionResult {
+        val json = nativeTranscribe(
+            handle,
+            audioPath,
+            language,
+            threads,
+            translate,
+            temperature,
+            suppressBlank,
+            wordTimestamps
+        )
         val obj = JSONObject(json)
         val err = obj.optString("error")
         if (err.isNotEmpty()) {

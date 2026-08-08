@@ -58,12 +58,24 @@ class MethodChannelWhisperEngine implements WhisperEngine {
     void Function(int)? onProgress,
   }) async {
     _onTranscribeProgress = onProgress;
-    final result = await _channel.invokeMethod('transcribeFile', {
-      'audioPath': audioPath,
-      'options': options?.toMap(),
-    });
-    _onTranscribeProgress = null;
-    return TranscriptionResult.fromMap(Map<String, dynamic>.from(result));
+    try {
+      final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'transcribeFile',
+        {
+          'audioPath': audioPath,
+          'options': options?.toMap(),
+        },
+      );
+      if (result == null) {
+        throw WhisperError(
+          'Native transcription returned no result.',
+          WhisperErrorCode.transcriptionFailed,
+        );
+      }
+      return TranscriptionResult.fromMap(Map<String, dynamic>.from(result));
+    } finally {
+      _onTranscribeProgress = null;
+    }
   }
 
   @override
@@ -73,7 +85,14 @@ class MethodChannelWhisperEngine implements WhisperEngine {
 
   @override
   Future<String> stopRecording() async {
-    return _channel.invokeMethod('stopRecording') as String;
+    final path = await _channel.invokeMethod<String>('stopRecording');
+    if (path == null || path.isEmpty) {
+      throw WhisperError(
+        'Native recorder returned no audio file.',
+        WhisperErrorCode.transcriptionFailed,
+      );
+    }
+    return path;
   }
 
   @override

@@ -15,8 +15,6 @@ import Flutter
         eventChannel.setStreamHandler(instance)
     }
 
-    private var whisperContext: WhisperContext?
-
     @objc public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "initialize":
@@ -25,6 +23,12 @@ import Flutter
             transcribeFile(call: call, result: result)
         case "transcribePcm":
             transcribePcm(call: call, result: result)
+        case "startRecording", "stopRecording":
+            result(FlutterError(
+                code: "UNSUPPORTED_PLATFORM",
+                message: "Microphone transcription is currently supported on Android only.",
+                details: nil
+            ))
         case "cancel":
             cancel(result: result)
         case "dispose":
@@ -128,7 +132,9 @@ import Flutter
         let bundle = Bundle.main
         
         guard let resourcePath = bundle.path(forResource: "models", ofType: nil) else { return }
-        let sourcePath = resourcePath.appendingPathComponent(URL(fileURLWithPath: modelPath).lastPathComponent)
+        let sourcePath = resourcePath.appendingPathComponent(
+            URL(fileURLWithPath: destinationPath).lastPathComponent
+        )
         
         if fileManager.fileExists(atPath: sourcePath) {
             try? fileManager.copyItem(atPath: sourcePath, toPath: destinationPath)

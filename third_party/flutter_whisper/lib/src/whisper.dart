@@ -50,12 +50,19 @@ class Whisper {
     @visibleForTesting String? downloadDirectory,
   }) async {
     if (_isInitialized && _loadedModel == model) return;
+    if (_isInitialized) {
+      await _engine?.dispose();
+      _engine = null;
+      _isInitialized = false;
+      _loadedModel = null;
+    }
 
     _lastModel = model;
     _lastOptions = options;
     _lastConfig = downloadConfig;
     _lastOnProgress = onProgress;
-    _downloadDir ??= (await getApplicationSupportDirectory()).path;
+    _downloadDir ??=
+        downloadDirectory ?? (await getApplicationSupportDirectory()).path;
 
     // Get model file path (downloads if not cached, resumes if partial).
     final modelPath = await _ensureModel(
@@ -170,6 +177,7 @@ class Whisper {
           config: config, onProgress: onProgress);
     } finally {
       if (identical(_downloader, downloader)) _downloader = null;
+      downloader.close();
     }
   }
 }

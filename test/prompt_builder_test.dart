@@ -28,7 +28,7 @@ void main() {
 
     test('wraps with gemma template for gemma family', () {
       final prompt = PromptBuilder.build(base, modelFamily: 'gemma');
-      expect(prompt, startsWith('<bos><start_of_turn>user\n'));
+      expect(prompt, startsWith('<start_of_turn>user\n'));
       expect(prompt, endsWith('<start_of_turn>model\n'));
     });
 
@@ -80,19 +80,20 @@ void main() {
 
     test('strips "Variant 2:" style prefixes', () {
       final parts = PromptBuilder.parseVariants(
-          '${PromptBuilder.variantMarker}Variant 2: Second one');
+        '${PromptBuilder.variantMarker}Variant 2: Second one',
+      );
       expect(parts, ['Second one']);
     });
 
-    test('pads when model returned fewer variants than requested', () {
+    test('does not fabricate missing variants', () {
       final raw = 'Only one\n${PromptBuilder.variantMarker}\nOnly one';
       final parts = PromptBuilder.parseVariants(raw, expected: 3);
-      expect(parts.length, 3);
+      expect(parts.length, 2);
     });
 
-    test('returns raw text when empty after cleaning', () {
+    test('returns no variant for empty model output', () {
       final parts = PromptBuilder.parseVariants('');
-      expect(parts, isNotEmpty);
+      expect(parts, isEmpty);
     });
   });
 }

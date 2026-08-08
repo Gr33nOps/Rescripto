@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary          = 'On-device speech-to-text using whisper.cpp'
   s.description      = <<-DESC
 On-device speech-to-text transcription using whisper.cpp.
-Automatic model download, streaming results, iOS/Android support.
+Automatic model download and local transcription. Android is currently supported.
                        DESC
   s.homepage         = 'https://github.com/govindtank/flutter_whisper'
   s.license          = { :file => '../LICENSE' }

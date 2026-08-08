@@ -218,9 +218,6 @@ class ToneLibrary {
   ];
 
   static TonePreset byId(String id) {
-    return all.firstWhere(
-      (t) => t.id == id,
-      orElse: () => all.first,
-    );
+    return all.firstWhere((t) => t.id == id, orElse: () => all.first);
   }
 }

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter_llama/flutter_llama.dart';
 import 'package:path/path.dart' as p;
@@ -14,6 +16,7 @@ import '../models/rewrite_output.dart';
 /// Handles model loading, generation and unloading. All inference is on-device.
 class LocalLlmService {
   final FlutterLlama _llama = FlutterLlama.instance;
+  ({String path, int threads, int contextSize, bool useGpu})? _loadedConfig;
 
   bool get isModelLoaded => _llama.isModelLoaded;
 
@@ -46,7 +49,13 @@ class LocalLlmService {
     if (!File(path).existsSync()) {
       throw StateError('Model file not found: $path');
     }
-    if (isModelLoaded && loadedModelPath == path) return;
+    final requested = (
+      path: path,
+      threads: threads,
+      contextSize: contextSize,
+      useGpu: useGpu,
+    );
+    if (isModelLoaded && _loadedConfig == requested) return;
 
     if (isModelLoaded) {
       await unloadModel();
@@ -66,6 +75,7 @@ class LocalLlmService {
     if (!ok) {
       throw StateError('Failed to load model "${model.name}".');
     }
+    _loadedConfig = requested;
   }
 
   /// Unloads the current model and frees memory.
@@ -73,6 +83,7 @@ class LocalLlmService {
     if (isModelLoaded) {
       await _llama.unloadModel();
     }
+    _loadedConfig = null;
   }
 
   /// Generates a single rewrite output.
@@ -80,25 +91,46 @@ class LocalLlmService {
     String prompt, {
     double temperature = 0.5,
     int maxTokens = AppConstants.defaultMaxTokens,
-    int? contextSize,
     void Function(String partial)? onToken,
   }) async {
+    final activeContext = _loadedConfig?.contextSize;
+    if (activeContext == null) {
+      throw StateError('Model configuration is unavailable. Reload the model.');
+    }
+    final estimatedPromptTokens = (utf8.encode(prompt).length / 3).ceil();
+    final availableOutputTokens = activeContext - estimatedPromptTokens;
+    if (availableOutputTokens < 64) {
+      throw StateError(
+        'The input is too long for the $activeContext-token context. '
+        'Shorten it or increase Context size in Settings.',
+      );
+    }
+    final boundedMaxTokens = math.min(maxTokens, availableOutputTokens);
     final params = GenerationParams(
       prompt: prompt,
       temperature: temperature,
       topP: 0.95,
       topK: 40,
-      maxTokens: maxTokens,
+      maxTokens: boundedMaxTokens,
       repeatPenalty: 1.1,
       stopSequences: const ['<|eot_id|>', '<|end_of_turn|>', '<|im_end|>'],
     );
 
-    final response = await _llama.generate(params);
-    onToken?.call(response.text);
+    final stopwatch = Stopwatch()..start();
+    final buffer = StringBuffer();
+    await for (final token in _llama.generateStream(params)) {
+      buffer.write(token);
+      final partial = _trimStopSequence(
+        buffer.toString(),
+        params.stopSequences,
+      );
+      onToken?.call(partial);
+    }
+    stopwatch.stop();
+    final text = _trimStopSequence(buffer.toString(), params.stopSequences);
     return RewriteOutput(
-      text: response.text,
-      tokensGenerated: response.tokensGenerated,
-      generationTimeMs: response.generationTimeMs,
+      text: text,
+      generationTimeMs: stopwatch.elapsedMilliseconds,
     );
   }
 
@@ -106,4 +138,15 @@ class LocalLlmService {
   Future<void> stopGeneration() async {
     await _llama.stopGeneration();
   }
+
+  String _trimStopSequence(String text, List<String> stopSequences) {
+    var end = text.length;
+    for (final sequence in stopSequences) {
+      final index = text.indexOf(sequence);
+      if (index >= 0 && index < end) end = index;
+    }
+    return text.substring(0, end);
+  }
+
+  Future<void> dispose() => unloadModel();
 }

@@ -16,10 +16,10 @@ class SettingsController extends ChangeNotifier {
   String get whisperModel => _service.whisperModel;
 
   ThemeMode get themeModeValue => switch (_service.themeMode) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
-      };
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 
   Future<void> setSelectedModelId(String id) async {
     await _service.setSelectedModelId(id);

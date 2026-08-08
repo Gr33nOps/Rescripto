@@ -10,8 +10,6 @@
 	<string>Rescripto</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Rescripto uses the microphone only for on-device voice dictation. Audio never leaves your device.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Rescripto does not use the network for processing. Network is used only to download on-device AI models once.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

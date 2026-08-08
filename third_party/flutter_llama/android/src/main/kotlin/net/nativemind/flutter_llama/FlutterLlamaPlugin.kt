@@ -27,8 +27,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
         private const val CHANNEL_NAME = "flutter_llama"
         private const val EVENT_CHANNEL_NAME = "flutter_llama/stream"
 
-        init {
-            try {
+        private val NATIVE_LIBRARIES_LOADED: Boolean = try {
                 // Load llama.cpp libraries in correct order
                 System.loadLibrary("c++_shared")
                 System.loadLibrary("ggml")
@@ -37,9 +36,10 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                 System.loadLibrary("llama")
                 System.loadLibrary("flutter_llama_bridge")
                 Log.d(TAG, "Native libraries loaded successfully")
+                true
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "Failed to load native libraries: ${e.message}")
-            }
+                false
         }
     }
 
@@ -51,7 +51,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
     
     private var modelLoaded = false
     private var modelPath: String? = null
-    private var shouldStop = false
+    @Volatile private var shouldStop = false
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
@@ -78,6 +78,14 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
+        eventSink = null
+        shouldStop = true
+        if (NATIVE_LIBRARIES_LOADED) nativeStopGeneration()
+        executor.execute {
+            if (modelLoaded && NATIVE_LIBRARIES_LOADED) nativeFreeModel()
+            modelLoaded = false
+            modelPath = null
+        }
         executor.shutdown()
     }
 
@@ -90,11 +98,16 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
     override fun onCancel(arguments: Any?) {
         eventSink = null
         shouldStop = true
+        if (NATIVE_LIBRARIES_LOADED) nativeStopGeneration()
     }
 
     // MARK: - Load Model
 
     private fun loadModel(call: MethodCall, result: Result) {
+        if (!NATIVE_LIBRARIES_LOADED) {
+            result.error("NATIVE_UNAVAILABLE", "llama native libraries are unavailable on this device ABI", null)
+            return
+        }
         executor.execute {
             try {
                 val modelPath = call.argument<String>("modelPath")
@@ -177,6 +190,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                 val topK = call.argument<Int>("topK") ?: 40
                 val maxTokens = call.argument<Int>("maxTokens") ?: 512
                 val repeatPenalty = call.argument<Double>("repeatPenalty")?.toFloat() ?: 1.1f
+                val stopSequences = call.argument<List<String>>("stopSequences") ?: emptyList()
 
                 shouldStop = false
                 val startTime = System.currentTimeMillis()
@@ -195,8 +209,9 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
 
                 mainHandler.post {
                     if (generationResult != null) {
+                        val responseText = trimAtStop(generationResult.text, stopSequences)
                         val response = hashMapOf(
-                            "text" to generationResult.text,
+                            "text" to responseText,
                             "tokensGenerated" to generationResult.tokensGenerated,
                             "generationTimeMs" to generationTime
                         )
@@ -244,22 +259,51 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                 val topK = call.argument<Int>("topK") ?: 40
                 val maxTokens = call.argument<Int>("maxTokens") ?: 512
                 val repeatPenalty = call.argument<Double>("repeatPenalty")?.toFloat() ?: 1.1f
+                val stopSequences = call.argument<List<String>>("stopSequences") ?: emptyList()
 
                 shouldStop = false
 
                 // Initialize streaming generation
-                nativeGenerateStreamInit(prompt, temperature, topP, topK, maxTokens, repeatPenalty)
+                val initialized = nativeGenerateStreamInit(
+                    prompt, temperature, topP, topK, maxTokens, repeatPenalty
+                )
+                if (!initialized) {
+                    mainHandler.post {
+                        sink.error("GENERATION_FAILED", "Prompt exceeds context or stream initialization failed", null)
+                        result.error("GENERATION_FAILED", "Stream initialization failed", null)
+                    }
+                    return@execute
+                }
 
                 // Stream tokens one by one
+                val pending = StringBuilder()
+                val tailLength = (stopSequences.maxOfOrNull { it.length } ?: 0).coerceAtLeast(1) - 1
+                var stoppedAtSequence = false
                 while (!shouldStop) {
                     val token = nativeGenerateStreamNext()
                     if (token != null) {
-                        mainHandler.post {
-                            sink.success(token)
+                        pending.append(token)
+                        val stopIndex = firstStopIndex(pending, stopSequences)
+                        if (stopIndex >= 0) {
+                            val safe = pending.substring(0, stopIndex)
+                            if (safe.isNotEmpty()) mainHandler.post { sink.success(safe) }
+                            stoppedAtSequence = true
+                            nativeStopGeneration()
+                            break
+                        }
+                        val safeLength = pending.length - tailLength
+                        if (safeLength > 0) {
+                            val safe = pending.substring(0, safeLength)
+                            pending.delete(0, safeLength)
+                            mainHandler.post { sink.success(safe) }
                         }
                     } else {
                         break
                     }
+                }
+                if (!stoppedAtSequence && pending.isNotEmpty()) {
+                    val safe = pending.toString()
+                    mainHandler.post { sink.success(safe) }
                 }
 
                 nativeGenerateStreamEnd()
@@ -281,13 +325,15 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
     // MARK: - Unload Model
 
     private fun unloadModel(result: Result) {
-        if (modelLoaded) {
-            nativeFreeModel()
+        shouldStop = true
+        if (NATIVE_LIBRARIES_LOADED) nativeStopGeneration()
+        executor.execute {
+            if (modelLoaded && NATIVE_LIBRARIES_LOADED) nativeFreeModel()
             modelLoaded = false
             modelPath = null
             Log.d(TAG, "Model unloaded")
+            mainHandler.post { result.success(null) }
         }
-        result.success(null)
     }
 
     // MARK: - Get Model Info
@@ -321,8 +367,23 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
 
     private fun stopGeneration(result: Result) {
         shouldStop = true
-        nativeStopGeneration()
+        if (NATIVE_LIBRARIES_LOADED) nativeStopGeneration()
         result.success(null)
+    }
+
+    private fun trimAtStop(text: String, stopSequences: List<String>): String {
+        val index = firstStopIndex(StringBuilder(text), stopSequences)
+        return if (index >= 0) text.substring(0, index) else text
+    }
+
+    private fun firstStopIndex(text: CharSequence, stopSequences: List<String>): Int {
+        var first = -1
+        for (sequence in stopSequences) {
+            if (sequence.isEmpty()) continue
+            val index = text.indexOf(sequence)
+            if (index >= 0 && (first < 0 || index < first)) first = index
+        }
+        return first
     }
 
     // MARK: - Native Methods (JNI)
@@ -353,7 +414,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
         topK: Int,
         maxTokens: Int,
         repeatPenalty: Float
-    )
+    ): Boolean
 
     private external fun nativeGenerateStreamNext(): String?
 
@@ -377,4 +438,3 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
         val contextSize: Int
     )
 }
-

@@ -2,23 +2,44 @@ import 'package:flutter/material.dart';
 
 /// App-wide theming (Material 3, light + dark, strictly black & white).
 abstract final class AppTheme {
-  static ThemeData light() => _base(Brightness.light, _scheme(Brightness.light));
+  static ThemeData light() =>
+      _base(Brightness.light, _scheme(Brightness.light));
 
   static ThemeData dark() => _base(Brightness.dark, _scheme(Brightness.dark));
 
   static ColorScheme _scheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final Color bg = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-    final Color surface = isDark ? const Color(0xFF111111) : const Color(0xFFFFFFFF);
-    final Color surfaceHigh = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF1F1F1);
-    final Color ink = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
-    final Color paper = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-    final Color accent = isDark ? const Color(0xFFE0E0E0) : const Color(0xFF262626);
-    final Color accentPaper = isDark ? const Color(0xFF111111) : const Color(0xFFFFFFFF);
-    final Color muted = isDark ? const Color(0xFF9E9E9E) : const Color(0xFF616161);
-    final Color container = isDark ? const Color(0xFF262626) : const Color(0xFFE8E8E8);
-    final Color outline = isDark ? const Color(0xFF3D3D3D) : const Color(0xFFCFCFCF);
-    final Color outlineVariant = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE2E2E2);
+    final Color surface = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFFFFFFF);
+    final Color surfaceHigh = isDark
+        ? const Color(0xFF1E1E1E)
+        : const Color(0xFFF1F1F1);
+    final Color ink = isDark
+        ? const Color(0xFFFFFFFF)
+        : const Color(0xFF000000);
+    final Color paper = isDark
+        ? const Color(0xFF000000)
+        : const Color(0xFFFFFFFF);
+    final Color accent = isDark
+        ? const Color(0xFFE0E0E0)
+        : const Color(0xFF262626);
+    final Color accentPaper = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFFFFFFF);
+    final Color muted = isDark
+        ? const Color(0xFF9E9E9E)
+        : const Color(0xFF616161);
+    final Color container = isDark
+        ? const Color(0xFF262626)
+        : const Color(0xFFE8E8E8);
+    final Color outline = isDark
+        ? const Color(0xFF3D3D3D)
+        : const Color(0xFFCFCFCF);
+    final Color outlineVariant = isDark
+        ? const Color(0xFF2C2C2C)
+        : const Color(0xFFE2E2E2);
 
     return ColorScheme.fromSeed(
       seedColor: const Color(0xFF616161),
@@ -52,9 +73,15 @@ abstract final class AppTheme {
       surfaceContainerHighest: surfaceHigh,
       outline: outline,
       outlineVariant: outlineVariant,
-      inverseSurface: isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
-      onInverseSurface: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
-      inversePrimary: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      inverseSurface: isDark
+          ? const Color(0xFFFFFFFF)
+          : const Color(0xFF000000),
+      onInverseSurface: isDark
+          ? const Color(0xFF000000)
+          : const Color(0xFFFFFFFF),
+      inversePrimary: isDark
+          ? const Color(0xFF000000)
+          : const Color(0xFFFFFFFF),
       shadow: Colors.transparent,
       scrim: Colors.transparent,
     );
@@ -90,14 +117,18 @@ abstract final class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           side: BorderSide(color: scheme.outline),
         ),
       ),
@@ -123,7 +154,9 @@ abstract final class AppTheme {
         height: 68,
         backgroundColor: scheme.surface,
         indicatorColor: scheme.primary,
-        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
@@ -142,7 +175,9 @@ abstract final class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
+        backgroundColor: isDark
+            ? const Color(0xFFFFFFFF)
+            : const Color(0xFF000000),
         contentTextStyle: TextStyle(
           color: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
         ),

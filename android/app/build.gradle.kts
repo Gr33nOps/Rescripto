@@ -4,16 +4,42 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseSigning = mapOf(
+    "storeFile" to providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull,
+    "storePassword" to providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull,
+    "keyAlias" to providers.environmentVariable("ANDROID_KEY_ALIAS").orNull,
+    "keyPassword" to providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull,
+)
+val hasReleaseSigning = releaseSigning.values.all { !it.isNullOrBlank() }
+val requestedReleaseBuild = gradle.startParameter.taskNames.any {
+    it.substringAfterLast(':') in setOf("assembleRelease", "bundleRelease")
+}
+
+if (requestedReleaseBuild && !hasReleaseSigning) {
+    throw GradleException(
+        "Release signing requires ANDROID_KEYSTORE_PATH, " +
+            "ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD.",
+    )
+}
+
 android {
     namespace = "com.rescripto.rescripto"
     compileSdk = flutter.compileSdkVersion
-    // Pinned to the NDK required by the vendored flutter_whisper plugin
-    // (26.1.10909125), avoiding an extra multi-gigabyte SDK download.
-    ndkVersion = "26.1.10909125"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            excludes += setOf(
+                "lib/armeabi-v7a/**",
+                "lib/x86/**",
+                "lib/x86_64/**",
+            )
+        }
     }
 
     defaultConfig {
@@ -25,13 +51,30 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // The complete native LLM and Whisper stack is currently verified
+        // only for 64-bit ARM.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseSigning.getValue("storeFile")!!)
+                storePassword = releaseSigning.getValue("storePassword")
+                keyAlias = releaseSigning.getValue("keyAlias")
+                keyPassword = releaseSigning.getValue("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

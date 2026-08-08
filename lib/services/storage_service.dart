@@ -38,15 +38,16 @@ class StorageService {
 
   Future<int> insertHistory(HistoryEntry entry) async {
     final db = await _database;
-    return db.insert('history', entry.toMap());
+    return db.insert('history', entry.toMap(includeId: false));
   }
 
-  Future<List<HistoryEntry>> getHistory({int limit = 200}) async {
+  Future<List<HistoryEntry>> getHistory({int? limit, int? offset}) async {
     final db = await _database;
     final rows = await db.query(
       'history',
       orderBy: 'created_at DESC',
       limit: limit,
+      offset: offset,
     );
     return rows.map(HistoryEntry.fromMap).toList();
   }

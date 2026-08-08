@@ -49,6 +49,8 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
         stopRecordingInternal()
         whisperContext?.close()
         whisperContext = null
+        transcribeExecutor.shutdownNow()
+        recordExecutor.shutdownNow()
         context = null
     }
 
@@ -68,23 +70,34 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
     private fun initialize(call: MethodCall, result: Result) {
         val modelPath = call.argument<String>("modelPath") ?: return result.error("INVALID_ARGS", "modelPath required", null)
 
-        try {
-            val modelFile = File(modelPath)
-            if (!modelFile.exists()) {
-                copyModelFromAssets(modelPath) ?: return result.error("MODEL_NOT_FOUND", "Model file not found", null)
-            }
+        transcribeExecutor.execute {
+            try {
+                val modelFile = File(modelPath)
+                if (!modelFile.exists() && copyModelFromAssets(modelPath) == null) {
+                    mainHandler.post {
+                        result.error("MODEL_NOT_FOUND", "Model file not found", null)
+                    }
+                    return@execute
+                }
 
-            whisperContext = WhisperContext(modelFile.absolutePath) { percent ->
-                // Progress fires from the transcribe worker thread — hop to main.
-                mainHandler.post { channel?.invokeMethod("transcribeProgress", percent) }
+                whisperContext?.close()
+                whisperContext = null
+                val newContext = WhisperContext(modelFile.absolutePath) { percent ->
+                    mainHandler.post { channel?.invokeMethod("transcribeProgress", percent) }
+                }
+                whisperContext = newContext
+                mainHandler.post { result.success(true) }
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e("FlutterWhisper", "Native whisper library missing", e)
+                mainHandler.post {
+                    result.error("NATIVE_NOT_BUILT", "whisper.cpp native library is unavailable", null)
+                }
+            } catch (e: Exception) {
+                Log.e("FlutterWhisper", "Initialize failed", e)
+                mainHandler.post {
+                    result.error("INITIALIZATION_FAILED", e.message, null)
+                }
             }
-            result.success(true)
-        } catch (e: UnsatisfiedLinkError) {
-            Log.e("FlutterWhisper", "Native whisper library missing", e)
-            result.error("NATIVE_NOT_BUILT", "whisper.cpp native library not bundled yet", null)
-        } catch (e: Exception) {
-            Log.e("FlutterWhisper", "Initialize failed", e)
-            result.error("INITIALIZATION_FAILED", e.message, null)
         }
     }
 
@@ -92,12 +105,25 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
         val audioPath = call.argument<String>("audioPath") ?: return result.error("INVALID_ARGS", "audioPath required", null)
         val options = call.argument<Map<String, Any>>("options") ?: mutableMapOf()
         val language = options["language"] as? String ?: ""
+        val threads = (options["threads"] as? Number)?.toInt() ?: 0
+        val translate = options["translate"] as? Boolean ?: false
+        val temperature = (options["temperature"] as? Number)?.toFloat() ?: 0.0f
+        val suppressBlank = options["suppressBlank"] as? Boolean ?: true
+        val wordTimestamps = options["wordTimestamps"] as? Boolean ?: false
 
         val ctx = whisperContext ?: return result.error("NOT_INITIALIZED", "Call initialize first", null)
 
         transcribeExecutor.execute {
             try {
-                val transcriptionResult = ctx.transcribe(audioPath, language)
+                val transcriptionResult = ctx.transcribe(
+                    audioPath,
+                    language,
+                    threads,
+                    translate,
+                    temperature,
+                    suppressBlank,
+                    wordTimestamps
+                )
 
                 val segmentsList = mutableListOf<Map<String, Any>>()
                 for (segment in transcriptionResult.segments) {
@@ -180,8 +206,8 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
                 record.release()
                 try {
                     fos.flush()
-                    patchWavHeader(file)
                     fos.close()
+                    patchWavHeader(file)
                 } catch (e: IOException) {
                     Log.e("FlutterWhisper", "Finalize wav failed", e)
                 }
@@ -195,7 +221,9 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
         recording = false
         // Ordered after the recording loop on the same executor: the loop has
         // flushed + patched the header by the time we resolve with the path.
-        recordExecutor.execute { result.success(recordFile?.absolutePath) }
+        recordExecutor.execute {
+            mainHandler.post { result.success(recordFile?.absolutePath) }
+        }
     }
 
     private fun stopRecordingInternal() {
@@ -211,9 +239,11 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
 
     private fun dispose(result: Result) {
         stopRecordingInternal()
-        whisperContext?.close()
-        whisperContext = null
-        result.success(true)
+        transcribeExecutor.execute {
+            whisperContext?.close()
+            whisperContext = null
+            mainHandler.post { result.success(true) }
+        }
     }
 
     private fun copyModelFromAssets(modelPath: String): String? {
@@ -253,9 +283,16 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
         fun patchWavHeader(file: File) {
             val dataSize = (file.length() - 44).toInt().coerceAtLeast(0)
             RandomAccessFile(file, "rw").use { raf ->
-                raf.seek(4); raf.writeInt(36 + dataSize)
-                raf.seek(40); raf.writeInt(dataSize)
+                raf.seek(4); writeLittleEndianInt(raf, 36 + dataSize)
+                raf.seek(40); writeLittleEndianInt(raf, dataSize)
             }
+        }
+
+        private fun writeLittleEndianInt(raf: RandomAccessFile, value: Int) {
+            raf.write(value and 0xff)
+            raf.write((value ushr 8) and 0xff)
+            raf.write((value ushr 16) and 0xff)
+            raf.write((value ushr 24) and 0xff)
         }
     }
 }

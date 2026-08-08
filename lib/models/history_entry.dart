@@ -18,9 +18,9 @@ class HistoryEntry {
   final String? intensityLabel;
   final String? lengthLabel;
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toMap({bool includeId = true}) {
     return {
-      'id': id,
+      if (includeId) 'id': id,
       'original': original,
       'rewritten': rewritten,
       'tone_id': toneId,
@@ -38,7 +38,8 @@ class HistoryEntry {
       toneId: map['tone_id'] as String,
       intensityLabel: map['intensity'] as String?,
       lengthLabel: map['length'] as String?,
-      createdAt: DateTime.tryParse(map['created_at'] as String) ??
+      createdAt:
+          DateTime.tryParse(map['created_at'] as String) ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
