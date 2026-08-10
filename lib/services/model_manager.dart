@@ -8,7 +8,16 @@ import 'package:flutter/foundation.dart';
 import '../models/ai_model.dart';
 import 'local_llm_service.dart';
 
-enum DownloadStatus { idle, downloading, completed, failed }
+/// Streams [path] through SHA-256. Top-level so it can run under [compute].
+Future<String> _sha256OfFile(String path) async {
+  final digest = await sha256.bind(File(path).openRead()).first;
+  return digest.toString();
+}
+
+enum DownloadStatus { idle, downloading, verifying, completed, failed }
+
+/// How often download progress is published to listeners, in milliseconds.
+const int _progressIntervalMs = 250;
 
 class DownloadProgress {
   const DownloadProgress({
@@ -18,6 +27,8 @@ class DownloadProgress {
     this.receivedMb = 0,
     this.totalMb = 0,
     this.error,
+    this.speedMbPerSec,
+    this.eta,
   });
 
   final String modelId;
@@ -27,7 +38,15 @@ class DownloadProgress {
   final double totalMb;
   final String? error;
 
-  bool get isRunning => status == DownloadStatus.downloading;
+  /// Average throughput so far, or null before enough data to be meaningful.
+  final double? speedMbPerSec;
+
+  /// Rough time left at the current average speed.
+  final Duration? eta;
+
+  bool get isRunning =>
+      status == DownloadStatus.downloading ||
+      status == DownloadStatus.verifying;
 }
 
 /// Manages model catalog state, downloads and local files.
@@ -116,16 +135,40 @@ class ModelManager extends ChangeNotifier {
         mode: resumed ? FileMode.append : FileMode.write,
       );
       var received = offset;
+      final startedAt = offset;
+      final clock = Stopwatch()..start();
+      var lastNotifyMs = 0;
       try {
         await for (final chunk in response.data!.stream) {
           sink.add(chunk);
           received += chunk.length;
+
+          // Chunks arrive every few kilobytes. Rebuilding the models screen on
+          // each one meant tens of thousands of layout passes over a 2 GB
+          // download — enough UI work to visibly throttle the transfer itself.
+          final elapsedMs = clock.elapsedMilliseconds;
+          final done = received >= model.sizeBytes;
+          if (!done && elapsedMs - lastNotifyMs < _progressIntervalMs) continue;
+          lastNotifyMs = elapsedMs;
+
+          final seconds = elapsedMs / 1000;
+          final speed = seconds > 0.5
+              ? (received - startedAt) / (1024 * 1024) / seconds
+              : null;
           _progress[model.id] = DownloadProgress(
             modelId: model.id,
             status: DownloadStatus.downloading,
             fraction: (received / model.sizeBytes).clamp(0, 1),
             receivedMb: received / (1024 * 1024),
             totalMb: model.sizeBytes / (1024 * 1024),
+            speedMbPerSec: speed,
+            eta: speed != null && speed > 0
+                ? Duration(
+                    seconds:
+                        ((model.sizeBytes - received) / (1024 * 1024) / speed)
+                            .round(),
+                  )
+                : null,
           );
           notifyListeners();
         }
@@ -133,6 +176,15 @@ class ModelManager extends ChangeNotifier {
       } finally {
         await sink.close();
       }
+
+      _progress[model.id] = DownloadProgress(
+        modelId: model.id,
+        status: DownloadStatus.verifying,
+        fraction: 1,
+        receivedMb: model.sizeBytes / (1024 * 1024),
+        totalMb: model.sizeBytes / (1024 * 1024),
+      );
+      notifyListeners();
 
       if (!await _verifyFile(part, model, verifyHash: true)) {
         await _deleteFile(part.path);
@@ -246,8 +298,10 @@ class ModelManager extends ChangeNotifier {
         .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
     if (!listEquals(magic, const [0x47, 0x47, 0x55, 0x46])) return false;
     if (!verifyHash) return true;
-    final digest = await sha256.bind(file.openRead()).first;
-    return digest.toString() == model.sha256;
+    // Hashing a 2 GB file is tens of seconds of solid CPU. On the UI isolate
+    // that lands as a full app freeze the moment the progress bar hits 100%.
+    final digest = await compute(_sha256OfFile, file.path);
+    return digest == model.sha256;
   }
 
   @override

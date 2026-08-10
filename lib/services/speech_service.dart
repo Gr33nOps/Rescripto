@@ -18,8 +18,12 @@ class SpeechService {
   bool get isSupported => Platform.isAndroid;
   bool get isInitialized => _initialized;
 
+  /// Human-readable download size for a voice model id, e.g. "141 MB".
+  static String downloadSizeFor(String model) =>
+      _modelFromString(model).fileSizeHuman;
+
   Future<void> initialize({
-    String model = 'small',
+    String model = 'base',
     void Function(WhisperDownloadProgress)? onDownloadProgress,
   }) async {
     if (!isSupported) {
@@ -32,6 +36,13 @@ class SpeechService {
     _whisper = Whisper();
     await _whisper!.initialize(
       model: _modelFromString(model),
+      // Mobile networks stall for longer than the 30 s default, and giving up
+      // on a 141 MB download after three tries strands the user on an error
+      // with a half-finished .part file they cannot see.
+      downloadConfig: const WhisperDownloadConfig(
+        stallTimeout: Duration(seconds: 60),
+        maxRetries: 5,
+      ),
       onProgress: onDownloadProgress,
     );
     _initialized = true;
@@ -92,7 +103,7 @@ class SpeechService {
       'small' => WhisperModel.small,
       'medium' => WhisperModel.medium,
       'large' => WhisperModel.large,
-      _ => WhisperModel.small,
+      _ => WhisperModel.base,
     };
   }
 
