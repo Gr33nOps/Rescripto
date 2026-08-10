@@ -34,10 +34,17 @@ class FlutterLlama {
   /// Get current model path
   String? get modelPath => _modelPath;
 
+  /// Reason the last [loadModel] call failed, or null after a success.
+  String? get lastLoadError => _lastLoadError;
+  String? _lastLoadError;
+
   /// Initialize and load a GGUF model
   ///
-  /// Returns true if successful, false otherwise
+  /// Returns true if successful, false otherwise. When it returns false,
+  /// [lastLoadError] carries the reason reported by the native engine so
+  /// callers can show something better than a generic failure.
   Future<bool> loadModel(LlamaConfig config) async {
+    _lastLoadError = null;
     try {
       if (kDebugMode) {
         print('[FlutterLlama] Loading model: ${config.modelPath}');
@@ -58,13 +65,23 @@ class FlutterLlama {
           print('[FlutterLlama] Config: $config');
         }
       } else {
+        _lastLoadError = 'The engine reported no model.';
         if (kDebugMode) {
           print('[FlutterLlama] Failed to load model');
         }
       }
 
       return _isModelLoaded;
+    } on PlatformException catch (e) {
+      _lastLoadError = e.message;
+      if (kDebugMode) {
+        print('[FlutterLlama] Error loading model: ${e.code} ${e.message}');
+      }
+      _isModelLoaded = false;
+      _isInitialized = false;
+      return false;
     } catch (e) {
+      _lastLoadError = e.toString();
       if (kDebugMode) {
         print('[FlutterLlama] Error loading model: $e');
       }
@@ -260,7 +277,9 @@ class FlutterLlama {
           LlamaConfig(
             modelPath: modelPath,
             nThreads: 8,
-            nGpuLayers: -1, // Use all GPU layers
+            // 999 is llama.cpp's "offload every layer". -1 means *no* layers
+            // are offloaded, because i_gpu_start = n_layer - (-1).
+            nGpuLayers: 999,
             contextSize: 2048,
             batchSize: 512,
             useGpu: true,

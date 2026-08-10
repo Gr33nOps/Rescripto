@@ -149,13 +149,19 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
 
                 modelLoaded = success
 
+                val reason = if (success) "" else nativeGetLastError()
+
                 mainHandler.post {
                     if (success) {
                         Log.d(TAG, "Model loaded: $modelPath")
                         Log.d(TAG, "GPU layers: $nGpuLayers, threads: $nThreads, context: $contextSize")
                         result.success(true)
                     } else {
-                        result.error("INIT_FAILED", "Failed to initialize model", null)
+                        result.error(
+                            "INIT_FAILED",
+                            reason.ifBlank { "Failed to initialize model" },
+                            null,
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -268,9 +274,12 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                     prompt, temperature, topP, topK, maxTokens, repeatPenalty
                 )
                 if (!initialized) {
+                    val reason = nativeGetLastError().ifBlank {
+                        "Stream initialization failed"
+                    }
                     mainHandler.post {
-                        sink.error("GENERATION_FAILED", "Prompt exceeds context or stream initialization failed", null)
-                        result.error("GENERATION_FAILED", "Stream initialization failed", null)
+                        sink.error("GENERATION_FAILED", reason, null)
+                        result.error("GENERATION_FAILED", reason, null)
                     }
                     return@execute
                 }
@@ -421,6 +430,9 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
     private external fun nativeGenerateStreamEnd()
 
     private external fun nativeGetModelInfo(): ModelInfo?
+
+    /** Reason the last native init/generate failed, or "" if there was none. */
+    private external fun nativeGetLastError(): String
 
     private external fun nativeFreeModel()
 

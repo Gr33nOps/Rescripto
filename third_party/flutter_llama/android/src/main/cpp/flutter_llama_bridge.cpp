@@ -12,6 +12,7 @@
 #include <atomic>
 #include <chrono>
 #include <android/log.h>
+#include <sys/auxv.h>
 
 #define LOG_TAG "FlutterLlamaBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -19,6 +20,31 @@
 
 // Include llama.cpp headers
 #include "llama.h"
+
+#if defined(__aarch64__)
+#if !defined(HWCAP_ASIMDDP)
+#define HWCAP_ASIMDDP (1 << 20)
+#endif
+// ggml-cpu is compiled with -march=armv8.2-a+dotprod (see CMakeLists.txt), so
+// its quantized kernels emit SDOT/UDOT. Executing those on a core without
+// FEAT_DotProd is an illegal instruction, which the JVM reports as an opaque
+// native crash. Fail loudly instead.
+static bool cpu_has_required_features() {
+    return (getauxval(AT_HWCAP) & HWCAP_ASIMDDP) != 0;
+}
+#else
+static bool cpu_has_required_features() { return true; }
+#endif
+
+// Forwards llama.cpp's own diagnostics into logcat. Without this, a failed
+// model load surfaces to Dart as a bare "false" with no reason attached.
+static void llama_log_to_android(ggml_log_level level, const char * text, void * /*user_data*/) {
+    if (!text) return;
+    const int priority = level == GGML_LOG_LEVEL_ERROR ? ANDROID_LOG_ERROR
+                       : level == GGML_LOG_LEVEL_WARN  ? ANDROID_LOG_WARN
+                       : ANDROID_LOG_INFO;
+    __android_log_print(priority, "llama.cpp", "%s", text);
+}
 
 // Global state
 static llama_model* g_model = nullptr;
@@ -29,6 +55,7 @@ static std::mutex g_mutex;
 static std::atomic<bool> g_should_stop{false};
 static int g_stream_remaining = 0;
 static bool g_stream_finished = true;
+static std::string g_last_error;
 
 static std::string jstring_to_utf8(JNIEnv* env, jstring input) {
     if (!input) return {};
@@ -143,12 +170,27 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
     jboolean verbose
 ) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    
+
+    g_last_error.clear();
+
+    if (!cpu_has_required_features()) {
+        g_last_error =
+            "This device's processor is missing the ARM dot-product extension "
+            "that on-device AI needs. Rescripto requires a 64-bit ARM CPU from "
+            "roughly 2018 or later.";
+        LOGE("%s", g_last_error.c_str());
+        return JNI_FALSE;
+    }
+
+    static std::once_flag log_once;
+    std::call_once(log_once, [] { llama_log_set(llama_log_to_android, nullptr); });
+
     const std::string path = jstring_to_utf8(env, model_path);
-    
+
     LOGI("Initializing model: %s", path.c_str());
-    LOGI("Threads: %d, GPU layers: %d, Context: %d", n_threads, n_gpu_layers, context_size);
-    
+    LOGI("Threads: %d, GPU layers: %d, Context: %d, GPU: %d",
+         n_threads, n_gpu_layers, context_size, use_gpu ? 1 : 0);
+
     // Free existing model if any
     if (g_sampler) {
         llama_sampler_free(g_sampler);
@@ -162,45 +204,87 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
         llama_model_free(g_model);
         g_model = nullptr;
     }
-    
+
     // Load dynamic backends
     ggml_backend_load_all();
-    
+
     // Set up model parameters
     llama_model_params model_params = llama_model_default_params();
-    model_params.n_gpu_layers = use_gpu ? n_gpu_layers : 0;
-    
+
+    // A null `devices` list makes llama.cpp enumerate every registered backend
+    // and build a buffer-type list for each one. On Android that touches the
+    // Vulkan device even when nothing will be offloaded, and bringing up a
+    // Vulkan device makes ggml compile several hundred compute pipelines —
+    // minutes of a pegged GPU with no visible progress before generation can
+    // even start. Handing llama.cpp an empty device list keeps the load path
+    // strictly CPU and never initializes Vulkan at all.
+    static ggml_backend_dev_t no_devices[] = { nullptr };
+    if (use_gpu) {
+        // -1 is not "all layers" to llama.cpp: i_gpu_start becomes n_layer + 1
+        // and every layer stays on the CPU, which is why the GPU switch used to
+        // make no difference. 999 is llama.cpp's own "offload everything".
+        model_params.n_gpu_layers = n_gpu_layers < 0 ? 999 : n_gpu_layers;
+    } else {
+        model_params.n_gpu_layers = 0;
+        model_params.devices = no_devices;
+    }
+
     // Load model
     g_model = llama_model_load_from_file(path.c_str(), model_params);
     if (!g_model) {
+        g_last_error = "llama.cpp could not load this model file. It may be "
+                       "incomplete or in an unsupported GGUF format.";
         LOGE("Failed to load model from: %s", path.c_str());
         return JNI_FALSE;
     }
-    
+
     // Get vocab
     g_vocab = llama_model_get_vocab(g_model);
-    
+
+    // Never build a context larger than the model was trained for — the extra
+    // KV cache is wasted RAM on a phone and can push the process into an OOM
+    // kill on the mid-range devices this app targets.
+    const int trained_ctx = static_cast<int>(llama_model_n_ctx_train(g_model));
+    int effective_ctx = context_size;
+    if (trained_ctx > 0 && effective_ctx > trained_ctx) {
+        LOGI("Clamping context %d -> %d (model training context)", effective_ctx, trained_ctx);
+        effective_ctx = trained_ctx;
+    }
+
     // Create context
     llama_context_params ctx_params = llama_context_default_params();
-    ctx_params.n_ctx = context_size;
+    ctx_params.n_ctx = effective_ctx;
     ctx_params.n_batch = batch_size;
+    ctx_params.n_ubatch = batch_size < 512 ? batch_size : 512;
     ctx_params.n_threads = n_threads;
     ctx_params.n_threads_batch = n_threads;
-    
+
     g_context = llama_init_from_model(g_model, ctx_params);
     if (!g_context) {
+        g_last_error = "Not enough memory to open this model at the selected "
+                       "context size. Try a smaller model or a smaller context.";
         LOGE("Failed to create context");
         llama_model_free(g_model);
         g_model = nullptr;
         return JNI_FALSE;
     }
-    
+
     reset_sampler(0.8f, 0.95f, 40, 1.1f);
-    
+
     LOGI("Model loaded successfully");
     LOGI("Context size: %d", llama_n_ctx(g_context));
-    
+
     return JNI_TRUE;
+}
+
+// Returns the reason the last init/generate call failed, or an empty string.
+JNIEXPORT jstring JNICALL
+Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGetLastError(
+    JNIEnv* env,
+    jobject thiz
+) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return utf8_to_jstring(env, g_last_error);
 }
 
 // Generate text
@@ -226,12 +310,16 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerate(
     LOGI("Generating with prompt: %.50s...", prompt_text.c_str());
     
     // Tokenize prompt
+    const int n_ctx = static_cast<int>(llama_n_ctx(g_context));
     const int n_prompt = -llama_tokenize(g_vocab, prompt_text.c_str(), prompt_text.size(), NULL, 0, true, true);
-    if (n_prompt <= 0 || n_prompt + max_tokens > static_cast<int>(llama_n_ctx(g_context))) {
-        LOGE("Prompt/output exceeds context: prompt=%d output=%d context=%u",
-             n_prompt, max_tokens, llama_n_ctx(g_context));
+    if (n_prompt <= 0 || n_ctx - n_prompt - 4 < 16) {
+        LOGE("Prompt/output exceeds context: prompt=%d output=%d context=%d",
+             n_prompt, max_tokens, n_ctx);
         return nullptr;
     }
+    // Clamp to the room actually left in the context instead of refusing.
+    const int room = n_ctx - n_prompt - 4;
+    if (max_tokens > room) max_tokens = room;
     std::vector<llama_token> prompt_tokens(n_prompt);
     
     if (llama_tokenize(g_vocab, prompt_text.c_str(), prompt_text.size(), prompt_tokens.data(), prompt_tokens.size(), true, true) < 0) {
@@ -324,44 +412,62 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerateStreamInit(
     jfloat repeat_penalty
 ) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    
+
     LOGI("Initializing stream generation");
-    
+
+    g_last_error.clear();
+
     if (!g_model || !g_context || !g_vocab) {
+        g_last_error = "The model is not loaded.";
         LOGE("Model not loaded");
         return JNI_FALSE;
     }
-    
+
     g_should_stop = false;
-    g_stream_remaining = max_tokens;
     g_stream_finished = true;
-    
+
     const std::string prompt_text = jstring_to_utf8(env, prompt);
-    
+
     // Tokenize prompt
+    const int n_ctx = static_cast<int>(llama_n_ctx(g_context));
     const int n_prompt = -llama_tokenize(g_vocab, prompt_text.c_str(), prompt_text.size(), NULL, 0, true, true);
-    if (n_prompt <= 0 || n_prompt + max_tokens > static_cast<int>(llama_n_ctx(g_context))) {
-        LOGE("Prompt/output exceeds context for stream");
+    if (n_prompt <= 0) {
+        g_last_error = "The prompt could not be tokenized.";
+        LOGE("Tokenization produced no tokens");
         return JNI_FALSE;
     }
+    // Reserve a few tokens of headroom so decoding the last sampled token
+    // cannot run off the end of the KV cache.
+    const int room = n_ctx - n_prompt - 4;
+    if (room < 16) {
+        g_last_error = "This text is too long for the selected context size.";
+        LOGE("Prompt of %d tokens leaves no room in a %d-token context", n_prompt, n_ctx);
+        return JNI_FALSE;
+    }
+    // Clamp rather than refuse: the Dart side can only estimate token counts
+    // from byte length, so an honest overshoot used to fail the whole rewrite.
+    g_stream_remaining = max_tokens < room ? max_tokens : room;
+
     std::vector<llama_token> prompt_tokens(n_prompt);
-    
+
     if (llama_tokenize(g_vocab, prompt_text.c_str(), prompt_text.size(), prompt_tokens.data(), prompt_tokens.size(), true, true) < 0) {
+        g_last_error = "The prompt could not be tokenized.";
         LOGE("Failed to tokenize prompt");
         return JNI_FALSE;
     }
-    
+
     llama_memory_clear(llama_get_memory(g_context), true);
 
     // Create batch
     llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
-    
+
     // Decode prompt
     if (llama_decode(g_context, batch) != 0) {
+        g_last_error = "The model ran out of memory while reading the prompt.";
         LOGE("Failed to decode prompt");
         return JNI_FALSE;
     }
-    
+
     reset_sampler(temperature, top_p, top_k, repeat_penalty);
     g_stream_finished = false;
     return JNI_TRUE;
