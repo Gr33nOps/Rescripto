@@ -64,7 +64,8 @@ class LocalLlmService {
     final config = LlamaConfig(
       modelPath: path,
       nThreads: threads,
-      nGpuLayers: useGpu ? -1 : 0,
+      // 999 is llama.cpp's "offload every layer". -1 silently offloads nothing.
+      nGpuLayers: useGpu ? 999 : 0,
       contextSize: contextSize,
       batchSize: 512,
       useGpu: useGpu,
@@ -73,9 +74,20 @@ class LocalLlmService {
 
     final ok = await _llama.loadModel(config);
     if (!ok) {
-      throw StateError('Failed to load model "${model.name}".');
+      final reason = _llama.lastLoadError;
+      throw StateError(
+        reason == null || reason.isEmpty
+            ? 'Failed to load model "${model.name}".'
+            : reason,
+      );
     }
     _loadedConfig = requested;
+  }
+
+  /// Context size to actually use: the user's setting, never larger than what
+  /// the model was trained for (the native side clamps again as a backstop).
+  static int effectiveContextSize(AiModel model, int requested) {
+    return math.min(requested, model.contextSize);
   }
 
   /// Unloads the current model and frees memory.
@@ -85,6 +97,21 @@ class LocalLlmService {
     }
     _loadedConfig = null;
   }
+
+  /// Turn markers across every chat template in the model catalog.
+  ///
+  /// Gemma 3 — the default model — ends turns with `<end_of_turn>`; the
+  /// pipe-wrapped `<|end_of_turn|>` that used to be listed here matches no
+  /// model at all, so a Gemma rewrite that failed to hit EOS kept generating
+  /// until it burned the whole token budget.
+  static const List<String> stopSequences = [
+    '<end_of_turn>',
+    '<|eot_id|>',
+    '<|im_end|>',
+    '<|end_of_text|>',
+    '<|endoftext|>',
+    '</s>',
+  ];
 
   /// Generates a single rewrite output.
   Future<RewriteOutput> generate(
@@ -113,7 +140,7 @@ class LocalLlmService {
       topK: 40,
       maxTokens: boundedMaxTokens,
       repeatPenalty: 1.1,
-      stopSequences: const ['<|eot_id|>', '<|end_of_turn|>', '<|im_end|>'],
+      stopSequences: stopSequences,
     );
 
     final stopwatch = Stopwatch()..start();
