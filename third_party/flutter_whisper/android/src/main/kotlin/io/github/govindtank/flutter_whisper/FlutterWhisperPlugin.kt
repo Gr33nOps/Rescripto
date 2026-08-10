@@ -4,8 +4,12 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AudioEffect
+import android.media.audiofx.AutomaticGainControl
+import android.media.audiofx.NoiseSuppressor
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -166,24 +170,22 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
         )
         if (bufSize <= 0) return result.error("MIC_UNAVAILABLE", "No usable audio buffer", null)
 
-        val record = try {
-            AudioRecord(
-                MediaRecorder.AudioSource.MIC, sampleRate,
-                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufSize * 2
-            )
-        } catch (e: Exception) {
-            return result.error("MIC_UNAVAILABLE", e.message, null)
-        }
-        if (record.state != AudioRecord.STATE_INITIALIZED) {
-            record.release()
-            return result.error("MIC_UNAVAILABLE", "Microphone not available", null)
-        }
+        // VOICE_RECOGNITION asks the platform for an unprocessed, AGC-friendly
+        // capture path tuned for speech. Plain MIC goes through the camcorder/
+        // call tuning on many devices, which is what makes dictation come back
+        // muffled or clipped. Fall back to MIC where it isn't offered.
+        val record = openRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, sampleRate, bufSize)
+            ?: openRecord(MediaRecorder.AudioSource.MIC, sampleRate, bufSize)
+            ?: return result.error("MIC_UNAVAILABLE", "Microphone not available", null)
+
+        val effects = attachVoiceProcessing(record.audioSessionId)
 
         val dir = File(ctx.filesDir, "recordings").apply { mkdirs() }
         val file = File(dir, "rec_${System.currentTimeMillis()}.wav")
         val fos = try {
             FileOutputStream(file).also { writeWavHeader(it, 0) }
         } catch (e: IOException) {
+            releaseEffects(effects)
             record.release()
             return result.error("WRITE_FAILED", e.message, null)
         }
@@ -193,16 +195,26 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
         record.startRecording()
 
         recordExecutor.execute {
+            // Without an audio-priority thread the read loop loses buffers under
+            // load, and the dropouts land in the WAV as clicks and swallowed
+            // syllables that whisper then transcribes as garbage.
+            Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
             try {
                 val buf = ByteArray(bufSize)
                 while (recording) {
                     val n = record.read(buf, 0, buf.size)
-                    if (n > 0) fos.write(buf, 0, n)
+                    if (n > 0) {
+                        fos.write(buf, 0, n)
+                    } else if (n < 0) {
+                        Log.e("FlutterWhisper", "AudioRecord.read error $n")
+                        break
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("FlutterWhisper", "Recording loop failed", e)
             } finally {
                 try { record.stop() } catch (_: Exception) {}
+                releaseEffects(effects)
                 record.release()
                 try {
                     fos.flush()
@@ -214,6 +226,58 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
             }
         }
         result.success(true)
+    }
+
+    /** Opens an [AudioRecord] on [source], or null if the device refuses it. */
+    private fun openRecord(source: Int, sampleRate: Int, bufSize: Int): AudioRecord? {
+        val record = try {
+            // Four times the minimum keeps a comfortable margin so a scheduling
+            // hiccup does not overwrite unread audio.
+            AudioRecord(
+                source, sampleRate,
+                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufSize * 4
+            )
+        } catch (e: Exception) {
+            Log.w("FlutterWhisper", "AudioRecord source $source unavailable", e)
+            return null
+        }
+        if (record.state != AudioRecord.STATE_INITIALIZED) {
+            record.release()
+            return null
+        }
+        return record
+    }
+
+    /**
+     * Enables the platform's noise suppressor and automatic gain control on the
+     * capture session where the hardware offers them. Both measurably improve
+     * whisper's accuracy on phone-quality dictation.
+     */
+    private fun attachVoiceProcessing(sessionId: Int): List<AudioEffect> {
+        val effects = mutableListOf<AudioEffect>()
+        try {
+            if (NoiseSuppressor.isAvailable()) {
+                NoiseSuppressor.create(sessionId)?.also {
+                    it.enabled = true
+                    effects.add(it)
+                }
+            }
+            if (AutomaticGainControl.isAvailable()) {
+                AutomaticGainControl.create(sessionId)?.also {
+                    it.enabled = true
+                    effects.add(it)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("FlutterWhisper", "Voice processing unavailable", e)
+        }
+        return effects
+    }
+
+    private fun releaseEffects(effects: List<AudioEffect>) {
+        for (effect in effects) {
+            try { effect.release() } catch (_: Exception) {}
+        }
     }
 
     private fun stopRecording(result: Result) {

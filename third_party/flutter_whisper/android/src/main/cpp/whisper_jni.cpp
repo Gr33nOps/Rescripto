@@ -19,6 +19,7 @@
 #include <sstream>
 #include <cmath>
 #include <cstring>
+#include <thread>
 
 #include "whisper.h"
 
@@ -138,17 +139,34 @@ static std::string transcribe_json(
         return "{\"error\":\"cannot decode audio (wav/mp3/flac/ogg supported)\"}";
     }
 
+    // whisper works on 30 s windows and behaves badly on clips shorter than its
+    // 1 s minimum — it either returns nothing or invents a phrase. Pad short
+    // dictation with silence rather than failing on a legitimate quick word.
+    const size_t min_samples = WHISPER_SAMPLE_RATE;
+    if (pcm.size() < min_samples) {
+        pcm.resize(min_samples, 0.0f);
+    }
+
     whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     params.print_realtime = false;
     params.print_progress = false;
     params.print_special = false;
     params.print_timestamps = false;
-    params.n_threads = threads > 0 ? threads : 4;
+    if (threads > 0) {
+        params.n_threads = threads;
+    } else {
+        const unsigned int cores = std::thread::hardware_concurrency();
+        params.n_threads = cores == 0 ? 4 : static_cast<int>(cores > 4 ? 4 : cores);
+    }
     params.single_segment = false;
     params.translate = translate;
     params.temperature = temperature;
     params.suppress_blank = suppress_blank;
     params.token_timestamps = word_timestamps;
+    // Each call transcribes one independent recording, so carrying decoder
+    // state across windows only gives whisper a chance to loop on a phrase it
+    // already emitted — the classic repeated-sentence output.
+    params.no_context = true;
     params.progress_callback = progress_cb;
     params.abort_callback = abort_cb;
     if (language.empty()) {
