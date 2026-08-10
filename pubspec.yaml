@@ -54,6 +54,10 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 
+  # Runs SQLite in the test process so schema migrations can be verified on the
+  # host. sqflite itself needs a device.
+  sqflite_common_ffi: ^2.3.6
+
 flutter_launcher_icons:
   android: true
   ios: true

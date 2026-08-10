@@ -1,48 +1,22 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as p;
-
-import '../core/constants.dart';
 import '../models/history_entry.dart';
+import 'db/app_database.dart';
 
 /// SQLite storage for rewrite history. Stored only on this device.
+///
+/// Owns the `history` table only. The connection and its schema version belong
+/// to [AppDatabase], which every other store shares.
 class StorageService {
-  Database? _db;
+  StorageService(this._database);
 
-  Future<Database> get _database async {
-    if (_db != null) return _db!;
-    _db = await _open();
-    return _db!;
-  }
-
-  Future<Database> _open() async {
-    final dir = await getDatabasesPath();
-    final path = p.join(dir, AppConstants.dbName);
-    return openDatabase(
-      path,
-      version: AppConstants.dbVersion,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            original TEXT NOT NULL,
-            rewritten TEXT NOT NULL,
-            tone_id TEXT NOT NULL,
-            intensity TEXT,
-            length TEXT,
-            created_at TEXT NOT NULL
-          )
-        ''');
-      },
-    );
-  }
+  final AppDatabase _database;
 
   Future<int> insertHistory(HistoryEntry entry) async {
-    final db = await _database;
+    final db = await _database.db;
     return db.insert('history', entry.toMap(includeId: false));
   }
 
   Future<List<HistoryEntry>> getHistory({int? limit, int? offset}) async {
-    final db = await _database;
+    final db = await _database.db;
     final rows = await db.query(
       'history',
       orderBy: 'created_at DESC',
@@ -53,17 +27,12 @@ class StorageService {
   }
 
   Future<void> deleteHistory(int id) async {
-    final db = await _database;
+    final db = await _database.db;
     await db.delete('history', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> clearHistory() async {
-    final db = await _database;
+    final db = await _database.db;
     await db.delete('history');
-  }
-
-  Future<void> close() async {
-    await _db?.close();
-    _db = null;
   }
 }

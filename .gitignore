@@ -33,6 +33,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# The app's own lock file is tracked, but the vendored plugins are libraries —
+# their lock files are resolution artifacts of analyzing them standalone and
+# say nothing about what the app actually builds against.
+/third_party/*/pubspec.lock
+/third_party/*/example/pubspec.lock
+
 # Symbolication related
 app.*.symbols
 

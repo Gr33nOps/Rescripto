@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../services/db/app_database.dart';
 import '../services/local_llm_service.dart';
 import '../services/model_manager.dart';
 import '../services/settings_service.dart';
@@ -24,9 +25,13 @@ class AppProviders extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<SettingsService>(create: (_) => settings),
+        // Owns the connection; every store below shares it.
+        Provider<AppDatabase>(
+          create: (_) => AppDatabase(),
+          dispose: (_, database) => database.close(),
+        ),
         Provider<StorageService>(
-          create: (_) => StorageService(),
-          dispose: (_, service) => service.close(),
+          create: (ctx) => StorageService(ctx.read<AppDatabase>()),
         ),
         Provider<LocalLlmService>(
           create: (_) => LocalLlmService(),
