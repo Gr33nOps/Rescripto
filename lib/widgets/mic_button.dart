@@ -82,7 +82,7 @@ class _MicButtonState extends State<MicButton>
                     label: isRecording
                         ? 'Stop recording and transcribe'
                         : 'Start voice dictation',
-                    value: _phaseLabel(phase),
+                    value: _phaseLabel(phase, controller.downloadSize),
                     child: Material(
                       shape: const CircleBorder(),
                       color: isRecording ? scheme.error : scheme.primary,
@@ -114,12 +114,14 @@ class _MicButtonState extends State<MicButton>
         ),
         const SizedBox(height: 12),
         Text(
-          _phaseLabel(phase),
+          _phaseLabel(phase, controller.downloadSize),
+          textAlign: TextAlign.center,
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
         if (phase == SpeechPhase.initializing ||
+            phase == SpeechPhase.downloadingModel ||
             phase == SpeechPhase.transcribing) ...[
           const SizedBox(height: 8),
           SizedBox(
@@ -128,6 +130,16 @@ class _MicButtonState extends State<MicButton>
               value: controller.progress > 0 ? controller.progress : null,
             ),
           ),
+          if (phase == SpeechPhase.downloadingModel) ...[
+            const SizedBox(height: 6),
+            Text(
+              'One-time download · keep this screen open',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
         ],
         if (controller.lastError.isNotEmpty) ...[
           const SizedBox(height: 6),
@@ -164,9 +176,12 @@ class _MicButtonState extends State<MicButton>
     }
   }
 
-  String _phaseLabel(SpeechPhase phase) => switch (phase) {
+  String _phaseLabel(SpeechPhase phase, String downloadSize) => switch (phase) {
     SpeechPhase.idle => 'Tap to dictate',
     SpeechPhase.requestingPermission => 'Checking microphone access…',
+    SpeechPhase.downloadingModel => downloadSize.isEmpty
+        ? 'Downloading the voice model…'
+        : 'Downloading the voice model ($downloadSize)…',
     SpeechPhase.initializing => 'Preparing voice input…',
     SpeechPhase.recording => 'Tap to stop',
     SpeechPhase.transcribing => 'Creating transcript…',

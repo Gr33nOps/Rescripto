@@ -125,6 +125,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
             if (controller.isRunning)
               _StreamingPanel(
                 text: controller.streamingText,
+                stage: controller.stage,
                 cancelling: controller.isCancelling,
               ),
             if (controller.lastResult != null) ...[
@@ -350,9 +351,14 @@ class _RewriteButton extends StatelessWidget {
 }
 
 class _StreamingPanel extends StatelessWidget {
-  const _StreamingPanel({required this.text, required this.cancelling});
+  const _StreamingPanel({
+    required this.text,
+    required this.stage,
+    required this.cancelling,
+  });
 
   final String text;
+  final RewriteStage stage;
   final bool cancelling;
 
   @override
@@ -372,14 +378,26 @@ class _StreamingPanel extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  cancelling
-                      ? 'Stopping the current rewrite…'
-                      : 'Rewriting on your device…',
-                  style: Theme.of(context).textTheme.titleSmall,
+                Expanded(
+                  child: Text(
+                    cancelling
+                        ? 'Stopping the current rewrite…'
+                        : stage.label,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
               ],
             ),
+            if (!cancelling && stage == RewriteStage.loadingModel) ...[
+              const SizedBox(height: 8),
+              Text(
+                'First run after opening the app reads the whole model into '
+                'memory. This is the slow part — later rewrites reuse it.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             if (text.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(

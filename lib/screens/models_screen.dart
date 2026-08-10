@@ -313,6 +313,7 @@ class _DownloadProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final pct = (progress.fraction * 100).clamp(0, 100).toStringAsFixed(0);
+    final verifying = progress.status == DownloadStatus.verifying;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,27 +328,34 @@ class _DownloadProgress extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Downloading model',
+                verifying ? 'Checking the download' : 'Downloading model',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
-            Text('$pct%', style: Theme.of(context).textTheme.bodySmall),
-            IconButton(
-              tooltip: 'Cancel',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => context.read<ModelsController>().cancelDownload(
-                ModelCatalog.models.firstWhere((m) => m.id == progress.modelId),
+            if (!verifying) ...[
+              Text('$pct%', style: Theme.of(context).textTheme.bodySmall),
+              IconButton(
+                tooltip: 'Cancel',
+                visualDensity: VisualDensity.compact,
+                onPressed: () =>
+                    context.read<ModelsController>().cancelDownload(
+                      ModelCatalog.models.firstWhere(
+                        (m) => m.id == progress.modelId,
+                      ),
+                    ),
+                icon: const Icon(Icons.close),
               ),
-              icon: const Icon(Icons.close),
-            ),
+            ],
           ],
         ),
         Padding(
           padding: const EdgeInsets.only(left: 24, bottom: 8),
           child: Text(
-            '${_mb(progress.receivedMb)} of ${_mb(progress.totalMb)}',
+            verifying
+                ? 'Verifying the file is complete and undamaged…'
+                : _detailLine(),
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -356,13 +364,29 @@ class _DownloadProgress extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(
-            value: progress.fraction,
+            value: verifying ? null : progress.fraction,
             minHeight: 6,
             backgroundColor: scheme.surfaceContainerHigh,
           ),
         ),
       ],
     );
+  }
+
+  String _detailLine() {
+    final base = '${_mb(progress.receivedMb)} of ${_mb(progress.totalMb)}';
+    final speed = progress.speedMbPerSec;
+    final eta = progress.eta;
+    if (speed == null) return base;
+    final rate = '${speed.toStringAsFixed(1)} MB/s';
+    if (eta == null) return '$base · $rate';
+    return '$base · $rate · ${_duration(eta)} left';
+  }
+
+  String _duration(Duration d) {
+    if (d.inHours >= 1) return '${d.inHours}h ${d.inMinutes.remainder(60)}m';
+    if (d.inMinutes >= 1) return '${d.inMinutes}m';
+    return '${d.inSeconds}s';
   }
 
   String _mb(double mb) {

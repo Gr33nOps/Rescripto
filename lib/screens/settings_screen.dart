@@ -56,8 +56,12 @@ class SettingsScreen extends StatelessWidget {
                     secondary: const Icon(Icons.speed_outlined),
                     title: const Text('GPU acceleration'),
                     subtitle: const Text(
-                      'Faster rewrites on supported phones.',
+                      'Experimental. The first rewrite after opening the app '
+                      'takes several extra minutes while your GPU driver '
+                      'builds its shaders, and many phones are faster on CPU. '
+                      'Leave off unless you have measured a gain.',
                     ),
+                    isThreeLine: true,
                     value: settings.useGpu,
                     onChanged: settings.setUseGpu,
                   ),
@@ -97,8 +101,8 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                     for (final m in const [
                       ('Tiny', 'Fastest · multilingual · 74 MB', 'tiny'),
-                      ('Base', 'Fast · multilingual · 141 MB', 'base'),
-                      ('Small', 'Recommended · multilingual · 465 MB', 'small'),
+                      ('Base', 'Recommended · multilingual · 141 MB', 'base'),
+                      ('Small', 'More accurate · multilingual · 465 MB', 'small'),
                       ('Medium', 'Accurate · multilingual · 1.43 GB', 'medium'),
                       (
                         'Large',
