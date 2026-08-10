@@ -37,28 +37,7 @@ class HistoryScreen extends StatelessWidget {
               )
             : controller.isEmpty
             ? _EmptyHistory()
-            : RefreshIndicator(
-                onRefresh: controller.refresh,
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  itemCount:
-                      controller.entries.length +
-                      (controller.error == null ? 0 : 1),
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    if (controller.error != null && index == 0) {
-                      return _HistoryErrorCard(
-                        message: controller.error!,
-                        onRetry: controller.refresh,
-                      );
-                    }
-                    final entryIndex =
-                        index - (controller.error == null ? 0 : 1);
-                    final entry = controller.entries[entryIndex];
-                    return _HistoryCard(entry: entry);
-                  },
-                ),
-              ),
+            : _HistoryList(controller: controller),
       ),
     );
   }
@@ -87,6 +66,76 @@ class HistoryScreen extends StatelessWidget {
       await context.read<HistoryController>().clear();
     }
   }
+}
+
+class _HistoryList extends StatelessWidget {
+  const _HistoryList({required this.controller});
+
+  final HistoryController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final errorOffset = controller.error == null ? 0 : 1;
+    // Hide the pager while an error is showing: the error card shifts every
+    // row down by one, which would rebuild the sentinel and retry the very
+    // query that just failed, in a loop. Recovery goes through Retry instead.
+    final showPager = controller.hasMore && controller.error == null;
+
+    return RefreshIndicator(
+      onRefresh: controller.refresh,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        itemCount: errorOffset + controller.entries.length + (showPager ? 1 : 0),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          if (errorOffset == 1 && index == 0) {
+            return _HistoryErrorCard(
+              message: controller.error!,
+              onRetry: controller.refresh,
+            );
+          }
+          final entryIndex = index - errorOffset;
+          if (entryIndex >= controller.entries.length) {
+            return const _PagerTile();
+          }
+          return _HistoryCard(entry: controller.entries[entryIndex]);
+        },
+      ),
+    );
+  }
+}
+
+/// Trailing sentinel that pages in the next batch once it scrolls into view.
+class _PagerTile extends StatefulWidget {
+  const _PagerTile();
+
+  @override
+  State<_PagerTile> createState() => _PagerTileState();
+}
+
+class _PagerTileState extends State<_PagerTile> {
+  @override
+  void initState() {
+    super.initState();
+    // Building this tile means the list reached the end of what is loaded.
+    // Defer past the current frame so the fetch does not notify listeners
+    // while the list that triggered it is still laying out.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<HistoryController>().loadMore();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 20),
+    child: Center(
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2.4),
+      ),
+    ),
+  );
 }
 
 class _HistoryCard extends StatelessWidget {
