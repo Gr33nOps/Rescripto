@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
 import '../models/ai_model.dart';
+import 'settings_migrations.dart';
 
 /// Thin persistence layer for app preferences (all on-device).
 class SettingsService {
@@ -9,21 +10,7 @@ class SettingsService {
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-    await _migrate();
-  }
-
-  /// One-time cleanups for settings whose meaning changed between releases.
-  Future<void> _migrate() async {
-    final p = _p;
-    if (!p.containsKey(AppConstants.keyGpuResetDone)) {
-      // Up to 1.0.2 the GPU switch passed nGpuLayers: -1, which llama.cpp reads
-      // as "offload nothing" — the toggle did nothing whichever way it was set,
-      // while still paying for Vulkan device setup on every model load. Now
-      // that it really offloads, an inherited "on" is a choice nobody made, so
-      // start everyone from off.
-      await p.remove(AppConstants.keyUseGpu);
-      await p.setBool(AppConstants.keyGpuResetDone, true);
-    }
+    await migrateSettings(_prefs!);
   }
 
   SharedPreferences get _p {

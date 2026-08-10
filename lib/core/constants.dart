@@ -18,6 +18,9 @@ abstract final class AppConstants {
   static const String keyUseGpu = 'use_gpu';
   static const String keyContextSize = 'context_size';
   static const String keyWhisperModel = 'whisper_model';
+  static const String keySettingsSchemaVersion = 'settings_schema_version';
+  // Superseded by keySettingsSchemaVersion. Still written so that downgrading
+  // to 1.0.3 and upgrading again does not re-apply the GPU reset.
   static const String keyGpuResetDone = 'gpu_default_reset_v2';
 
   // SQLite.
