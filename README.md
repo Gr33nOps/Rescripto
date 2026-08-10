@@ -64,6 +64,13 @@ models range from approximately 74 MiB (Tiny) to 2.88 GiB (Large v3); Base
 Downloads come from Hugging Face. Temporary microphone recordings are deleted
 after transcription or cancellation.
 
+Android's automatic backup is switched off, so rewrite history and settings are
+never copied to Google Drive and are not carried across by the device-transfer
+wizard when you set up a new phone. The trade is deliberate: content that is
+promised to stay on the device should not be uploaded by the platform on the
+app's behalf. Moving your data to a new device is the job of an explicit
+in-app export, which is not built yet.
+
 ## Development setup
 
 Prerequisites:

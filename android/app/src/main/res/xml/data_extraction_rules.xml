@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Applies to Android 12 (API 31) and above.
+
+  Device-to-device transfer is governed by <device-transfer> and is NOT covered
+  by android:allowBackup="false", so these exclusions are the only thing
+  stopping rewrite history from being copied to a new phone by the setup
+  wizard. Both sections are filled in deliberately: omitting one silently opts
+  that path back into copying everything.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="rescripto.db" />
+        <exclude domain="database" path="rescripto.db-journal" />
+        <exclude domain="database" path="rescripto.db-wal" />
+        <exclude domain="database" path="rescripto.db-shm" />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+    </cloud-backup>
+
+    <device-transfer>
+        <exclude domain="database" path="rescripto.db" />
+        <exclude domain="database" path="rescripto.db-journal" />
+        <exclude domain="database" path="rescripto.db-wal" />
+        <exclude domain="database" path="rescripto.db-shm" />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+    </device-transfer>
+</data-extraction-rules>

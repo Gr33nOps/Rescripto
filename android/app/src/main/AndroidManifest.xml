@@ -4,10 +4,22 @@
     <!-- Network is used ONLY to download the on-device AI models once.
          After setup the app works fully offline. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Rewrite history, settings and downloaded models never leave the device,
+         so they must not be swept into Google's cloud backup either. Without
+         android:allowBackup="false" the platform default is true, which would
+         upload rescripto.db and the preferences to the user's Drive. The two
+         rule files below are belt and braces: API 31+ honours
+         dataExtractionRules for device transfer independently of allowBackup.
+
+         The trade: history and settings no longer survive a device migration.
+         That is what the in-app encrypted backup is for. -->
     <application
         android:label="Rescripto"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"

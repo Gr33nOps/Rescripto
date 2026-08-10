@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Applies to Android 11 and below (android:fullBackupContent).
+
+  android:allowBackup="false" already disables backup entirely on these
+  releases, so nothing here should ever run. It is kept as a second layer: if
+  allowBackup is ever flipped on by a merged library manifest or a future edit,
+  these exclusions still keep the user's content off Google's servers.
+-->
+<full-backup-content>
+    <!-- Rewrite history: the user's own writing, in full. -->
+    <exclude domain="database" path="rescripto.db" />
+    <exclude domain="database" path="rescripto.db-journal" />
+    <exclude domain="database" path="rescripto.db-wal" />
+    <exclude domain="database" path="rescripto.db-shm" />
+
+    <!-- Settings, and the secure store's own backing file. -->
+    <exclude domain="sharedpref" path="." />
+
+    <!-- Downloaded GGUF and whisper models: gigabytes, and re-downloadable. -->
+    <exclude domain="file" path="." />
+</full-backup-content>
