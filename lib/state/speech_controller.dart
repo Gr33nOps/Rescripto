@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_whisper/flutter_whisper.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../models/speech_result.dart';
@@ -10,6 +12,7 @@ import '../services/speech_service.dart';
 enum SpeechPhase {
   idle,
   requestingPermission,
+  downloadingModel,
   initializing,
   recording,
   transcribing,
@@ -26,12 +29,16 @@ class SpeechController extends ChangeNotifier {
   String _partialText = '';
   String _lastError = '';
   double _progress = 0;
+  String _downloadSize = '';
   int _operationId = 0;
 
   SpeechPhase get phase => _phase;
   String get partialText => _partialText;
   String get lastError => _lastError;
   double get progress => _progress;
+
+  /// Human-readable size of the voice model being fetched, e.g. "141 MB".
+  String get downloadSize => _downloadSize;
   bool get isBusy => _phase != SpeechPhase.idle;
   bool get isRecording => _phase == SpeechPhase.recording;
   bool get isSupported => _service.isSupported;
@@ -64,15 +71,23 @@ class SpeechController extends ChangeNotifier {
       if (operationId != _operationId) return;
       _phase = SpeechPhase.initializing;
       _progress = 0;
+      _downloadSize = SpeechService.downloadSizeFor(_settings.whisperModel);
       notifyListeners();
       await _service.initialize(
         model: _settings.whisperModel,
         onDownloadProgress: (download) {
           if (operationId != _operationId) return;
+          // A first-run model download takes minutes; without saying so the
+          // spinner is indistinguishable from a hang.
+          _phase = SpeechPhase.downloadingModel;
           _progress = download.fraction;
           notifyListeners();
         },
       );
+      if (operationId != _operationId) return;
+      _phase = SpeechPhase.initializing;
+      _progress = 0;
+      notifyListeners();
 
       if (operationId != _operationId) return;
       await _service.startRecording();
@@ -127,12 +142,67 @@ class SpeechController extends ChangeNotifier {
   }
 
   String _friendlySpeechError(Object error, {required bool starting}) {
+    // Match on the typed failure first. Everything used to collapse into
+    // "Couldn't start voice input", which told nobody whether the download
+    // failed, the disk was full, or the microphone was busy.
+    if (error is WhisperError) {
+      switch (error.code) {
+        case WhisperErrorCode.modelDownloadFailed:
+        case WhisperErrorCode.modelNotFound:
+          return 'The voice model couldn’t be downloaded. Check your '
+              'connection and free storage, then tap the mic again — it '
+              'resumes where it left off.';
+        case WhisperErrorCode.downloadPaused:
+          return 'Voice model download paused. Tap the mic to resume.';
+        case WhisperErrorCode.cancelled:
+          return 'Voice input cancelled.';
+        case WhisperErrorCode.modelLoadFailed:
+        case WhisperErrorCode.initializationFailed:
+          return 'The voice model is on this device but couldn’t be opened. '
+              'Free some memory, or pick a smaller voice model in Settings.';
+        case WhisperErrorCode.permissionDenied:
+          return 'Microphone permission is required for voice input.';
+        case WhisperErrorCode.audioRecordingFailed:
+          return 'The microphone isn’t available. Close other apps that may '
+              'be using it and try again.';
+        case WhisperErrorCode.transcriptionFailed:
+        case WhisperErrorCode.engineNotInitialized:
+        case WhisperErrorCode.sessionFailed:
+        case WhisperErrorCode.invalidOptions:
+        case WhisperErrorCode.unknown:
+          break;
+      }
+    }
+
+    if (error is PlatformException) {
+      switch (error.code) {
+        case 'NATIVE_NOT_BUILT':
+          return 'Voice input isn’t supported on this device’s processor.';
+        case 'MODEL_NOT_FOUND':
+          return 'The voice model file is missing. Tap the mic to download it '
+              'again.';
+        case 'MIC_UNAVAILABLE':
+        case 'NO_CONTEXT':
+          return 'The microphone isn’t available. Close other apps that may '
+              'be using it and try again.';
+        case 'WRITE_FAILED':
+          return 'Couldn’t save the recording. Free some storage and try '
+              'again.';
+        case 'INITIALIZATION_FAILED':
+          return 'The voice model couldn’t be opened. Free some memory, or '
+              'pick a smaller voice model in Settings.';
+      }
+    }
+
     final text = error.toString().toLowerCase();
-    if (text.contains('space') || text.contains('storage')) {
+    if (text.contains('space') ||
+        text.contains('storage') ||
+        text.contains('enospc')) {
       return 'Not enough storage for voice input. Free some space and try again.';
     }
     if (text.contains('network') ||
         text.contains('connection') ||
+        text.contains('socket') ||
         text.contains('timeout')) {
       return 'Couldn’t download the voice model. Check your connection and try again.';
     }

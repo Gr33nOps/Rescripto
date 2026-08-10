@@ -12,6 +12,24 @@ import '../services/prompt_builder.dart';
 import '../services/settings_service.dart';
 import '../services/storage_service.dart';
 
+/// Where a running rewrite currently is.
+///
+/// Loading a multi-hundred-megabyte model takes real time on a phone, and
+/// showing a bare spinner for it is what makes the app look hung.
+enum RewriteStage {
+  idle,
+  loadingModel,
+  readingPrompt,
+  generating;
+
+  String get label => switch (this) {
+    RewriteStage.idle => 'Working…',
+    RewriteStage.loadingModel => 'Loading the AI model…',
+    RewriteStage.readingPrompt => 'Reading your text…',
+    RewriteStage.generating => 'Rewriting on your device…',
+  };
+}
+
 class RewriteException implements Exception {
   RewriteException(this.message, {this.code});
   final String message;
@@ -50,6 +68,8 @@ class RewriteController extends ChangeNotifier {
   int _operationId = 0;
   int? _cancelledOperationId;
   String _streamingText = '';
+  RewriteStage _stage = RewriteStage.idle;
+  final Stopwatch _elapsed = Stopwatch();
   RewriteResult? _lastResult;
   String? _lastError;
 
@@ -64,6 +84,8 @@ class RewriteController extends ChangeNotifier {
   bool get isRunning => _isRunning;
   bool get isCancelling => _isCancelling;
   String get streamingText => _streamingText;
+  RewriteStage get stage => _stage;
+  Duration get elapsed => _elapsed.elapsed;
   RewriteResult? get lastResult => _lastResult;
   String? get lastError => _lastError;
 
@@ -132,21 +154,35 @@ class RewriteController extends ChangeNotifier {
     _isCancelling = false;
     _cancelledOperationId = null;
     _streamingText = '';
+    _stage = RewriteStage.loadingModel;
+    _elapsed
+      ..reset()
+      ..start();
     _lastError = null;
     _lastResult = null;
     notifyListeners();
 
     try {
       final model = ModelCatalog.byId(_settings.selectedModelId);
+
+      _stage = RewriteStage.loadingModel;
+      notifyListeners();
+
       await _llm.loadModel(
         model,
         threads: _settings.threads,
-        contextSize: _settings.contextSize,
+        contextSize: LocalLlmService.effectiveContextSize(
+          model,
+          _settings.contextSize,
+        ),
         useGpu: _settings.useGpu,
       );
 
       final prompt = PromptBuilder.build(request, modelFamily: model.family);
       final tone = ToneLibrary.byId(_toneId);
+
+      _stage = RewriteStage.readingPrompt;
+      notifyListeners();
 
       final output = await _llm.generate(
         prompt,
@@ -157,6 +193,7 @@ class RewriteController extends ChangeNotifier {
               _cancelledOperationId == operationId) {
             return;
           }
+          _stage = RewriteStage.generating;
           _streamingText = partial;
           notifyListeners();
         },
@@ -210,6 +247,8 @@ class RewriteController extends ChangeNotifier {
         _isRunning = false;
         _isCancelling = false;
         _cancelledOperationId = null;
+        _stage = RewriteStage.idle;
+        _elapsed.stop();
         notifyListeners();
       }
     }
