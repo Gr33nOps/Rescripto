@@ -7,7 +7,8 @@ abstract final class AppConstants {
   static const String sourceUrl = 'https://github.com/Gr33nOps/Rescripto';
   static const String issuesUrl =
       'https://github.com/Gr33nOps/Rescripto/issues';
-  static const String versionName = '1.0.1';
+  // Keep in step with `version:` in pubspec.yaml.
+  static const String versionName = '1.0.3';
 
   // Storage keys (shared_preferences).
   static const String keySelectedModel = 'selected_model_id';
@@ -17,6 +18,7 @@ abstract final class AppConstants {
   static const String keyUseGpu = 'use_gpu';
   static const String keyContextSize = 'context_size';
   static const String keyWhisperModel = 'whisper_model';
+  static const String keyGpuResetDone = 'gpu_default_reset_v2';
 
   // SQLite.
   static const String dbName = 'rescripto.db';

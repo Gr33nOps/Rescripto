@@ -31,10 +31,36 @@ Source, releases, and issue tracking live on GitHub:
 Only Android arm64-v8a is packaged for release. Release ABI policy, signing,
 and automation are intentionally handled separately from app code.
 
+### CPU requirement
+
+The native engines are compiled for `armv8.2-a+dotprod`, so the device needs a
+64-bit ARM CPU with the dot-product extension — Cortex-A55/A75 and newer, which
+is roughly 2018 onwards. This is what makes 4-bit models usable at all: without
+it ggml falls back to scalar kernels and a rewrite takes minutes instead of
+seconds. On an older core the engine refuses to load and says so rather than
+crashing on an illegal instruction.
+
+To support pre-2018 chips as well, switch `GGML_CPU_ARM_ARCH` in
+`third_party/flutter_llama/android/src/main/cpp/CMakeLists.txt` for
+`GGML_CPU_ALL_VARIANTS` + `GGML_BACKEND_DL`. llama.cpp ships Android-specific
+variants and picks one at runtime from `AT_HWCAP`, but the backends are then
+`dlopen`ed by directory scan, which also needs `useLegacyPackaging = true` so
+the `.so` files are extracted to disk.
+
+### GPU acceleration
+
+Vulkan is compiled in but off by default. Bringing up a Vulkan device makes ggml
+compile several hundred compute pipelines, which costs minutes on many Android
+drivers, and for the 1B-3B models in this catalog most phones are faster on CPU
+regardless. When the setting is off the model is loaded with an empty device
+list so Vulkan is never initialized. Build with `-DFLUTTER_LLAMA_VULKAN=OFF` to
+drop the backend entirely.
+
 ## Storage and downloads
 
 Text models currently require approximately 769 MiB to 1.93 GiB each. Voice
-models range from approximately 74 MiB (Tiny) to 2.88 GiB (Large v3).
+models range from approximately 74 MiB (Tiny) to 2.88 GiB (Large v3); Base
+(141 MiB) is the default and downloads on the first tap of the microphone.
 Downloads come from Hugging Face. Temporary microphone recordings are deleted
 after transcription or cancellation.
 
@@ -44,7 +70,9 @@ Prerequisites:
 
 - Flutter 3.44.9 / Dart 3.12.2 or the project-pinned compatible toolchain
 - Java 17
-- Android SDK and NDK `26.1.10909125`
+- Android SDK and NDK `28.2.13676358` (the app and both native plugins pin the
+  same version; mismatched NDKs make AGP pick one arbitrarily when merging the
+  native libraries)
 - CMake/Ninja installed through Android SDK tools
 - For iOS work: macOS, Xcode, CocoaPods, and a real device/simulator build
   check
