@@ -23,23 +23,49 @@ set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 
-# Disable features not needed for mobile
-set(GGML_USE_LLAMAFILE OFF CACHE BOOL "" FORCE)
+# Disable features not needed for mobile. Note the option is GGML_LLAMAFILE,
+# not GGML_USE_LLAMAFILE (that spelling is the compile definition and setting it
+# here silently did nothing). llamafile's sgemm helps F16/F32 matmuls, so keep
+# it on; OpenMP is unavailable on Android and ggml uses its own thread pool.
+set(GGML_LLAMAFILE ON CACHE BOOL "" FORCE)
 set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_AMX OFF CACHE BOOL "" FORCE)
+
+# CPU architecture baseline.
+#
+# Cross-compiling turns GGML_NATIVE off, and without GGML_CPU_ARM_ARCH the ggml
+# CPU backend falls back to the NDK's plain armv8-a baseline. That compiles out
+# every `vdotq_s32` fast path in ggml-cpu/arch/arm/quants.c, so Q4_K_M models —
+# which is all of them in this app's catalog — run 3-5x slower than the same
+# device is capable of. A rewrite that should take ~20 s takes minutes.
+#
+# armv8.2-a+dotprod covers Cortex-A55/A75 and newer (roughly 2018+ phones).
+# nativeInitModel checks HWCAP_ASIMDDP at runtime and refuses to load with a
+# clear message on older cores rather than taking a SIGILL.
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod" CACHE STRING "" FORCE)
+    message(STATUS "ggml CPU baseline: ${GGML_CPU_ARM_ARCH} (dotprod required)")
+endif()
 
 # GPU Acceleration for Android devices
 # Vulkan for modern devices (Android 7.0+)
 # OpenCL as fallback for older devices
 # CPU backend with NEON as last resort
 
-# Try to enable Vulkan (best performance on modern devices)
+# Vulkan is built in but is NOT used unless the user opts into GPU acceleration
+# in Settings. Bringing up a Vulkan device makes ggml compile several hundred
+# SPIR-V compute pipelines, which costs minutes on many Android drivers, so
+# nativeInitModel keeps the device list CPU-only when GPU is off. Set
+# -DFLUTTER_LLAMA_VULKAN=OFF to drop the backend entirely.
+option(FLUTTER_LLAMA_VULKAN "Build the ggml Vulkan backend" ON)
+
 find_library(vulkan-lib vulkan)
-if(vulkan-lib)
+if(vulkan-lib AND FLUTTER_LLAMA_VULKAN)
     set(GGML_VULKAN ON CACHE BOOL "" FORCE)
-    message(STATUS "🚀 Vulkan GPU acceleration ENABLED")
-    message(STATUS "   Supported: Adreno 5xx+, Mali-G71+, Samsung Exynos 9+")
-    message(STATUS "   Expected: 4-8x faster than CPU")
+    message(STATUS "Vulkan GPU backend built (opt-in at runtime)")
+elseif(NOT FLUTTER_LLAMA_VULKAN)
+    unset(vulkan-lib CACHE)
+    message(STATUS "Vulkan GPU backend disabled by FLUTTER_LLAMA_VULKAN=OFF")
 else()
     # Try OpenCL as fallback
     find_library(opencl-lib OpenCL)
