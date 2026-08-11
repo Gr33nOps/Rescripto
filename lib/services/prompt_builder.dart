@@ -1,19 +1,28 @@
+import '../engine/prompt_spec.dart';
 import '../models/rewrite_request.dart';
 import '../models/tone_preset.dart';
 
-/// Builds the LLM prompt for a rewrite request and parses the output.
+/// Builds the rewrite prompt for a request and parses a model's output.
 ///
-/// Pure Dart (no Flutter deps) so it can be unit-tested easily.
+/// Pure Dart (no Flutter deps) so it can be unit-tested easily. Provider-
+/// neutral: it stops at a [PromptSpec], not a model-specific chat string —
+/// wrapping that in a family's markup is `ChatTemplate`'s job
+/// (`lib/engine/local/chat_template.dart`), so a cloud engine, which needs
+/// system/user text rather than control tokens, can consume this directly.
 class PromptBuilder {
   /// Marker line the model is asked to emit between alternative versions.
   static const String variantMarker = '---VARIANT---';
 
-  /// Builds the full prompt (system + user) for the given request.
-  static String build(RewriteRequest request, {required String modelFamily}) {
-    final tone = ToneLibrary.byId(request.toneId);
-    final system = _buildSystemPrompt(request, tone);
-    final user = request.sourceText.trim();
-    return _wrapChat(system, user, modelFamily);
+  /// Builds the system + user text for the given request and tone.
+  ///
+  /// Takes the resolved [tone] rather than a `toneId` and looking it up
+  /// internally, so this stays pure once tones move into a user-editable
+  /// store (`ConfigStore`, planned) instead of `ToneLibrary`'s static list.
+  static PromptSpec build(RewriteRequest request, {required TonePreset tone}) {
+    return PromptSpec(
+      system: _buildSystemPrompt(request, tone),
+      user: request.sourceText.trim(),
+    );
   }
 
   static String _buildSystemPrompt(RewriteRequest request, TonePreset tone) {
@@ -88,25 +97,6 @@ class PromptBuilder {
       buffer.writeln('Write a single version.');
     }
     return buffer.toString();
-  }
-
-  /// Wraps system + user text in the chat template expected by a model family.
-  static String _wrapChat(String system, String user, String family) {
-    switch (family) {
-      case 'gemma':
-        return '<start_of_turn>user\n$system\n\n$user<end_of_turn>\n'
-            '<start_of_turn>model\n';
-      case 'llama':
-        return '<|start_header_id|>system<|end_header_id|>\n\n'
-            '$system<|eot_id|>'
-            '<|start_header_id|>user<|end_header_id|>\n\n$user<|eot_id|>'
-            '<|start_header_id|>assistant<|end_header_id|>\n\n';
-      case 'qwen':
-      default:
-        return '<|im_start|>system\n$system<|im_end|>\n'
-            '<|im_start|>user\n$user<|im_end|>\n'
-            '<|im_start|>assistant\n';
-    }
   }
 
   /// Cleans a raw model response and splits it into multiple variants.

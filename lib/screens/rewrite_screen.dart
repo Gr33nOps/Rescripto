@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../engine/engine_capabilities.dart';
+import '../engine/engine_error_messages.dart';
+import '../engine/engine_exception.dart';
+import '../engine/engine_stage.dart';
 import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
 import '../widgets/mic_button.dart';
@@ -126,6 +130,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
               _StreamingPanel(
                 text: controller.streamingText,
                 stage: controller.stage,
+                capabilities: controller.capabilities,
                 cancelling: controller.isCancelling,
               ),
             if (controller.lastResult != null) ...[
@@ -162,15 +167,19 @@ class _RewriteScreenState extends State<RewriteScreen> {
     FocusScope.of(context).unfocus();
     try {
       await controller.rewrite();
-    } on RewriteException catch (e) {
+    } on EmptySourceError {
       if (!mounted) return;
-      if (e.isModelMissing) {
-        widget.onGoToModels();
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nothing to rewrite yet.')),
+      );
+    } on ModelNotInstalledException {
+      if (!mounted) return;
+      widget.onGoToModels();
+    } on EngineException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(describeEngineError(e))));
     }
   }
 }
@@ -354,11 +363,13 @@ class _StreamingPanel extends StatelessWidget {
   const _StreamingPanel({
     required this.text,
     required this.stage,
+    required this.capabilities,
     required this.cancelling,
   });
 
   final String text;
-  final RewriteStage stage;
+  final EngineStage stage;
+  final EngineCapabilities capabilities;
   final bool cancelling;
 
   @override
@@ -382,13 +393,15 @@ class _StreamingPanel extends StatelessWidget {
                   child: Text(
                     cancelling
                         ? 'Stopping the current rewrite…'
-                        : stage.label,
+                        : stageLabel(stage, capabilities),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
               ],
             ),
-            if (!cancelling && stage == RewriteStage.loadingModel) ...[
+            if (!cancelling &&
+                stage == EngineStage.preparing &&
+                capabilities.needsLocalInstall) ...[
               const SizedBox(height: 8),
               Text(
                 'First run after opening the app reads the whole model into '

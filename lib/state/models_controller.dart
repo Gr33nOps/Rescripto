@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../engine/local/local_engine_host.dart';
 import '../models/ai_model.dart';
 import '../services/local_llm_service.dart';
 import '../services/model_manager.dart';
@@ -12,7 +13,7 @@ class ModelsController extends ChangeNotifier {
   ModelsController({
     required this._manager,
     required this._settings,
-    required this._llm,
+    required this._host,
   }) {
     _manager.addListener(_onManagerChanged);
     _load();
@@ -20,7 +21,7 @@ class ModelsController extends ChangeNotifier {
 
   final ModelManager _manager;
   final SettingsService _settings;
-  final LocalLlmService _llm;
+  final LocalEngineHost _host;
 
   final Set<String> _installed = {};
   bool _scanning = true;
@@ -73,8 +74,8 @@ class ModelsController extends ChangeNotifier {
 
   Future<void> deleteModel(AiModel model) async {
     final modelPath = await LocalLlmService.filePathFor(model);
-    if (selectedModelId == model.id || _llm.loadedModelPath == modelPath) {
-      await _llm.unloadModel();
+    if (selectedModelId == model.id || _host.loadedModelPath == modelPath) {
+      await _host.withEngine((service) => service.unloadModel());
     }
     await _manager.deleteModel(model);
     await _refreshInstalled();

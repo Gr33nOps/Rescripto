@@ -12,37 +12,23 @@ void main() {
       length: RewriteLength.same,
     );
 
+    final tone = ToneLibrary.byId('professional');
+
     test('includes the tone instruction', () {
-      final prompt = PromptBuilder.build(base, modelFamily: 'qwen');
-      final tone = ToneLibrary.byId('professional');
-      expect(prompt, contains(tone.instruction));
+      final prompt = PromptBuilder.build(base, tone: tone);
+      expect(prompt.system, contains(tone.instruction));
     });
 
-    test('wraps with ChatML template for qwen family', () {
-      final prompt = PromptBuilder.build(base, modelFamily: 'qwen');
-      expect(prompt, startsWith('<|im_start|>system\n'));
-      expect(prompt, contains('<|im_start|>user\n'));
-      expect(prompt, contains('we need 2 meet monday'));
-      expect(prompt, endsWith('<|im_start|>assistant\n'));
-    });
-
-    test('wraps with gemma template for gemma family', () {
-      final prompt = PromptBuilder.build(base, modelFamily: 'gemma');
-      expect(prompt, startsWith('<start_of_turn>user\n'));
-      expect(prompt, endsWith('<start_of_turn>model\n'));
-    });
-
-    test('wraps with llama template for llama family', () {
-      final prompt = PromptBuilder.build(base, modelFamily: 'llama');
-      expect(prompt, contains('<|start_header_id|>system<|end_header_id|>'));
-      expect(prompt, contains('<|start_header_id|>assistant<|end_header_id|>'));
+    test('puts the source text in the user field, untouched by templating', () {
+      final prompt = PromptBuilder.build(base, tone: tone);
+      expect(prompt.user, 'we need 2 meet monday for the project review');
     });
 
     test('adds variant marker when multiple variants requested', () {
       final req = base.copyWith(variantCount: 3);
-      final prompt = PromptBuilder.build(req, modelFamily: 'qwen');
-      expect(prompt, contains('3 different versions'));
-      expect(prompt, contains(PromptBuilder.variantMarker));
+      final prompt = PromptBuilder.build(req, tone: tone);
+      expect(prompt.system, contains('3 different versions'));
+      expect(prompt.system, contains(PromptBuilder.variantMarker));
     });
 
     test('mentions audience and custom instruction when provided', () {
@@ -50,14 +36,14 @@ void main() {
         audience: ['a manager'],
         customInstruction: 'sound more optimistic',
       );
-      final prompt = PromptBuilder.build(req, modelFamily: 'qwen');
-      expect(prompt, contains('a manager'));
-      expect(prompt, contains('sound more optimistic'));
+      final prompt = PromptBuilder.build(req, tone: tone);
+      expect(prompt.system, contains('a manager'));
+      expect(prompt.system, contains('sound more optimistic'));
     });
 
     test('never includes raw punctuation noise in single version mode', () {
-      final prompt = PromptBuilder.build(base, modelFamily: 'qwen');
-      expect(prompt, isNot(contains(PromptBuilder.variantMarker)));
+      final prompt = PromptBuilder.build(base, tone: tone);
+      expect(prompt.system, isNot(contains(PromptBuilder.variantMarker)));
     });
   });
 

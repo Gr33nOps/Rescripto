@@ -8,12 +8,18 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/constants.dart';
+import '../engine/engine_exception.dart';
+import '../engine/generation_options.dart';
+import '../engine/local/stop_sequence_emitter.dart';
 import '../models/ai_model.dart';
 import '../models/rewrite_output.dart';
 
 /// Wraps the native llama.cpp engine (via flutter_llama).
 ///
-/// Handles model loading, generation and unloading. All inference is on-device.
+/// Handles model loading, generation and unloading. All inference is
+/// on-device. Owned exclusively by `LocalEngineHost`
+/// (`lib/engine/local/local_engine_host.dart`), which serialises access to
+/// the singleton native engine underneath — nothing here does that itself.
 class LocalLlmService {
   final FlutterLlama _llama = FlutterLlama.instance;
   ({String path, int threads, int contextSize, bool useGpu})? _loadedConfig;
@@ -39,6 +45,11 @@ class LocalLlmService {
   }
 
   /// Loads a GGUF model into memory.
+  ///
+  /// Throws [ModelNotInstalledException] if the file isn't on disk, or
+  /// [ModelLoadFailedException] if the engine rejected it — typed at the
+  /// point each is actually known, rather than as a generic message a caller
+  /// downstream has to pattern-match to find out which one happened.
   Future<void> loadModel(
     AiModel model, {
     required int threads,
@@ -47,7 +58,7 @@ class LocalLlmService {
   }) async {
     final path = await filePathFor(model);
     if (!File(path).existsSync()) {
-      throw StateError('Model file not found: $path');
+      throw ModelNotInstalledException(model.id);
     }
     final requested = (
       path: path,
@@ -74,12 +85,7 @@ class LocalLlmService {
 
     final ok = await _llama.loadModel(config);
     if (!ok) {
-      final reason = _llama.lastLoadError;
-      throw StateError(
-        reason == null || reason.isEmpty
-            ? 'Failed to load model "${model.name}".'
-            : reason,
-      );
+      throw ModelLoadFailedException(_llama.lastLoadError);
     }
     _loadedConfig = requested;
   }
@@ -98,81 +104,67 @@ class LocalLlmService {
     _loadedConfig = null;
   }
 
-  /// Turn markers across every chat template in the model catalog.
-  ///
-  /// Gemma 3 — the default model — ends turns with `<end_of_turn>`; the
-  /// pipe-wrapped `<|end_of_turn|>` that used to be listed here matches no
-  /// model at all, so a Gemma rewrite that failed to hit EOS kept generating
-  /// until it burned the whole token budget.
-  static const List<String> stopSequences = [
-    '<end_of_turn>',
-    '<|eot_id|>',
-    '<|im_end|>',
-    '<|end_of_text|>',
-    '<|endoftext|>',
-    '</s>',
-  ];
-
   /// Generates a single rewrite output.
+  ///
+  /// [onDelta], if given, is called with *new* text only — never the
+  /// accumulated string. Stop-sequence detection has to withhold the tail of
+  /// the buffer that might still turn into a marker (a marker can arrive
+  /// split across native tokens), so the actual hold-back arithmetic lives in
+  /// [StopSequenceEmitter], which — unlike this class — doesn't wrap a
+  /// platform channel and can be unit-tested directly.
   Future<RewriteOutput> generate(
     String prompt, {
-    double temperature = 0.5,
-    int maxTokens = AppConstants.defaultMaxTokens,
-    void Function(String partial)? onToken,
+    required GenerationOptions options,
+    void Function(String delta)? onDelta,
   }) async {
     final activeContext = _loadedConfig?.contextSize;
     if (activeContext == null) {
-      throw StateError('Model configuration is unavailable. Reload the model.');
+      throw const ModelLoadFailedException('No model is currently loaded.');
     }
     final estimatedPromptTokens = (utf8.encode(prompt).length / 3).ceil();
     final availableOutputTokens = activeContext - estimatedPromptTokens;
     if (availableOutputTokens < 64) {
-      throw StateError(
-        'The input is too long for the $activeContext-token context. '
-        'Shorten it or increase Context size in Settings.',
+      throw ContextOverflowException(
+        promptTokens: estimatedPromptTokens,
+        contextSize: activeContext,
       );
     }
-    final boundedMaxTokens = math.min(maxTokens, availableOutputTokens);
+    final boundedMaxTokens = math.min(
+      options.maxOutputTokens,
+      availableOutputTokens,
+    );
     final params = GenerationParams(
       prompt: prompt,
-      temperature: temperature,
-      topP: 0.95,
-      topK: 40,
+      temperature: options.temperature,
+      topP: options.topP,
+      topK: options.topK,
       maxTokens: boundedMaxTokens,
-      repeatPenalty: 1.1,
-      stopSequences: stopSequences,
+      repeatPenalty: options.repeatPenalty,
+      stopSequences: options.stopSequences,
     );
 
+    final emitter = StopSequenceEmitter(options.stopSequences);
     final stopwatch = Stopwatch()..start();
-    final buffer = StringBuffer();
+
     await for (final token in _llama.generateStream(params)) {
-      buffer.write(token);
-      final partial = _trimStopSequence(
-        buffer.toString(),
-        params.stopSequences,
-      );
-      onToken?.call(partial);
+      final delta = emitter.append(token);
+      if (delta.isNotEmpty) onDelta?.call(delta);
+      // The native side already stops on these sequences; this is a safety
+      // net for stray trailing text, so ending the loop here just skips
+      // processing tokens we already know we would discard.
+      if (emitter.isStopped) break;
     }
     stopwatch.stop();
-    final text = _trimStopSequence(buffer.toString(), params.stopSequences);
-    return RewriteOutput(
-      text: text,
-      generationTimeMs: stopwatch.elapsedMilliseconds,
-    );
+
+    final (:text, :finalDelta) = emitter.finish();
+    if (finalDelta.isNotEmpty) onDelta?.call(finalDelta);
+
+    return RewriteOutput(text: text, generationTimeMs: stopwatch.elapsedMilliseconds);
   }
 
   /// Stops any in-flight generation.
   Future<void> stopGeneration() async {
     await _llama.stopGeneration();
-  }
-
-  String _trimStopSequence(String text, List<String> stopSequences) {
-    var end = text.length;
-    for (final sequence in stopSequences) {
-      final index = text.indexOf(sequence);
-      if (index >= 0 && index < end) end = index;
-    }
-    return text.substring(0, end);
   }
 
   Future<void> dispose() => unloadModel();

@@ -1,55 +1,41 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/constants.dart';
-import '../models/ai_model.dart';
+import '../engine/engine_capabilities.dart';
+import '../engine/engine_error_messages.dart';
+import '../engine/engine_exception.dart';
+import '../engine/engine_registry.dart';
+import '../engine/engine_request.dart';
+import '../engine/engine_stage.dart';
+import '../engine/engine_target.dart';
+import '../engine/generation_handle.dart';
+import '../engine/generation_options.dart';
 import '../models/history_entry.dart';
 import '../models/rewrite_output.dart';
 import '../models/rewrite_request.dart';
 import '../models/rewrite_result.dart';
 import '../models/tone_preset.dart';
-import '../services/local_llm_service.dart';
 import '../services/prompt_builder.dart';
 import '../services/settings_service.dart';
 import '../services/storage_service.dart';
 
-/// Where a running rewrite currently is.
+/// Thrown by [RewriteController.rewrite] when there is no text to act on.
 ///
-/// Loading a multi-hundred-megabyte model takes real time on a phone, and
-/// showing a bare spinner for it is what makes the app look hung.
-enum RewriteStage {
-  idle,
-  loadingModel,
-  readingPrompt,
-  generating;
-
-  String get label => switch (this) {
-    RewriteStage.idle => 'Working…',
-    RewriteStage.loadingModel => 'Loading the AI model…',
-    RewriteStage.readingPrompt => 'Reading your text…',
-    RewriteStage.generating => 'Rewriting on your device…',
-  };
+/// Not an [EngineException]: the request never reaches an engine, so this is
+/// input validation rather than something an engine failed at.
+class EmptySourceError implements Exception {
+  const EmptySourceError();
 }
 
-class RewriteException implements Exception {
-  RewriteException(this.message, {this.code});
-  final String message;
-  final String? code;
-
-  bool get isModelMissing => code == 'model_missing';
-
-  @override
-  String toString() => message;
-}
-
-/// Orchestrates the full rewrite flow (on-device LLM + history).
+/// Orchestrates the full rewrite flow (engine dispatch + history).
 class RewriteController extends ChangeNotifier {
   RewriteController({
-    required this._llm,
+    required this._registry,
     required this._settings,
     required this._storage,
   });
 
-  final LocalLlmService _llm;
+  final EngineRegistry _registry;
   final SettingsService _settings;
   final StorageService _storage;
 
@@ -64,11 +50,9 @@ class RewriteController extends ChangeNotifier {
 
   // Run state.
   bool _isRunning = false;
-  bool _isCancelling = false;
-  int _operationId = 0;
-  int? _cancelledOperationId;
+  GenerationHandle? _active;
   String _streamingText = '';
-  RewriteStage _stage = RewriteStage.idle;
+  EngineStage _stage = EngineStage.preparing;
   final Stopwatch _elapsed = Stopwatch();
   RewriteResult? _lastResult;
   String? _lastError;
@@ -82,14 +66,24 @@ class RewriteController extends ChangeNotifier {
   int get variantCount => _variantCount;
 
   bool get isRunning => _isRunning;
-  bool get isCancelling => _isCancelling;
+  bool get isCancelling => _active?.isCancelled ?? false;
   String get streamingText => _streamingText;
-  RewriteStage get stage => _stage;
+  EngineStage get stage => _stage;
   Duration get elapsed => _elapsed.elapsed;
   RewriteResult? get lastResult => _lastResult;
   String? get lastError => _lastError;
 
+  /// Capabilities of the engine the current model selection would run on —
+  /// what the UI's stage copy adapts to.
+  EngineCapabilities get capabilities => _registry.resolve(_target).capabilities;
+
   bool get canRewrite => _sourceText.trim().isNotEmpty && !_isRunning;
+
+  // Only the local engine exists today; the model id already distinguishes
+  // catalog entries, so this is the one place that would change to route by
+  // processing mode once a cloud engine is registered alongside it.
+  EngineTarget get _target =>
+      EngineTarget(engineId: 'local.llama', modelRef: _settings.selectedModelId);
 
   void setSource(String text) {
     if (text == _sourceText) return;
@@ -141,20 +135,19 @@ class RewriteController extends ChangeNotifier {
     variantCount: _variantCount,
   );
 
-  /// Runs the on-device rewrite. Throws [RewriteException] on failure.
+  /// Runs the rewrite. Throws [EmptySourceError] or an [EngineException] on
+  /// failure; resolves to an empty result if cancelled via [stop].
   Future<RewriteResult> rewrite() async {
     if (_isRunning) return _lastResult ?? RewriteResult.empty(_request);
     if (_sourceText.trim().isEmpty) {
-      throw RewriteException('Nothing to rewrite yet.');
+      throw const EmptySourceError();
     }
 
-    final operationId = ++_operationId;
     final request = _request;
     _isRunning = true;
-    _isCancelling = false;
-    _cancelledOperationId = null;
+    _active = null;
     _streamingText = '';
-    _stage = RewriteStage.loadingModel;
+    _stage = EngineStage.preparing;
     _elapsed
       ..reset()
       ..start();
@@ -163,50 +156,36 @@ class RewriteController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final model = ModelCatalog.byId(_settings.selectedModelId);
+      final target = _target;
+      final engine = _registry.resolve(target);
+      await engine.prepare(target);
 
-      _stage = RewriteStage.loadingModel;
-      notifyListeners();
-
-      await _llm.loadModel(
-        model,
-        threads: _settings.threads,
-        contextSize: LocalLlmService.effectiveContextSize(
-          model,
-          _settings.contextSize,
-        ),
-        useGpu: _settings.useGpu,
-      );
-
-      final prompt = PromptBuilder.build(request, modelFamily: model.family);
       final tone = ToneLibrary.byId(_toneId);
-
-      _stage = RewriteStage.readingPrompt;
-      notifyListeners();
-
-      final output = await _llm.generate(
-        prompt,
+      final prompt = PromptBuilder.build(request, tone: tone);
+      final options = GenerationOptions(
         temperature: tone.temperature,
-        maxTokens: AppConstants.defaultMaxTokens,
-        onToken: (partial) {
-          if (_operationId != operationId ||
-              _cancelledOperationId == operationId) {
-            return;
-          }
-          _stage = RewriteStage.generating;
-          _streamingText = partial;
-          notifyListeners();
-        },
+        maxOutputTokens: AppConstants.defaultMaxTokens,
       );
 
-      if (_cancelledOperationId == operationId) {
-        return RewriteResult.empty(request);
-      }
+      final handle = engine.start(EngineRequest(prompt: prompt, options: options));
+      _active = handle;
+      notifyListeners();
 
-      if (output.isEmpty) {
-        throw RewriteException(
-          'The model returned an empty result. Try a different intensity.',
-        );
+      final subscription = handle.events.listen((event) {
+        switch (event) {
+          case StageChanged(:final stage):
+            _stage = stage;
+          case TokenDelta(:final delta):
+            _streamingText += delta;
+        }
+        notifyListeners();
+      });
+
+      final RewriteOutput output;
+      try {
+        output = await handle.done;
+      } finally {
+        await subscription.cancel();
       }
 
       final variants = PromptBuilder.parseVariants(
@@ -233,33 +212,25 @@ class RewriteController extends ChangeNotifier {
       _lastResult = result;
       _streamingText = '';
       return result;
-    } on RewriteException {
+    } on GenerationCancelledException {
+      return RewriteResult.empty(request);
+    } on EngineException catch (e) {
+      _lastError = describeEngineError(e);
       rethrow;
-    } catch (e) {
-      final msg = _describeError(e);
-      _lastError = msg;
-      throw RewriteException(
-        msg,
-        code: msg.contains('not downloaded') ? 'model_missing' : null,
-      );
     } finally {
-      if (_operationId == operationId) {
-        _isRunning = false;
-        _isCancelling = false;
-        _cancelledOperationId = null;
-        _stage = RewriteStage.idle;
-        _elapsed.stop();
-        notifyListeners();
-      }
+      _isRunning = false;
+      _active = null;
+      _elapsed.stop();
+      notifyListeners();
     }
   }
 
   Future<void> stop() async {
-    if (!_isRunning || _isCancelling) return;
-    _isCancelling = true;
-    _cancelledOperationId = _operationId;
+    final active = _active;
+    if (active == null || active.isCancelled) return;
+    final cancelling = active.cancel();
     notifyListeners();
-    await _llm.stopGeneration();
+    await cancelling;
   }
 
   Future<void> _saveToHistory(RewriteResult result) async {
@@ -279,22 +250,5 @@ class RewriteController extends ChangeNotifier {
     } catch (_) {
       // History is best-effort; never fail the rewrite because of it.
     }
-  }
-
-  String _describeError(Object e) {
-    final s = e.toString().toLowerCase();
-    if (s.contains('model') && (s.contains('file') || s.contains('found'))) {
-      return 'The AI model is not downloaded yet. Open "AI Models" to install it.';
-    }
-    if (s.contains('out of memory') || s.contains('oom')) {
-      return 'Not enough memory on this device. Try a smaller model or lower '
-          'context size in Settings.';
-    }
-    if (s.contains('context') || s.contains('input is too long')) {
-      return 'This text is too long for the selected context size. Shorten it '
-          'or increase Context size in Settings.';
-    }
-    return 'Couldn’t complete the rewrite. Try again. If it keeps happening, '
-        'restart the app.';
   }
 }

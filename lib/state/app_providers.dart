@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../engine/engine_registry.dart';
+import '../engine/local/local_engine_host.dart';
+import '../engine/local/local_llm_engine.dart';
 import '../services/db/app_database.dart';
 import '../services/local_llm_service.dart';
 import '../services/model_manager.dart';
@@ -33,9 +36,16 @@ class AppProviders extends StatelessWidget {
         Provider<StorageService>(
           create: (ctx) => StorageService(ctx.read<AppDatabase>()),
         ),
-        Provider<LocalLlmService>(
-          create: (_) => LocalLlmService(),
-          dispose: (_, service) => service.dispose(),
+        // Sole owner of the native llama.cpp singleton — every mutating call
+        // to it, from either controller below, is routed through here.
+        Provider<LocalEngineHost>(
+          create: (_) => LocalEngineHost(LocalLlmService()),
+        ),
+        Provider<EngineRegistry>(
+          create: (ctx) => EngineRegistry([
+            LocalLlmEngine(ctx.read<LocalEngineHost>(), ctx.read<SettingsService>()),
+          ]),
+          dispose: (_, registry) => registry.dispose(),
         ),
         Provider<SpeechService>(
           create: (_) => SpeechService(),
@@ -52,12 +62,12 @@ class AppProviders extends StatelessWidget {
           create: (ctx) => ModelsController(
             manager: ctx.read<ModelManager>(),
             settings: ctx.read<SettingsService>(),
-            llm: ctx.read<LocalLlmService>(),
+            host: ctx.read<LocalEngineHost>(),
           ),
         ),
         ChangeNotifierProvider<RewriteController>(
           create: (ctx) => RewriteController(
-            llm: ctx.read<LocalLlmService>(),
+            registry: ctx.read<EngineRegistry>(),
             settings: ctx.read<SettingsService>(),
             storage: ctx.read<StorageService>(),
           ),

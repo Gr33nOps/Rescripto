@@ -1,5 +1,22 @@
 import 'package:flutter/material.dart';
 
+/// The chat template family a model expects its prompt wrapped in.
+///
+/// Previously a bare `String` compared by a `switch` with a `default` case, so
+/// a typo in a catalog entry silently produced a ChatML-wrapped prompt for a
+/// model that does not understand ChatML instead of failing to compile.
+enum ModelFamily {
+  gemma,
+  llama,
+  qwen;
+
+  IconData get icon => switch (this) {
+    ModelFamily.llama => Icons.emoji_nature_outlined,
+    ModelFamily.qwen => Icons.smart_toy_outlined,
+    ModelFamily.gemma => Icons.diamond_outlined,
+  };
+}
+
 /// A downloadable GGUF model the user can install for rewriting.
 class AiModel {
   const AiModel({
@@ -20,7 +37,7 @@ class AiModel {
 
   final String id;
   final String name;
-  final String family;
+  final ModelFamily family;
 
   /// e.g. "1.1B"
   final String parameters;
@@ -39,13 +56,7 @@ class AiModel {
 
   String get displayName => '$name ($parameters $quant)';
 
-  IconData get familyIcon => switch (family) {
-    'llama' => Icons.emoji_nature_outlined,
-    'qwen' => Icons.smart_toy_outlined,
-    'gemma' => Icons.diamond_outlined,
-    'granite' => Icons.terrain_outlined,
-    _ => Icons.auto_awesome_outlined,
-  };
+  IconData get familyIcon => family.icon;
 
   /// Local file name used inside the app models directory.
   String get localFileName => fileName;
@@ -57,7 +68,7 @@ class ModelCatalog {
     AiModel(
       id: 'gemma3-1b',
       name: 'Gemma 3 1B',
-      family: 'gemma',
+      family: ModelFamily.gemma,
       parameters: '1B',
       quant: 'Q4_K_M',
       fileName: 'gemma-3-1b-it-Q4_K_M.gguf',
@@ -74,7 +85,7 @@ class ModelCatalog {
     AiModel(
       id: 'llama3.2-1b',
       name: 'Llama 3.2 1B',
-      family: 'llama',
+      family: ModelFamily.llama,
       parameters: '1B',
       quant: 'Q4_K_M',
       fileName: 'Llama-3.2-1B-Instruct-Q4_K_M.gguf',
@@ -90,7 +101,7 @@ class ModelCatalog {
     AiModel(
       id: 'qwen2.5-1.5b',
       name: 'Qwen 2.5 1.5B',
-      family: 'qwen',
+      family: ModelFamily.qwen,
       parameters: '1.5B',
       quant: 'Q4_K_M',
       fileName: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
@@ -107,7 +118,7 @@ class ModelCatalog {
     AiModel(
       id: 'llama3.2-3b',
       name: 'Llama 3.2 3B',
-      family: 'llama',
+      family: ModelFamily.llama,
       parameters: '3B',
       quant: 'Q4_K_M',
       fileName: 'Llama-3.2-3B-Instruct-Q4_K_M.gguf',
