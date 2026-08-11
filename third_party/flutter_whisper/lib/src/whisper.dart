@@ -136,15 +136,29 @@ class Whisper {
   /// Start recording from the microphone (16 kHz mono WAV on disk).
   ///
   /// Combine with [stopRecording] → [transcribeFile] for record-and-transcribe.
+  ///
+  /// Does **not** require [initialize] to have been called first — audio
+  /// capture has no dependency on a loaded model, only [transcribeFile]
+  /// does. A caller that only wants the recording (to send elsewhere for
+  /// transcription, say) never pays for downloading and loading a local
+  /// model it will never use; the platform engine is created lazily here
+  /// instead.
   Future<void> startRecording() async {
-    _assertInitialized();
+    _engine ??= _createEngine();
     await _engine!.startRecording();
   }
 
-  /// Stop recording; returns path to the recorded WAV.
+  /// Stop recording; returns path to the recorded WAV. See [startRecording]
+  /// for why this doesn't require [initialize].
   Future<String> stopRecording() async {
-    _assertInitialized();
-    return _engine!.stopRecording();
+    final engine = _engine;
+    if (engine == null) {
+      throw WhisperError(
+        'No recording in progress — call startRecording() first.',
+        WhisperErrorCode.engineNotInitialized,
+      );
+    }
+    return engine.stopRecording();
   }
 
   /// Dispose resources.
