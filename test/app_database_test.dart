@@ -191,8 +191,60 @@ void main() {
           'audience_tag',
           'network_log',
           'credential_ref',
+          'provider_config',
+          'provider_model',
         ]),
       );
+      await db.close();
+    });
+
+    test('upgrading a real v4 database adds provider tables without touching earlier ones', () async {
+      final path = pathFor('real_v4_upgrade.db');
+      final v4 = await AppDatabase(
+        version: 4,
+        migrations: {2: kMigrations[2]!, 3: kMigrations[3]!, 4: kMigrations[4]!},
+      ).openAt(path);
+      await v4.insert('credential_ref', {
+        'provider_id': 'openai',
+        'account_id': 'default',
+        'kind': 'apiKey',
+        'created_at': DateTime.utc(2026).toIso8601String(),
+      });
+      await v4.close();
+
+      final upgraded = await AppDatabase().openAt(path);
+      expect(await upgraded.query('credential_ref'), hasLength(1));
+      expect(await upgraded.query('provider_config'), isEmpty);
+      expect(await upgraded.query('provider_model'), isEmpty);
+      await upgraded.close();
+    });
+
+    test('provider_model rows are removed when their provider_config is deleted', () async {
+      final db = await AppDatabase().openAt(pathFor('real_cascade.db'));
+      await db.insert('provider_config', {
+        'id': 'openai-1',
+        'preset_id': 'openai',
+        'display_name': 'OpenAI',
+        'enabled': 1,
+        'credential_provider_id': 'openai-1',
+        'credential_account_id': 'default',
+        'credential_kind': 'apiKey',
+        'extra_headers': '{}',
+        'created_at': DateTime.utc(2026).toIso8601String(),
+        'updated_at': DateTime.utc(2026).toIso8601String(),
+      });
+      await db.insert('provider_model', {
+        'id': 'openai-1::gpt-4o',
+        'provider_config_id': 'openai-1',
+        'model_ref': 'gpt-4o',
+        'display_name': 'gpt-4o',
+        'sort_order': 0,
+      });
+      expect(await db.query('provider_model'), hasLength(1));
+
+      await db.delete('provider_config', where: 'id = ?', whereArgs: ['openai-1']);
+
+      expect(await db.query('provider_model'), isEmpty);
       await db.close();
     });
 
@@ -271,6 +323,8 @@ void main() {
       expect(await upgraded.query('audience_tag'), isEmpty);
       expect(await upgraded.query('network_log'), isEmpty);
       expect(await upgraded.query('credential_ref'), isEmpty);
+      expect(await upgraded.query('provider_config'), isEmpty);
+      expect(await upgraded.query('provider_model'), isEmpty);
       final tables = await upgraded.rawQuery(
         "SELECT name FROM sqlite_master WHERE type = 'table'",
       );
@@ -282,6 +336,8 @@ void main() {
           'audience_tag',
           'network_log',
           'credential_ref',
+          'provider_config',
+          'provider_model',
         ]),
       );
       await upgraded.close();

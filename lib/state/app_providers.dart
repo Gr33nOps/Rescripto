@@ -14,6 +14,8 @@ import '../services/network/network_guard.dart';
 import '../services/network/network_log.dart';
 import '../services/network/network_policy.dart';
 import '../services/panic_service.dart';
+import '../services/providers/provider_registry.dart';
+import '../services/providers/provider_store.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
 import '../services/storage_service.dart';
@@ -30,6 +32,8 @@ class AppProviders extends StatelessWidget {
     required this.settings,
     required this.database,
     required this.configStore,
+    required this.credentialStore,
+    required this.providerRegistry,
     required this.networkPolicy,
     required this.child,
   });
@@ -37,6 +41,8 @@ class AppProviders extends StatelessWidget {
   final SettingsService settings;
   final AppDatabase database;
   final ConfigStore configStore;
+  final CredentialStore credentialStore;
+  final ProviderRegistry providerRegistry;
   final NetworkPolicy networkPolicy;
   final Widget child;
 
@@ -67,8 +73,13 @@ class AppProviders extends StatelessWidget {
           create: (ctx) =>
               NetworkGuard(ctx.read<NetworkPolicy>(), ctx.read<NetworkLog>()),
         ),
-        Provider<CredentialStore>(
-          create: (ctx) => CredentialStore(ctx.read<AppDatabase>()),
+        // Built before runApp (see main.dart) so ProviderStore's deletes can
+        // always reach a CredentialStore backed by the same connection.
+        Provider<CredentialStore>.value(value: credentialStore),
+        ChangeNotifierProvider<ProviderRegistry>.value(value: providerRegistry),
+        Provider<ProviderStore>(
+          create: (ctx) =>
+              ProviderStore(ctx.read<AppDatabase>(), ctx.read<CredentialStore>()),
         ),
         Provider<PanicService>(
           create: (ctx) => PanicService(

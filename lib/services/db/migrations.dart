@@ -116,9 +116,56 @@ Future<void> _v4CredentialIndex(Database db) async {
   ''');
 }
 
+/// Configured cloud providers and the models a user has added to them.
+///
+/// No column here can hold a secret, matching every migration before it:
+/// `credential_provider_id`/`credential_account_id`/`credential_kind` are a
+/// [CredentialRef] — a lookup key into the platform Keystore, not a value.
+/// The one column that could theoretically carry something sensitive is
+/// `extra_headers`, and every write to it goes through
+/// `ProviderConfig.validateExtraHeaders`, which rejects anything that looks
+/// like an auth header before it reaches SQLite.
+///
+/// `provider_model` cascades on `provider_config` deletion — SQLite can do
+/// that part on its own via the foreign key `AppDatabase.openAt` already
+/// turns on. What it cannot cascade into is the Keystore entry a deleted
+/// provider's credential lives in; `ProviderStore.delete` calls
+/// `CredentialStore.delete` itself for that half.
+Future<void> _v5Providers(Database db) async {
+  await db.execute('''
+    CREATE TABLE provider_config (
+      id                      TEXT PRIMARY KEY,
+      preset_id               TEXT NOT NULL,
+      display_name            TEXT NOT NULL,
+      base_url_override       TEXT,
+      enabled                 INTEGER NOT NULL DEFAULT 1,
+      credential_provider_id  TEXT NOT NULL,
+      credential_account_id   TEXT NOT NULL,
+      credential_kind         TEXT NOT NULL,
+      extra_headers           TEXT NOT NULL DEFAULT '{}',
+      created_at              TEXT NOT NULL,
+      updated_at              TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE provider_model (
+      id                 TEXT PRIMARY KEY,
+      provider_config_id TEXT NOT NULL REFERENCES provider_config(id) ON DELETE CASCADE,
+      model_ref          TEXT NOT NULL,
+      display_name       TEXT NOT NULL,
+      sort_order         INTEGER NOT NULL DEFAULT 0,
+      UNIQUE (provider_config_id, model_ref)
+    )
+  ''');
+  await db.execute(
+    'CREATE INDEX idx_provider_model_config ON provider_model(provider_config_id)',
+  );
+}
+
 /// Forward migrations, keyed by the schema version each one produces.
 const Map<int, Migration> kMigrations = <int, Migration>{
   2: _v2ConfigTables,
   3: _v3NetworkLog,
   4: _v4CredentialIndex,
+  5: _v5Providers,
 };

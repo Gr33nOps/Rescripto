@@ -28,7 +28,8 @@ abstract final class AppConstants {
   // 2: tone_preset + audience_tag tables, history(created_at) index.
   // 3: network_log table.
   // 4: credential_ref table.
-  static const int dbVersion = 4;
+  // 5: provider_config + provider_model tables.
+  static const int dbVersion = 5;
 
   // Directories.
   static const String modelsDir = 'models';
