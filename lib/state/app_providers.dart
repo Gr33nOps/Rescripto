@@ -10,6 +10,7 @@ import '../engine/engine_registry.dart';
 import '../engine/local/local_engine_host.dart';
 import '../engine/local/local_llm_engine.dart';
 import '../engine/workflow_runner.dart';
+import '../services/backup/backup_service.dart';
 import '../services/config_store.dart';
 import '../services/credentials/credential_store.dart';
 import '../services/db/app_database.dart';
@@ -192,6 +193,16 @@ class AppProviders extends StatelessWidget {
             configStore: ctx.read<ConfigStore>(),
             storage: ctx.read<StorageService>(),
             activeRequests: ctx.read<ActiveRequestRegistry>(),
+          ),
+        ),
+        Provider<BackupService>(
+          create: (ctx) => BackupService(
+            settings: ctx.read<SettingsService>(),
+            configStore: ctx.read<ConfigStore>(),
+            workflowRegistry: ctx.read<WorkflowRegistry>(),
+            providerRegistry: ctx.read<ProviderRegistry>(),
+            storage: ctx.read<StorageService>(),
+            credentialStore: ctx.read<CredentialStore>(),
           ),
         ),
         ChangeNotifierProvider<HistoryController>(

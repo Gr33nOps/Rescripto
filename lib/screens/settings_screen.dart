@@ -243,6 +243,17 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            const SectionTitle('Backup'),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.backup_outlined),
+                title: const Text('Backup'),
+                subtitle: const Text('Export an encrypted copy of your tones, workflows, and settings'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).pushNamed(AppRoutes.backup),
+              ),
+            ),
+            const SizedBox(height: 20),
             const SectionTitle('About'),
             Card(
               child: Padding(
