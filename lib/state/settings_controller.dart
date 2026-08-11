@@ -76,4 +76,11 @@ class SettingsController extends ChangeNotifier {
     await _service.setUiMode(mode);
     notifyListeners();
   }
+
+  /// Re-notifies listeners without changing anything itself. Every getter
+  /// above already reads straight through to [SettingsService], so this
+  /// exists only for a caller that wrote to the service directly —
+  /// `BackupService.restore`, which cannot depend on this class (`services/`
+  /// never depends on `state/`) and so cannot notify it any other way.
+  void refreshFromService() => notifyListeners();
 }

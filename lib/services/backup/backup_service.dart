@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import '../../core/constants.dart';
 import '../../models/backup_bundle.dart';
+import '../../models/processing_mode.dart';
+import '../../models/ui_mode.dart';
 import '../config_store.dart';
 import '../credentials/credential_store.dart';
 import '../providers/provider_registry.dart';
@@ -11,6 +13,7 @@ import '../storage_service.dart';
 import '../workflows/workflow_registry.dart';
 import 'backup_crypto.dart';
 import 'backup_exception.dart';
+import 'restore_options.dart';
 
 /// Gathers app state into a [BackupBundle] and encrypts/decrypts it for
 /// export, import, and (Step 4) sync.
@@ -125,6 +128,109 @@ class BackupService {
     } catch (_) {
       throw const BackupCorruptException();
     }
+  }
+
+  /// Summarizes a decrypted [bundle] without applying anything — what
+  /// [restore] would do, in counts, so the import screen can show it before
+  /// asking for confirmation.
+  BackupPreview preview(BackupBundle bundle) => BackupPreview(
+    createdAt: bundle.createdAt,
+    appVersion: bundle.appVersion,
+    dbVersion: bundle.dbVersion,
+    containsSecrets: bundle.containsSecrets,
+    hasSettings: bundle.settings != null,
+    toneCount: bundle.tones.length,
+    audienceCount: bundle.audiences.length,
+    workflowCount: bundle.workflows.length,
+    providerConfigCount: bundle.providerConfigs.length,
+    historyCount: bundle.history.length,
+    credentialCount: bundle.credentials.length,
+  );
+
+  /// Applies [bundle] per [options]. Throws [BackupOlderSchemaException]
+  /// without touching anything if [BackupBundle.dbVersion] is newer than
+  /// this device's own schema — every other section restores by upserting
+  /// on the row's own id (see [RestoreOptions]'s own doc for why that's
+  /// already the merge policy, not a separate mode), so partial application
+  /// on an earlier failure is never worse than "some of the newest export
+  /// wasn't applied yet," not data loss.
+  Future<void> restore(BackupBundle bundle, RestoreOptions options) async {
+    if (bundle.dbVersion > AppConstants.dbVersion) {
+      throw BackupOlderSchemaException(bundle.dbVersion, AppConstants.dbVersion);
+    }
+
+    if (options.applySettings) {
+      final restored = bundle.settings;
+      if (restored != null) await _applySettings(restored);
+    }
+    if (options.applyTones) {
+      for (final tone in bundle.tones) {
+        await configStore.upsertTone(tone);
+      }
+    }
+    if (options.applyAudiences) {
+      for (final audience in bundle.audiences) {
+        await configStore.upsertAudience(audience);
+      }
+    }
+    if (options.applyWorkflows) {
+      for (final workflow in bundle.workflows) {
+        await workflowRegistry.save(workflow);
+      }
+    }
+    if (options.applyProviderConfigs) {
+      for (final config in bundle.providerConfigs) {
+        await providerRegistry.save(config);
+      }
+    }
+    if (options.applyCredentials) {
+      for (final credential in bundle.credentials) {
+        await credentialStore.write(credential.ref, credential.secret);
+      }
+    }
+    switch (options.history) {
+      case HistoryRestoreStrategy.skip:
+        break;
+      case HistoryRestoreStrategy.append:
+        for (final entry in bundle.history) {
+          await storage.insertHistory(entry);
+        }
+      case HistoryRestoreStrategy.replace:
+        await storage.clearHistory();
+        for (final entry in bundle.history) {
+          await storage.insertHistory(entry);
+        }
+    }
+  }
+
+  /// Writes every [BackupSettings] field straight through `SettingsService`
+  /// — `services/` never depends on `state/`, so this cannot notify
+  /// `SettingsController` itself. The caller (the import screen) is
+  /// expected to call `SettingsController.refreshFromService()` once the
+  /// whole restore finishes, the same way `ConfigStore`/`WorkflowRegistry`/
+  /// `ProviderRegistry` already notify themselves through their own
+  /// `upsert`/`save` calls above.
+  Future<void> _applySettings(BackupSettings restored) async {
+    await settings.setThemeMode(restored.themeMode);
+    await settings.setThreads(restored.threads);
+    await settings.setUseGpu(restored.useGpu);
+    await settings.setContextSize(restored.contextSize);
+    await settings.setWhisperModel(restored.whisperModel);
+    await settings.setProcessingMode(
+      ProcessingMode.values.firstWhere(
+        (m) => m.name == restored.processingMode,
+        orElse: () => ProcessingMode.local,
+      ),
+    );
+    await settings.setUiMode(
+      UiMode.values.firstWhere(
+        (m) => m.name == restored.uiMode,
+        orElse: () => UiMode.simple,
+      ),
+    );
+    await settings.setCloudProviderId(restored.cloudProviderId);
+    await settings.setCloudModelRef(restored.cloudModelRef);
+    await settings.setSpeechEngine(restored.speechEngine);
   }
 
   /// The filename (without a path) a fresh export should use — sortable by

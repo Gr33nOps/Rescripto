@@ -26,3 +26,17 @@ class BackupNewerFormatException extends BackupException {
   final int foundVersion;
   final int supportedVersion;
 }
+
+/// [BackupBundle.dbVersion] is newer than this device's schema —
+/// `AppDatabase`'s own migration chain runs forward only, so restoring rows
+/// shaped for a schema this build has never seen would mean guessing at
+/// columns that don't exist yet rather than the sanctioned alternative:
+/// refuse and ask for an app update first. Mirrors
+/// `AppDatabase`'s stance on a sideloaded older APK never being allowed to
+/// silently destroy newer data.
+class BackupOlderSchemaException extends BackupException {
+  const BackupOlderSchemaException(this.bundleDbVersion, this.deviceDbVersion);
+
+  final int bundleDbVersion;
+  final int deviceDbVersion;
+}
