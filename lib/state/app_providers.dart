@@ -8,6 +8,10 @@ import '../services/config_store.dart';
 import '../services/db/app_database.dart';
 import '../services/local_llm_service.dart';
 import '../services/model_manager.dart';
+import '../services/network/network_feature.dart';
+import '../services/network/network_guard.dart';
+import '../services/network/network_log.dart';
+import '../services/network/network_policy.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
 import '../services/storage_service.dart';
@@ -24,12 +28,14 @@ class AppProviders extends StatelessWidget {
     required this.settings,
     required this.database,
     required this.configStore,
+    required this.networkPolicy,
     required this.child,
   });
 
   final SettingsService settings;
   final AppDatabase database;
   final ConfigStore configStore;
+  final NetworkPolicy networkPolicy;
   final Widget child;
 
   @override
@@ -48,6 +54,17 @@ class AppProviders extends StatelessWidget {
         Provider<StorageService>(
           create: (ctx) => StorageService(ctx.read<AppDatabase>()),
         ),
+        ChangeNotifierProvider<NetworkPolicy>.value(value: networkPolicy),
+        Provider<NetworkLog>(
+          create: (ctx) => NetworkLog(ctx.read<AppDatabase>()),
+        ),
+        // The only sanctioned way to obtain a network client anywhere in the
+        // app — see NetworkGuard's own doc comment for what that does and
+        // does not guarantee.
+        Provider<NetworkGuard>(
+          create: (ctx) =>
+              NetworkGuard(ctx.read<NetworkPolicy>(), ctx.read<NetworkLog>()),
+        ),
         // Sole owner of the native llama.cpp singleton — every mutating call
         // to it, from either controller below, is routed through here.
         Provider<LocalEngineHost>(
@@ -64,7 +81,12 @@ class AppProviders extends StatelessWidget {
           dispose: (_, service) => service.dispose(),
         ),
         Provider<ModelManager>(
-          create: (_) => ModelManager(),
+          create: (ctx) => ModelManager(
+            dio: ctx.read<NetworkGuard>().dioFor(
+              NetworkFeature.modelDownload,
+              purpose: 'Download AI model',
+            ),
+          ),
           dispose: (_, manager) => manager.dispose(),
         ),
         ChangeNotifierProvider<SettingsController>(
@@ -92,6 +114,7 @@ class AppProviders extends StatelessWidget {
           create: (ctx) => SpeechController(
             ctx.read<SpeechService>(),
             ctx.read<SettingsService>(),
+            ctx.read<NetworkGuard>(),
           ),
         ),
       ],

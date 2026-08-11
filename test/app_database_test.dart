@@ -177,16 +177,36 @@ void main() {
   });
 
   group('real kMigrations (default AppDatabase())', () {
-    test('a fresh database has tone_preset and audience_tag', () async {
+    test('a fresh database has tone_preset, audience_tag, and network_log', () async {
       final db = await AppDatabase().openAt(pathFor('real_fresh.db'));
       final tables = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type = 'table'",
       );
       expect(
         tables.map((t) => t['name']),
-        containsAll(['history', 'tone_preset', 'audience_tag']),
+        containsAll(['history', 'tone_preset', 'audience_tag', 'network_log']),
       );
       await db.close();
+    });
+
+    test('upgrading a real v2 database adds network_log without touching config', () async {
+      final path = pathFor('real_v2_upgrade.db');
+      final v2 = await AppDatabase(version: 2, migrations: {2: kMigrations[2]!})
+          .openAt(path);
+      await v2.insert('tone_preset', {
+        'id': 'professional',
+        'name': 'Professional',
+        'icon_token': 'business_center_outlined',
+        'instruction': 'Be professional.',
+        'temperature': 0.4,
+        'updated_at': DateTime.utc(2026).toIso8601String(),
+      });
+      await v2.close();
+
+      final upgraded = await AppDatabase().openAt(path);
+      expect(await upgraded.query('tone_preset'), hasLength(1));
+      expect(await upgraded.query('network_log'), isEmpty);
+      await upgraded.close();
     });
 
     test('the history(created_at) index exists', () async {

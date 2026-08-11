@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/ai_model.dart';
 import 'local_llm_service.dart';
+import 'network/network_exceptions.dart';
 
 /// Streams [path] through SHA-256. Top-level so it can run under [compute].
 Future<String> _sha256OfFile(String path) async {
@@ -229,6 +230,15 @@ class ModelManager extends ChangeNotifier {
 
   String _downloadError(Object error) {
     if (error is DioException) {
+      if (error.error is NetworkBlockedByPolicyException) {
+        // A deliberate block, not a network fault — the connectivity message
+        // below would send someone chasing a problem that doesn't exist.
+        final reason = (error.error as NetworkBlockedByPolicyException).reason;
+        return reason == NetworkBlockReason.killSwitch
+            ? 'Network access is turned off. Turn it back on in Settings to '
+                  'download this model.'
+            : 'Model downloads are turned off in Settings.';
+      }
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:

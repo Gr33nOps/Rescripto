@@ -37,6 +37,10 @@ dependencies:
   dio: ^5.11.0
   crypto: ^3.0.7
 
+  # The network guard's http.Client path (for flutter_whisper's downloader).
+  # Version matches third_party/flutter_whisper's own constraint.
+  http: ^1.2.0
+
   # State management.
   provider: ^6.1.5+1
 

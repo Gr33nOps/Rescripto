@@ -39,6 +39,14 @@ class Whisper {
   /// [downloadConfig] - Download behavior (resume, retries, mirror, integrity)
   /// [onProgress] - Download progress callback, fires while the model
   ///                downloads on first use.
+  /// [httpClient] - Client the model download runs over. A supported
+  ///                injection point, not test-only: a host app can hand in a
+  ///                client that enforces its own network policy or logging
+  ///                (e.g. Rescripto's `NetworkGuard`) instead of a bare
+  ///                `http.Client()`.
+  /// [downloadDirectory] - Overrides where the model is stored. Also a
+  ///                supported injection point, for a host app that wants
+  ///                control over its own storage layout.
   ///
   /// Throws [WhisperError] on failure.
   Future<void> initialize({
@@ -46,8 +54,8 @@ class Whisper {
     WhisperOptions options = const WhisperOptions(),
     WhisperDownloadConfig downloadConfig = const WhisperDownloadConfig(),
     void Function(WhisperDownloadProgress)? onProgress,
-    @visibleForTesting http.Client? httpClient,
-    @visibleForTesting String? downloadDirectory,
+    http.Client? httpClient,
+    String? downloadDirectory,
   }) async {
     if (_isInitialized && _loadedModel == model) return;
     if (_isInitialized) {

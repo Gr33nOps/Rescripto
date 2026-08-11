@@ -26,7 +26,8 @@ abstract final class AppConstants {
   // SQLite.
   static const String dbName = 'rescripto.db';
   // 2: tone_preset + audience_tag tables, history(created_at) index.
-  static const int dbVersion = 2;
+  // 3: network_log table.
+  static const int dbVersion = 3;
 
   // Directories.
   static const String modelsDir = 'models';

@@ -71,5 +71,33 @@ Future<void> _v2ConfigTables(Database db) async {
   );
 }
 
+/// An audit trail of outbound requests, written by `NetworkLog`.
+///
+/// Deliberately has no column for a request header or body, and `path` is
+/// populated from `Uri.path` alone — the query string is never read, let
+/// alone stored. That is structural, not disciplined: a column that does not
+/// exist cannot leak a Gemini-style `?key=...` API key into a table the user
+/// can export. See `lib/models/network_log_entry.dart`.
+Future<void> _v3NetworkLog(Database db) async {
+  await db.execute('''
+    CREATE TABLE network_log (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      feature        TEXT NOT NULL,
+      method         TEXT NOT NULL,
+      host           TEXT NOT NULL,
+      path           TEXT NOT NULL,
+      purpose        TEXT,
+      started_at     TEXT NOT NULL,
+      duration_ms    INTEGER,
+      status_code    INTEGER,
+      bytes_received INTEGER,
+      outcome        TEXT NOT NULL
+    )
+  ''');
+}
+
 /// Forward migrations, keyed by the schema version each one produces.
-const Map<int, Migration> kMigrations = <int, Migration>{2: _v2ConfigTables};
+const Map<int, Migration> kMigrations = <int, Migration>{
+  2: _v2ConfigTables,
+  3: _v3NetworkLog,
+};

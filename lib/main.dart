@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app.dart';
 import 'services/config_store.dart';
 import 'services/db/app_database.dart';
+import 'services/network/network_policy.dart';
 import 'services/settings_service.dart';
 
 Future<void> main() async {
@@ -17,7 +18,18 @@ Future<void> main() async {
   final configStore = ConfigStore(database);
   await configStore.load();
 
+  // NetworkGuard checks this before every request it hands out, so it must
+  // be ready before anything can download. Kept independent of AppDatabase:
+  // policy has to stay readable even if the database is corrupt.
+  final networkPolicy = NetworkPolicy();
+  await networkPolicy.init();
+
   runApp(
-    RescriptoApp(settings: settings, database: database, configStore: configStore),
+    RescriptoApp(
+      settings: settings,
+      database: database,
+      configStore: configStore,
+      networkPolicy: networkPolicy,
+    ),
   );
 }

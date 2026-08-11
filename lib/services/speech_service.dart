@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_whisper/flutter_whisper.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/speech_result.dart';
 
@@ -25,6 +26,11 @@ class SpeechService {
   Future<void> initialize({
     String model = 'base',
     void Function(WhisperDownloadProgress)? onDownloadProgress,
+    /// Client the model download runs over. Callers should pass one from
+    /// `NetworkGuard.httpClientFor` rather than leaving this null, so a
+    /// voice-model download is policy-checked and logged like every other
+    /// request in the app.
+    http.Client? httpClient,
   }) async {
     if (!isSupported) {
       throw UnsupportedError(
@@ -44,6 +50,7 @@ class SpeechService {
         maxRetries: 5,
       ),
       onProgress: onDownloadProgress,
+      httpClient: httpClient,
     );
     _initialized = true;
     _loadedModel = model;

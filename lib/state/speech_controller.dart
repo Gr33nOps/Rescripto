@@ -6,6 +6,9 @@ import 'package:flutter_whisper/flutter_whisper.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../models/speech_result.dart';
+import '../services/network/network_exceptions.dart';
+import '../services/network/network_feature.dart';
+import '../services/network/network_guard.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
 
@@ -20,10 +23,11 @@ enum SpeechPhase {
 
 /// Voice input flow: push-to-talk / continuous dictation.
 class SpeechController extends ChangeNotifier {
-  SpeechController(this._service, this._settings);
+  SpeechController(this._service, this._settings, this._guard);
 
   final SpeechService _service;
   final SettingsService _settings;
+  final NetworkGuard _guard;
 
   SpeechPhase _phase = SpeechPhase.idle;
   String _partialText = '';
@@ -83,6 +87,10 @@ class SpeechController extends ChangeNotifier {
           _progress = download.fraction;
           notifyListeners();
         },
+        httpClient: _guard.httpClientFor(
+          NetworkFeature.voiceModelDownload,
+          purpose: 'Download voice model (${_settings.whisperModel})',
+        ),
       );
       if (operationId != _operationId) return;
       _phase = SpeechPhase.initializing;
@@ -145,10 +153,33 @@ class SpeechController extends ChangeNotifier {
     // Match on the typed failure first. Everything used to collapse into
     // "Couldn't start voice input", which told nobody whether the download
     // failed, the disk was full, or the microphone was busy.
+    if (error is NetworkBlockedByPolicyException) {
+      // A deliberate block, not a network fault — the generic "check your
+      // connection" fallback below would send someone chasing a problem
+      // that doesn't exist.
+      return error.reason == NetworkBlockReason.killSwitch
+          ? 'Network access is turned off. Turn it back on in Settings to '
+                'download the voice model.'
+          : 'Voice model downloads are turned off in Settings.';
+    }
+
     if (error is WhisperError) {
       switch (error.code) {
         case WhisperErrorCode.modelDownloadFailed:
         case WhisperErrorCode.modelNotFound:
+          // flutter_whisper's downloader retries any exception from the
+          // client — including a deliberate policy block — up to maxRetries
+          // times with exponential backoff before giving up and wrapping
+          // whatever it caught into this generic code. There's no hook to
+          // stop it retrying something that will never succeed without
+          // forking that retry loop, so the best available fix is
+          // recognising the wrapped cause here once it does surface.
+          if (error.message.contains('NetworkBlockedByPolicyException')) {
+            return error.message.contains('killSwitch')
+                ? 'Network access is turned off. Turn it back on in Settings '
+                      'to download the voice model.'
+                : 'Voice model downloads are turned off in Settings.';
+          }
           return 'The voice model couldn’t be downloaded. Check your '
               'connection and free storage, then tap the mic again — it '
               'resumes where it left off.';
