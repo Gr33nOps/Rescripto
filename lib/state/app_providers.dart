@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../engine/active_request_registry.dart';
 import '../engine/cloud/anthropic_protocol.dart';
 import '../engine/cloud/cloud_rewrite_engine.dart';
 import '../engine/cloud/gemini_protocol.dart';
@@ -86,10 +87,16 @@ class AppProviders extends StatelessWidget {
           create: (ctx) =>
               ProviderStore(ctx.read<AppDatabase>(), ctx.read<CredentialStore>()),
         ),
+        // One instance for the whole app — every RewriteController rewrite
+        // registers into it, and PanicService's kill switch cancels
+        // whatever's in it.
+        Provider<ActiveRequestRegistry>(create: (_) => ActiveRequestRegistry()),
         Provider<PanicService>(
           create: (ctx) => PanicService(
             ctx.read<CredentialStore>(),
             ctx.read<NetworkPolicy>(),
+            ctx.read<ProviderRegistry>(),
+            ctx.read<ActiveRequestRegistry>(),
           ),
         ),
         // Sole owner of the native llama.cpp singleton — every mutating call
@@ -160,6 +167,7 @@ class AppProviders extends StatelessWidget {
                   .read<ModelsController>()
                   .isInstalled(ctx.read<SettingsService>().selectedModelId),
             ),
+            activeRequests: ctx.read<ActiveRequestRegistry>(),
           ),
         ),
         ChangeNotifierProvider<HistoryController>(

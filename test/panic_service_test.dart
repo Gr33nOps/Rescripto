@@ -1,11 +1,16 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rescripto/engine/active_request_registry.dart';
+import 'package:rescripto/engine/generation_handle.dart';
+import 'package:rescripto/models/provider_config.dart';
 import 'package:rescripto/services/credentials/credential_ref.dart';
 import 'package:rescripto/services/credentials/credential_store.dart';
 import 'package:rescripto/services/db/app_database.dart';
 import 'package:rescripto/services/network/network_policy.dart';
 import 'package:rescripto/services/panic_service.dart';
+import 'package:rescripto/services/providers/provider_registry.dart';
+import 'package:rescripto/services/providers/provider_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -16,6 +21,8 @@ void main() {
   late AppDatabase database;
   late CredentialStore credentialStore;
   late NetworkPolicy networkPolicy;
+  late ProviderRegistry providerRegistry;
+  late ActiveRequestRegistry activeRequests;
   late PanicService panicService;
 
   setUpAll(() {
@@ -32,7 +39,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     networkPolicy = NetworkPolicy();
     await networkPolicy.init();
-    panicService = PanicService(credentialStore, networkPolicy);
+    providerRegistry = ProviderRegistry(ProviderStore(database, credentialStore));
+    await providerRegistry.load();
+    activeRequests = ActiveRequestRegistry();
+    panicService = PanicService(credentialStore, networkPolicy, providerRegistry, activeRequests);
   });
 
   tearDown(() async {
@@ -64,9 +74,40 @@ void main() {
       expect(await credentialStore.listRefs(), isEmpty);
     });
 
+    test('disables every enabled provider', () async {
+      final now = DateTime.now();
+      final config = ProviderConfig(
+        id: providerRegistry.newConfigId('openai'),
+        presetId: 'openai',
+        displayName: 'OpenAI',
+        credential: const CredentialRef(providerId: 'openai-1', kind: CredentialKind.apiKey),
+        createdAt: now,
+        updatedAt: now,
+      );
+      await providerRegistry.save(config);
+      expect(providerRegistry.enabledConfigs, hasLength(1));
+
+      final report = await panicService.wipeCredentials();
+
+      expect(report.providersDisabled, 1);
+      expect(providerRegistry.enabledConfigs, isEmpty);
+    });
+
+    test('cancels every active request', () async {
+      final handle = StreamGenerationHandle(onCancel: () async {});
+      activeRequests.register(handle);
+
+      final report = await panicService.wipeCredentials();
+
+      expect(report.requestsCancelled, 1);
+      expect(handle.isCancelled, isTrue);
+    });
+
     test('is safe to call with nothing stored', () async {
       final report = await panicService.wipeCredentials();
       expect(report.credentialsWiped, 0);
+      expect(report.providersDisabled, 0);
+      expect(report.requestsCancelled, 0);
     });
 
     test('is idempotent', () async {

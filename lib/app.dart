@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/app_routes.dart';
 import 'core/app_theme.dart';
 import 'screens/home_shell.dart';
 import 'services/config_store.dart';
@@ -59,6 +60,7 @@ class _RescriptoMaterialApp extends StatelessWidget {
       darkTheme: AppTheme.dark(),
       themeMode: settings.themeModeValue,
       home: const HomeShell(),
+      routes: AppRoutes.routes,
     );
   }
 }

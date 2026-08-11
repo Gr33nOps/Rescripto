@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../core/app_routes.dart';
 import '../core/constants.dart';
 import '../state/settings_controller.dart';
+import '../widgets/settings_tiles.dart';
 
 /// App settings: theme, engine tuning, speech model.
 class SettingsScreen extends StatelessWidget {
@@ -20,25 +21,25 @@ class SettingsScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
-            _SectionTitle('Appearance'),
+            const SectionTitle('Appearance'),
             Card(
               child: RadioGroup<String>(
                 groupValue: settings.themeMode,
                 onChanged: (v) =>
                     settings.setThemeMode(v ?? settings.themeMode),
-                child: Column(
+                child: const Column(
                   children: [
-                    _RadioTile(
+                    RadioTile(
                       icon: Icons.brightness_auto_outlined,
                       label: 'Follow system',
                       value: 'system',
                     ),
-                    _RadioTile(
+                    RadioTile(
                       icon: Icons.light_mode_outlined,
                       label: 'Light',
                       value: 'light',
                     ),
-                    _RadioTile(
+                    RadioTile(
                       icon: Icons.dark_mode_outlined,
                       label: 'Dark',
                       value: 'dark',
@@ -48,7 +49,7 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            _SectionTitle('AI engine'),
+            const SectionTitle('AI engine'),
             Card(
               child: Column(
                 children: [
@@ -66,7 +67,7 @@ class SettingsScreen extends StatelessWidget {
                     onChanged: settings.setUseGpu,
                   ),
                   const Divider(height: 1),
-                  _SliderTile(
+                  SliderTile(
                     icon: Icons.memory_outlined,
                     label: 'CPU threads',
                     value: settings.threads.toDouble(),
@@ -77,7 +78,7 @@ class SettingsScreen extends StatelessWidget {
                     onChanged: (v) => settings.setThreads(v.round()),
                   ),
                   const Divider(height: 1),
-                  _SliderTile(
+                  SliderTile(
                     icon: Icons.view_agenda_outlined,
                     label: 'Context size',
                     value: settings.contextSize.toDouble(),
@@ -91,7 +92,7 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            _SectionTitle('Voice input'),
+            const SectionTitle('Voice input'),
             Card(
               child: RadioGroup<String>(
                 groupValue: settings.whisperModel,
@@ -110,7 +111,7 @@ class SettingsScreen extends StatelessWidget {
                         'large',
                       ),
                     ])
-                      _RadioTile(
+                      RadioTile(
                         icon: Icons.record_voice_over_outlined,
                         label: m.$1,
                         subtitle: m.$2,
@@ -131,7 +132,30 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            _SectionTitle('About'),
+            const SectionTitle('Privacy & cloud'),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('Privacy & network'),
+                    subtitle: const Text('Kill switch, per-feature network access, network log'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.privacy),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.cloud_outlined),
+                    title: const Text('Cloud providers'),
+                    subtitle: const Text('API keys for OpenAI, Anthropic, Gemini, and more'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.providers),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const SectionTitle('About'),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -155,20 +179,21 @@ class SettingsScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       'No accounts, ads, or tracking. Your text, recordings, and '
-                      'rewrite history stay on this device. AI and voice model '
-                      'files are downloaded from Hugging Face only when you choose '
-                      'to use them.',
+                      'rewrite history stay on this device unless you choose to '
+                      'send a rewrite to a cloud provider you\'ve configured. AI '
+                      'and voice model files are downloaded from Hugging Face '
+                      'only when you choose to use them.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _LinkTile(
+                    const LinkTile(
                       icon: Icons.code_outlined,
                       label: 'Source code on GitHub',
                       url: AppConstants.sourceUrl,
                     ),
-                    _LinkTile(
+                    const LinkTile(
                       icon: Icons.bug_report_outlined,
                       label: 'Report an issue',
                       url: AppConstants.issuesUrl,
@@ -179,153 +204,6 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _LinkTile extends StatelessWidget {
-  const _LinkTile({required this.icon, required this.label, required this.url});
-
-  final IconData icon;
-  final String label;
-  final String url;
-
-  Future<void> _open(BuildContext context) async {
-    try {
-      final uri = Uri.parse(url);
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (launched || !context.mounted) return;
-    } catch (_) {
-      if (!context.mounted) return;
-    }
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Couldn’t open that link. Try again.')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text(label),
-      trailing: const Icon(Icons.open_in_new),
-      onTap: () => _open(context),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        title,
-        style: Theme.of(
-          context,
-        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-      ),
-    );
-  }
-}
-
-class _RadioTile extends StatelessWidget {
-  const _RadioTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.subtitle,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      subtitle: subtitle == null ? null : Text(subtitle!),
-      trailing: Radio<String>(value: value),
-      onTap: () => RadioGroup.maybeOf<String>(context)?.onChanged.call(value),
-    );
-  }
-}
-
-class _SliderTile extends StatelessWidget {
-  const _SliderTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.display,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final int divisions;
-  final String display;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Row(
-        children: [
-          Icon(icon),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      display,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                Slider(
-                  value: value.clamp(min, max),
-                  min: min,
-                  max: max,
-                  divisions: divisions,
-                  onChanged: onChanged,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/constants.dart';
+import '../engine/active_request_registry.dart';
 import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
@@ -34,12 +35,14 @@ class RewriteController extends ChangeNotifier {
     required this._storage,
     required this._configStore,
     required this._router,
+    required this._activeRequests,
   });
 
   final EngineRegistry _registry;
   final StorageService _storage;
   final ConfigStore _configStore;
   final TargetRouter _router;
+  final ActiveRequestRegistry _activeRequests;
 
   // Editor state.
   String _sourceText = '';
@@ -233,6 +236,7 @@ class RewriteController extends ChangeNotifier {
     notifyListeners();
 
     var emittedAnyText = false;
+    GenerationHandle? handle;
 
     try {
       final engine = _registry.resolve(target);
@@ -245,10 +249,14 @@ class RewriteController extends ChangeNotifier {
         maxOutputTokens: AppConstants.defaultMaxTokens,
       );
 
-      final handle = engine.start(
+      handle = engine.start(
         EngineRequest(target: target, prompt: prompt, options: options),
       );
       _active = handle;
+      // Lets PanicService's kill switch reach an already-open stream, which
+      // NetworkPolicy alone cannot — it's only ever checked before a
+      // request is dispatched.
+      _activeRequests.register(handle);
       notifyListeners();
 
       final subscription = handle.events.listen((event) {
@@ -306,6 +314,7 @@ class RewriteController extends ChangeNotifier {
       );
       rethrow;
     } finally {
+      if (handle != null) _activeRequests.unregister(handle);
       _isRunning = false;
       _active = null;
       _elapsed.stop();

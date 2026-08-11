@@ -14,13 +14,12 @@ import '../state/rewrite_controller.dart';
 import '../widgets/mic_button.dart';
 import '../widgets/result_view.dart';
 import '../widgets/rewrite_controls.dart';
+import '../widgets/tab_navigator.dart';
 import '../widgets/tone_selector.dart';
 
 /// The core "type, pick a tone, rewrite" screen.
 class RewriteScreen extends StatefulWidget {
-  const RewriteScreen({super.key, required this.onGoToModels});
-
-  final VoidCallback onGoToModels;
+  const RewriteScreen({super.key});
 
   @override
   State<RewriteScreen> createState() => _RewriteScreenState();
@@ -63,7 +62,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
           children: [
             if (!models.isInstalled(models.selectedModelId) && !models.scanning)
-              _ModelMissingBanner(onTap: widget.onGoToModels),
+              _ModelMissingBanner(onTap: () => TabNavigator.of(context).goToTab(2)),
             const SizedBox(height: 12),
             const _SourceInput(),
             const SizedBox(height: 12),
@@ -168,7 +167,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
       );
     } on ModelNotInstalledException {
       if (!mounted) return;
-      widget.onGoToModels();
+      TabNavigator.of(context).goToTab(2);
     } on EngineException catch (e) {
       if (!mounted) return;
       final fallback = controller.pendingFallback;

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rescripto/engine/active_request_registry.dart';
 import 'package:rescripto/engine/engine_capabilities.dart';
 import 'package:rescripto/engine/engine_exception.dart';
 import 'package:rescripto/engine/engine_registry.dart';
@@ -38,6 +39,7 @@ void main() {
   late NetworkPolicy networkPolicy;
   late FakeRewriteEngine localEngine;
   late FakeRewriteEngine cloudEngine;
+  late ActiveRequestRegistry activeRequests;
   late RewriteController controller;
   bool localInstalled = true;
 
@@ -74,6 +76,7 @@ void main() {
       id: 'cloud.openaiCompatible',
       capabilities: const EngineCapabilities(needsLocalInstall: false, requiresNetwork: true),
     );
+    activeRequests = ActiveRequestRegistry();
     controller = RewriteController(
       registry: EngineRegistry([localEngine, cloudEngine]),
       storage: storage,
@@ -84,6 +87,7 @@ void main() {
         networkPolicy: networkPolicy,
         isLocalModelInstalled: () => localInstalled,
       ),
+      activeRequests: activeRequests,
     );
     controller.setSource('please rewrite this');
   });
@@ -176,6 +180,7 @@ void main() {
           networkPolicy: networkPolicy,
           isLocalModelInstalled: () => true,
         ),
+        activeRequests: ActiveRequestRegistry(),
       );
       orphanController.setSource('text');
 
@@ -197,6 +202,7 @@ void main() {
           networkPolicy: networkPolicy,
           isLocalModelInstalled: () => true,
         ),
+        activeRequests: ActiveRequestRegistry(),
       );
       expect(
         orphanController.capabilities,
@@ -207,6 +213,40 @@ void main() {
     test('throws EngineNotAvailableException immediately when routing is blocked', () async {
       localInstalled = false; // local mode (the default), nothing installed
       await expectLater(controller.rewrite(), throwsA(isA<EngineNotAvailableException>()));
+    });
+  });
+
+  group('RewriteController — ActiveRequestRegistry', () {
+    test('registers the handle while running and unregisters once done', () async {
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(activeRequests.activeCount, 1);
+
+      localEngine.lastHandle!.complete(const RewriteOutput(text: 'done'));
+      await future;
+
+      expect(activeRequests.activeCount, 0);
+    });
+
+    test('cancelling through the registry reaches the handle, the way the kill switch needs to', () async {
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      expect(activeRequests.activeCount, 1);
+      final handle = localEngine.lastHandle!;
+
+      await activeRequests.cancelAll();
+
+      expect(handle.isCancelled, isTrue);
+      expect(localEngine.cancelRequested, isTrue);
+
+      // A real engine notices isCancelled and completes the handle itself
+      // (see LocalLlmEngine._run); the fake needs the same nudge to let the
+      // rewrite() future — and this test — finish cleanly.
+      handle.completeError(const GenerationCancelledException());
+      final result = await future;
+      expect(result.outputs, isEmpty);
+      expect(activeRequests.activeCount, 0);
     });
   });
 
