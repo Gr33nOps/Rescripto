@@ -9,11 +9,13 @@ import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
 import '../engine/engine_stage.dart';
 import '../engine/engine_target.dart';
+import '../models/ui_mode.dart';
 import '../services/config_store.dart';
 import '../services/providers/provider_registry.dart';
 import '../services/routing/target_router.dart';
 import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
+import '../state/settings_controller.dart';
 import '../widgets/mic_button.dart';
 import '../widgets/processing_indicator.dart';
 import '../widgets/result_view.dart';
@@ -34,6 +36,8 @@ class _RewriteScreenState extends State<RewriteScreen> {
   Widget build(BuildContext context) {
     final controller = context.watch<RewriteController>();
     final models = context.watch<ModelsController>();
+    final settings = context.watch<SettingsController>();
+    final isPro = settings.uiMode == UiMode.pro;
 
     return Scaffold(
       appBar: AppBar(
@@ -53,6 +57,11 @@ class _RewriteScreenState extends State<RewriteScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: isPro ? 'Switch to Simple mode' : 'Switch to Pro mode',
+            onPressed: () => _toggleUiMode(context, isPro: isPro),
+            icon: Icon(isPro ? Icons.tune : Icons.tune_outlined),
+          ),
           const Padding(
             padding: EdgeInsets.only(right: 8),
             child: ProcessingIndicator(),
@@ -82,43 +91,45 @@ class _RewriteScreenState extends State<RewriteScreen> {
               selectedId: controller.toneId,
               onChanged: controller.setTone,
             ),
-            const SizedBox(height: 20),
-            RewriteControls(
-              intensity: controller.intensity,
-              length: controller.length,
-              onIntensityChanged: controller.setIntensity,
-              onLengthChanged: controller.setLength,
-            ),
-            const SizedBox(height: 20),
-            Text('Audience', style: _sectionStyle(context)),
-            const SizedBox(height: 8),
-            _AudienceSelector(
-              selected: controller.audience,
-              onToggle: controller.toggleAudience,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Extra instructions (optional)',
-              style: _sectionStyle(context),
-            ),
-            const SizedBox(height: 8),
-            _InstructionInput(
-              value: controller.customInstruction,
-              onChanged: controller.setCustomInstruction,
-            ),
-            const SizedBox(height: 20),
-            Text('Variants', style: _sectionStyle(context)),
-            const SizedBox(height: 8),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 1, label: Text('1')),
-                ButtonSegment(value: 2, label: Text('2')),
-                ButtonSegment(value: 3, label: Text('3')),
-              ],
-              selected: {controller.variantCount},
-              onSelectionChanged: (s) => controller.setVariantCount(s.first),
-              showSelectedIcon: false,
-            ),
+            if (isPro) ...[
+              const SizedBox(height: 20),
+              RewriteControls(
+                intensity: controller.intensity,
+                length: controller.length,
+                onIntensityChanged: controller.setIntensity,
+                onLengthChanged: controller.setLength,
+              ),
+              const SizedBox(height: 20),
+              Text('Audience', style: _sectionStyle(context)),
+              const SizedBox(height: 8),
+              _AudienceSelector(
+                selected: controller.audience,
+                onToggle: controller.toggleAudience,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Extra instructions (optional)',
+                style: _sectionStyle(context),
+              ),
+              const SizedBox(height: 8),
+              _InstructionInput(
+                value: controller.customInstruction,
+                onChanged: controller.setCustomInstruction,
+              ),
+              const SizedBox(height: 20),
+              Text('Variants', style: _sectionStyle(context)),
+              const SizedBox(height: 8),
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 1, label: Text('1')),
+                  ButtonSegment(value: 2, label: Text('2')),
+                  ButtonSegment(value: 3, label: Text('3')),
+                ],
+                selected: {controller.variantCount},
+                onSelectionChanged: (s) => controller.setVariantCount(s.first),
+                showSelectedIcon: false,
+              ),
+            ],
             const SizedBox(height: 24),
             _RewriteButton(
               running: controller.isRunning,
@@ -162,6 +173,22 @@ class _RewriteScreenState extends State<RewriteScreen> {
     controller.setSource(
       current.isEmpty ? transcript : '$current\n$transcript',
     );
+  }
+
+  /// Flips the persisted mode and pins/restores `RewriteController`'s
+  /// editor state to match — the two halves of a Simple↔Pro transition
+  /// `SettingsController.setUiMode` deliberately leaves separate. See
+  /// `RewriteController.enterSimpleMode`'s own doc for why hiding alone
+  /// isn't enough.
+  void _toggleUiMode(BuildContext context, {required bool isPro}) {
+    final rewrite = context.read<RewriteController>();
+    if (isPro) {
+      rewrite.enterSimpleMode();
+      context.read<SettingsController>().setUiMode(UiMode.simple);
+    } else {
+      rewrite.enterProMode();
+      context.read<SettingsController>().setUiMode(UiMode.pro);
+    }
   }
 
   Future<void> _rewrite(RewriteController controller) async {

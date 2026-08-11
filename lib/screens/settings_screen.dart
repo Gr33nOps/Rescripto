@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../core/app_routes.dart';
 import '../core/constants.dart';
 import '../models/processing_mode.dart';
+import '../models/ui_mode.dart';
+import '../state/rewrite_controller.dart';
 import '../state/settings_controller.dart';
 import '../widgets/settings_tiles.dart';
 
@@ -74,6 +76,30 @@ class SettingsScreen extends StatelessWidget {
                       label: 'Hybrid',
                       subtitle: 'Prefers on-device; asks before falling back to cloud.',
                       value: ProcessingMode.hybrid,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const SectionTitle('Editor'),
+            Card(
+              child: RadioGroup<UiMode>(
+                groupValue: settings.uiMode,
+                onChanged: (mode) => _setUiMode(context, mode ?? settings.uiMode),
+                child: const Column(
+                  children: [
+                    _ModeRadioTile(
+                      icon: Icons.tune_outlined,
+                      label: 'Simple',
+                      subtitle: 'Tone and rewrite only.',
+                      value: UiMode.simple,
+                    ),
+                    _ModeRadioTile(
+                      icon: Icons.tune,
+                      label: 'Pro',
+                      subtitle: 'Intensity, length, audience, instructions, and variants.',
+                      value: UiMode.pro,
                     ),
                   ],
                 ),
@@ -243,13 +269,29 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+
+  /// Persisting the mode and pinning/restoring `RewriteController`'s editor
+  /// state are two separate calls on purpose — see
+  /// `RewriteController.enterSimpleMode`'s own doc for why hiding the Pro
+  /// controls alone isn't enough. This is the other call site for that
+  /// same pair, alongside the quick-access toggle in the AppBar.
+  void _setUiMode(BuildContext context, UiMode mode) {
+    final rewrite = context.read<RewriteController>();
+    if (mode == UiMode.simple) {
+      rewrite.enterSimpleMode();
+    } else {
+      rewrite.enterProMode();
+    }
+    context.read<SettingsController>().setUiMode(mode);
+  }
 }
 
-/// [ProcessingMode] radio tile — `RadioTile` (settings_tiles.dart) is
-/// typed for `String` values, which every other setting on this screen
-/// happens to use; this is the one exception.
-class _ModeRadioTile extends StatelessWidget {
+/// Radio tile for an enum-valued setting — `RadioTile` (settings_tiles.dart)
+/// is typed for `String` values, which most settings on this screen use;
+/// this is for the ones that don't.
+class _ModeRadioTile<T> extends StatelessWidget {
   const _ModeRadioTile({
+    super.key,
     required this.icon,
     required this.label,
     required this.subtitle,
@@ -259,7 +301,7 @@ class _ModeRadioTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String subtitle;
-  final ProcessingMode value;
+  final T value;
 
   @override
   Widget build(BuildContext context) {
@@ -267,8 +309,8 @@ class _ModeRadioTile extends StatelessWidget {
       leading: Icon(icon),
       title: Text(label),
       subtitle: Text(subtitle),
-      trailing: Radio<ProcessingMode>(value: value),
-      onTap: () => RadioGroup.maybeOf<ProcessingMode>(context)?.onChanged.call(value),
+      trailing: Radio<T>(value: value),
+      onTap: () => RadioGroup.maybeOf<T>(context)?.onChanged.call(value),
     );
   }
 }

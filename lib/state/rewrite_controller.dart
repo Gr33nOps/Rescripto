@@ -158,6 +158,50 @@ class RewriteController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Saved Pro-surface values while in Simple mode, restored on [enterProMode].
+  _ProValuesSnapshot? _savedProValues;
+
+  /// Pins intensity/length/audience/custom instruction/variant count to
+  /// their defaults, saving whatever they were for [enterProMode] to
+  /// restore.
+  ///
+  /// This state survives a mode switch on its own — controller fields don't
+  /// reset themselves — so *hiding* the Pro controls without also resetting
+  /// them would leave Simple mode silently affected by values the user can
+  /// no longer see a control for (a `variantCount: 3` set in Pro still
+  /// producing three variants in Simple, say). Pinning is what closes that
+  /// gap; merely hiding the widgets would not.
+  void enterSimpleMode() {
+    _savedProValues = _ProValuesSnapshot(
+      intensity: _intensity,
+      length: _length,
+      audience: List.of(_audience),
+      customInstruction: _customInstruction,
+      variantCount: _variantCount,
+    );
+    _intensity = RewriteIntensity.moderate;
+    _length = RewriteLength.same;
+    _audience.clear();
+    _customInstruction = '';
+    _variantCount = 1;
+    notifyListeners();
+  }
+
+  /// Restores whatever [enterSimpleMode] last pinned over, if anything was.
+  void enterProMode() {
+    final saved = _savedProValues;
+    if (saved == null) return;
+    _intensity = saved.intensity;
+    _length = saved.length;
+    _audience
+      ..clear()
+      ..addAll(saved.audience);
+    _customInstruction = saved.customInstruction;
+    _variantCount = saved.variantCount;
+    _savedProValues = null;
+    notifyListeners();
+  }
+
   RewriteRequest get _request => RewriteRequest(
     sourceText: _sourceText,
     toneId: _toneId,
@@ -374,4 +418,22 @@ class RewriteController extends ChangeNotifier {
       // History is best-effort; never fail the rewrite because of it.
     }
   }
+}
+
+/// What [RewriteController.enterSimpleMode] pins over, for
+/// [RewriteController.enterProMode] to restore.
+class _ProValuesSnapshot {
+  const _ProValuesSnapshot({
+    required this.intensity,
+    required this.length,
+    required this.audience,
+    required this.customInstruction,
+    required this.variantCount,
+  });
+
+  final RewriteIntensity intensity;
+  final RewriteLength length;
+  final List<String> audience;
+  final String customInstruction;
+  final int variantCount;
 }

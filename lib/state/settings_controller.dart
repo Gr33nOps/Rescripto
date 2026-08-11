@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/processing_mode.dart';
+import '../models/ui_mode.dart';
 import '../services/settings_service.dart';
 
 /// App-level settings exposed to the UI.
@@ -17,6 +18,7 @@ class SettingsController extends ChangeNotifier {
   String get whisperModel => _service.whisperModel;
   ProcessingMode get processingMode => _service.processingMode;
   bool get onboardingCompleted => _service.onboardingCompleted;
+  UiMode get uiMode => _service.uiMode;
 
   ThemeMode get themeModeValue => switch (_service.themeMode) {
     'light' => ThemeMode.light,
@@ -62,6 +64,16 @@ class SettingsController extends ChangeNotifier {
   /// Written only at the very end of onboarding — see `OnboardingScreen`.
   Future<void> setOnboardingCompleted(bool value) async {
     await _service.setOnboardingCompleted(value);
+    notifyListeners();
+  }
+
+  /// Persists the mode only. Pinning/restoring `RewriteController`'s editor
+  /// state on a Simple↔Pro transition is a separate, explicit step the
+  /// caller does alongside this — see `RewriteController.enterSimpleMode`/
+  /// `enterProMode` — rather than something this setter reaches into
+  /// another controller to do itself.
+  Future<void> setUiMode(UiMode mode) async {
+    await _service.setUiMode(mode);
     notifyListeners();
   }
 }

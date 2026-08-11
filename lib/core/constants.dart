@@ -35,6 +35,7 @@ abstract final class AppConstants {
   static const String keyCloudFallbackConsent = 'cloud_fallback_consent';
   static const String keySpeechEngine = 'speech_engine';
   static const String keyOnboardingCompleted = 'onboarding_completed';
+  static const String keyUiMode = 'ui_mode'; // 'simple' | 'pro'
   static const String keySettingsSchemaVersion = 'settings_schema_version';
   // Superseded by keySettingsSchemaVersion. Still written so that downgrading
   // to 1.0.3 and upgrading again does not re-apply the GPU reset.

@@ -6,6 +6,7 @@ import '../core/constants.dart';
 import '../models/ai_model.dart';
 import '../models/cloud_fallback_consent.dart';
 import '../models/processing_mode.dart';
+import '../models/ui_mode.dart';
 import 'settings_migrations.dart';
 
 /// Thin persistence layer for app preferences (all on-device).
@@ -156,5 +157,22 @@ class SettingsService {
 
   Future<void> setOnboardingCompleted(bool value) async {
     await _p.setBool(AppConstants.keyOnboardingCompleted, value);
+  }
+
+  /// Simple (tone + rewrite only) or Pro (every control). Simple by
+  /// default — progressive disclosure, not a value judgement about anyone's
+  /// prior habits: an existing install upgrading into this build starts
+  /// Simple too, since there is no stored "was already using Pro-only
+  /// controls" signal to key a different default off of.
+  UiMode get uiMode {
+    final raw = _p.getString(AppConstants.keyUiMode);
+    for (final mode in UiMode.values) {
+      if (mode.name == raw) return mode;
+    }
+    return UiMode.simple;
+  }
+
+  Future<void> setUiMode(UiMode mode) async {
+    await _p.setString(AppConstants.keyUiMode, mode.name);
   }
 }

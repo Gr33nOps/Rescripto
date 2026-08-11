@@ -11,6 +11,7 @@ import 'package:rescripto/engine/generation_handle.dart';
 import 'package:rescripto/models/processing_mode.dart';
 import 'package:rescripto/models/provider_config.dart';
 import 'package:rescripto/models/rewrite_output.dart';
+import 'package:rescripto/models/rewrite_request.dart';
 import 'package:rescripto/services/config_store.dart';
 import 'package:rescripto/services/credentials/credential_ref.dart';
 import 'package:rescripto/services/credentials/credential_store.dart';
@@ -337,6 +338,60 @@ void main() {
         controller.retryWithFallback(),
         throwsA(isA<StateError>()),
       );
+    });
+  });
+
+  group('RewriteController — Simple/Pro pinning', () {
+    test('enterSimpleMode pins Pro-surface fields to their defaults', () {
+      controller.setIntensity(RewriteIntensity.full);
+      controller.setLength(RewriteLength.longer);
+      controller.toggleAudience('coworkers');
+      controller.setCustomInstruction('be terse');
+      controller.setVariantCount(3);
+
+      controller.enterSimpleMode();
+
+      expect(controller.intensity, RewriteIntensity.moderate);
+      expect(controller.length, RewriteLength.same);
+      expect(controller.audience, isEmpty);
+      expect(controller.customInstruction, '');
+      expect(controller.variantCount, 1);
+    });
+
+    test('enterProMode restores exactly what enterSimpleMode pinned over', () {
+      controller.setIntensity(RewriteIntensity.full);
+      controller.setLength(RewriteLength.longer);
+      controller.toggleAudience('coworkers');
+      controller.setCustomInstruction('be terse');
+      controller.setVariantCount(3);
+
+      controller.enterSimpleMode();
+      controller.enterProMode();
+
+      expect(controller.intensity, RewriteIntensity.full);
+      expect(controller.length, RewriteLength.longer);
+      expect(controller.audience, ['coworkers']);
+      expect(controller.customInstruction, 'be terse');
+      expect(controller.variantCount, 3);
+    });
+
+    test('enterProMode with nothing pinned is a harmless no-op', () {
+      controller.enterProMode();
+      expect(controller.intensity, RewriteIntensity.moderate);
+      expect(controller.variantCount, 1);
+    });
+
+    test('a value set while in Simple mode does not leak into the restored Pro values', () {
+      controller.setVariantCount(3);
+      controller.enterSimpleMode();
+
+      // Simple mode's own controls (tone, source text) stay live; nothing
+      // pinned should react to them.
+      controller.setTone('casual');
+
+      controller.enterProMode();
+      expect(controller.variantCount, 3);
+      expect(controller.toneId, 'casual');
     });
   });
 
