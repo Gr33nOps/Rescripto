@@ -11,6 +11,7 @@ import 'services/db/app_database.dart';
 import 'services/network/network_policy.dart';
 import 'services/providers/provider_registry.dart';
 import 'services/settings_service.dart';
+import 'services/workflows/workflow_registry.dart';
 import 'state/app_providers.dart';
 import 'state/settings_controller.dart';
 
@@ -23,6 +24,7 @@ class RescriptoApp extends StatelessWidget {
     required this.configStore,
     required this.credentialStore,
     required this.providerRegistry,
+    required this.workflowRegistry,
     required this.networkPolicy,
   });
 
@@ -31,6 +33,7 @@ class RescriptoApp extends StatelessWidget {
   final ConfigStore configStore;
   final CredentialStore credentialStore;
   final ProviderRegistry providerRegistry;
+  final WorkflowRegistry workflowRegistry;
   final NetworkPolicy networkPolicy;
 
   @override
@@ -41,6 +44,7 @@ class RescriptoApp extends StatelessWidget {
       configStore: configStore,
       credentialStore: credentialStore,
       providerRegistry: providerRegistry,
+      workflowRegistry: workflowRegistry,
       networkPolicy: networkPolicy,
       child: const _RescriptoMaterialApp(),
     );

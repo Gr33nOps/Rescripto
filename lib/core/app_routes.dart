@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/authoring/audience_list_screen.dart';
 import '../screens/authoring/tone_list_screen.dart';
+import '../screens/authoring/workflow_list_screen.dart';
 import '../screens/network_log_screen.dart';
 import '../screens/privacy_screen.dart';
 import '../screens/providers_screen.dart';
@@ -22,6 +23,7 @@ abstract final class AppRoutes {
   static const providers = '/providers';
   static const tones = '/tones';
   static const audiences = '/audiences';
+  static const workflows = '/workflows';
 
   static Map<String, WidgetBuilder> get routes => {
     privacy: (_) => const PrivacyScreen(),
@@ -29,5 +31,6 @@ abstract final class AppRoutes {
     providers: (_) => const ProvidersScreen(),
     tones: (_) => const ToneListScreen(),
     audiences: (_) => const AudienceListScreen(),
+    workflows: (_) => const WorkflowListScreen(),
   };
 }

@@ -162,10 +162,51 @@ Future<void> _v5Providers(Database db) async {
   );
 }
 
+/// A saved, named sequence of rewrite steps — step *N*'s output feeds step
+/// *N+1*'s input. `workflow_step` cascades on `workflow` deletion, the same
+/// way `provider_model` cascades on `provider_config`.
+///
+/// `provider_id` is nullable because the local engine's `EngineTarget`
+/// never carries one — see that class's own doc. `audience` is a JSON array
+/// of audience *ids* stored as text, mirroring how `provider_config.
+/// extra_headers` already stores a JSON map in a TEXT column; a step's
+/// audience selection is small and read as a whole, never queried by
+/// individual member, so a normalized join table would only add joins
+/// nothing here needs.
+Future<void> _v6Workflows(Database db) async {
+  await db.execute('''
+    CREATE TABLE workflow (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE workflow_step (
+      id                 TEXT PRIMARY KEY,
+      workflow_id        TEXT NOT NULL REFERENCES workflow(id) ON DELETE CASCADE,
+      sort_order         INTEGER NOT NULL,
+      tone_id            TEXT NOT NULL,
+      intensity          TEXT NOT NULL,
+      length             TEXT NOT NULL,
+      audience           TEXT NOT NULL DEFAULT '[]',
+      custom_instruction TEXT NOT NULL DEFAULT '',
+      engine_id          TEXT NOT NULL,
+      model_ref          TEXT NOT NULL,
+      provider_id        TEXT
+    )
+  ''');
+  await db.execute(
+    'CREATE INDEX idx_workflow_step_workflow ON workflow_step(workflow_id)',
+  );
+}
+
 /// Forward migrations, keyed by the schema version each one produces.
 const Map<int, Migration> kMigrations = <int, Migration>{
   2: _v2ConfigTables,
   3: _v3NetworkLog,
   4: _v4CredentialIndex,
   5: _v5Providers,
+  6: _v6Workflows,
 };

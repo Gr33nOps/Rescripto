@@ -47,7 +47,8 @@ abstract final class AppConstants {
   // 3: network_log table.
   // 4: credential_ref table.
   // 5: provider_config + provider_model tables.
-  static const int dbVersion = 5;
+  // 6: workflow + workflow_step tables.
+  static const int dbVersion = 6;
 
   // Directories.
   static const String modelsDir = 'models';

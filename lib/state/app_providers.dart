@@ -9,6 +9,7 @@ import '../engine/cloud/openai_compatible_protocol.dart';
 import '../engine/engine_registry.dart';
 import '../engine/local/local_engine_host.dart';
 import '../engine/local/local_llm_engine.dart';
+import '../engine/workflow_runner.dart';
 import '../services/config_store.dart';
 import '../services/credentials/credential_store.dart';
 import '../services/db/app_database.dart';
@@ -25,6 +26,8 @@ import '../services/routing/target_router.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
 import '../services/storage_service.dart';
+import '../services/workflows/workflow_registry.dart';
+import '../services/workflows/workflow_store.dart';
 import 'history_controller.dart';
 import 'models_controller.dart';
 import 'rewrite_controller.dart';
@@ -40,6 +43,7 @@ class AppProviders extends StatelessWidget {
     required this.configStore,
     required this.credentialStore,
     required this.providerRegistry,
+    required this.workflowRegistry,
     required this.networkPolicy,
     required this.child,
   });
@@ -49,6 +53,7 @@ class AppProviders extends StatelessWidget {
   final ConfigStore configStore;
   final CredentialStore credentialStore;
   final ProviderRegistry providerRegistry;
+  final WorkflowRegistry workflowRegistry;
   final NetworkPolicy networkPolicy;
   final Widget child;
 
@@ -86,6 +91,11 @@ class AppProviders extends StatelessWidget {
         Provider<ProviderStore>(
           create: (ctx) =>
               ProviderStore(ctx.read<AppDatabase>(), ctx.read<CredentialStore>()),
+        ),
+        // Built before runApp too, same reasoning as ProviderRegistry above.
+        ChangeNotifierProvider<WorkflowRegistry>.value(value: workflowRegistry),
+        Provider<WorkflowStore>(
+          create: (ctx) => WorkflowStore(ctx.read<AppDatabase>()),
         ),
         // One instance for the whole app — every RewriteController rewrite
         // registers into it, and PanicService's kill switch cancels
@@ -154,19 +164,33 @@ class AppProviders extends StatelessWidget {
             host: ctx.read<LocalEngineHost>(),
           ),
         ),
+        // Shared rather than built inline per-controller: the workflow
+        // editor needs "wherever a rewrite would currently route to" too,
+        // for a new step's default target.
+        Provider<TargetRouter>(
+          create: (ctx) => TargetRouter(
+            settings: ctx.read<SettingsService>(),
+            providerRegistry: ctx.read<ProviderRegistry>(),
+            networkPolicy: ctx.read<NetworkPolicy>(),
+            isLocalModelInstalled: () => ctx
+                .read<ModelsController>()
+                .isInstalled(ctx.read<SettingsService>().selectedModelId),
+          ),
+        ),
         ChangeNotifierProvider<RewriteController>(
           create: (ctx) => RewriteController(
             registry: ctx.read<EngineRegistry>(),
             storage: ctx.read<StorageService>(),
             configStore: ctx.read<ConfigStore>(),
-            router: TargetRouter(
-              settings: ctx.read<SettingsService>(),
-              providerRegistry: ctx.read<ProviderRegistry>(),
-              networkPolicy: ctx.read<NetworkPolicy>(),
-              isLocalModelInstalled: () => ctx
-                  .read<ModelsController>()
-                  .isInstalled(ctx.read<SettingsService>().selectedModelId),
-            ),
+            router: ctx.read<TargetRouter>(),
+            activeRequests: ctx.read<ActiveRequestRegistry>(),
+          ),
+        ),
+        ChangeNotifierProvider<WorkflowRunner>(
+          create: (ctx) => WorkflowRunner(
+            registry: ctx.read<EngineRegistry>(),
+            configStore: ctx.read<ConfigStore>(),
+            storage: ctx.read<StorageService>(),
             activeRequests: ctx.read<ActiveRequestRegistry>(),
           ),
         ),

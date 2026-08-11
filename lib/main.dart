@@ -8,6 +8,8 @@ import 'services/network/network_policy.dart';
 import 'services/providers/provider_registry.dart';
 import 'services/providers/provider_store.dart';
 import 'services/settings_service.dart';
+import 'services/workflows/workflow_registry.dart';
+import 'services/workflows/workflow_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +31,11 @@ Future<void> main() async {
   );
   await providerRegistry.load();
 
+  // Same reasoning again: the workflow list must never render empty on
+  // first frame while its own table is still loading.
+  final workflowRegistry = WorkflowRegistry(WorkflowStore(database));
+  await workflowRegistry.load();
+
   // NetworkGuard checks this before every request it hands out, so it must
   // be ready before anything can download. Kept independent of AppDatabase:
   // policy has to stay readable even if the database is corrupt.
@@ -42,6 +49,7 @@ Future<void> main() async {
       configStore: configStore,
       credentialStore: credentialStore,
       providerRegistry: providerRegistry,
+      workflowRegistry: workflowRegistry,
       networkPolicy: networkPolicy,
     ),
   );
