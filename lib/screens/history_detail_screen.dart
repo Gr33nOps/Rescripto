@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/icon_catalog.dart';
 import '../models/history_entry.dart';
-import '../models/tone_preset.dart';
+import '../services/config_store.dart';
 
 /// Full view of one saved rewrite.
 class HistoryDetailScreen extends StatelessWidget {
@@ -14,7 +16,7 @@ class HistoryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = ToneLibrary.byId(entry.toneId);
+    final tone = context.watch<ConfigStore>().toneById(entry.toneId);
     final date = DateFormat.yMMMd().add_jm().format(entry.createdAt);
 
     return Scaffold(
@@ -42,7 +44,10 @@ class HistoryDetailScreen extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(avatar: Icon(tone.icon, size: 16), label: Text(tone.name)),
+                Chip(
+                  avatar: Icon(IconCatalog.resolve(tone.iconToken), size: 16),
+                  label: Text(tone.name),
+                ),
                 if (entry.intensityLabel != null)
                   Chip(label: Text(entry.intensityLabel!)),
                 if (entry.lengthLabel != null)

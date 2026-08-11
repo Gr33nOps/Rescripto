@@ -16,7 +16,8 @@ class AppDatabase {
   AppDatabase({
     this.migrations = kMigrations,
     this.version = AppConstants.dbVersion,
-  });
+    @visibleForTesting String? path,
+  }) : _pathOverride = path;
 
   /// Forward migrations keyed by the version each produces. Injectable so the
   /// runner can be exercised against a synthetic schema without dragging the
@@ -25,6 +26,12 @@ class AppDatabase {
 
   /// Schema version this build opens the database at.
   final int version;
+
+  /// Bypasses `getDatabasesPath()` when set, so a store built on [db] — like
+  /// `ConfigStore` — can be tested against an isolated temp file through the
+  /// exact same open path production uses, rather than every dependent
+  /// needing its own way to reach [openAt] directly.
+  final String? _pathOverride;
 
   Database? _db;
   Future<Database>? _opening;
@@ -50,6 +57,8 @@ class AppDatabase {
   }
 
   Future<Database> _open() async {
+    final override = _pathOverride;
+    if (override != null) return openAt(override);
     final dir = await getDatabasesPath();
     return openAt(p.join(dir, AppConstants.dbName));
   }

@@ -12,7 +12,7 @@ void main() {
       length: RewriteLength.same,
     );
 
-    final tone = ToneLibrary.byId('professional');
+    final tone = ToneLibrary.builtIns.firstWhere((t) => t.id == 'professional');
 
     test('includes the tone instruction', () {
       final prompt = PromptBuilder.build(base, tone: tone);

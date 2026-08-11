@@ -175,4 +175,46 @@ void main() {
       await db.close();
     });
   });
+
+  group('real kMigrations (default AppDatabase())', () {
+    test('a fresh database has tone_preset and audience_tag', () async {
+      final db = await AppDatabase().openAt(pathFor('real_fresh.db'));
+      final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      );
+      expect(
+        tables.map((t) => t['name']),
+        containsAll(['history', 'tone_preset', 'audience_tag']),
+      );
+      await db.close();
+    });
+
+    test('the history(created_at) index exists', () async {
+      final db = await AppDatabase().openAt(pathFor('real_index.db'));
+      final indexes = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'history'",
+      );
+      expect(indexes.map((i) => i['name']), contains('idx_history_created_at'));
+      await db.close();
+    });
+
+    test('upgrading a real 1.0.3 database adds the config tables without touching history', () async {
+      final path = pathFor('real_upgrade.db');
+      final v1 = await AppDatabase(version: 1, migrations: const {})
+          .openAt(path);
+      await v1.insert('history', {
+        'original': 'a',
+        'rewritten': 'b',
+        'tone_id': 'professional',
+        'created_at': DateTime.utc(2026).toIso8601String(),
+      });
+      await v1.close();
+
+      final upgraded = await AppDatabase().openAt(path);
+
+      expect(await upgraded.query('history'), hasLength(1));
+      expect(await upgraded.query('tone_preset'), isEmpty);
+      await upgraded.close();
+    });
+  });
 }

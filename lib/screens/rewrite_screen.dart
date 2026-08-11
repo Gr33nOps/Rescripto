@@ -6,6 +6,7 @@ import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
 import '../engine/engine_stage.dart';
+import '../services/config_store.dart';
 import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
 import '../widgets/mic_button.dart';
@@ -24,15 +25,6 @@ class RewriteScreen extends StatefulWidget {
 }
 
 class _RewriteScreenState extends State<RewriteScreen> {
-  static const List<String> _audiences = [
-    'coworkers',
-    'a manager',
-    'customers',
-    'a teacher',
-    'friends',
-    'recruiters',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<RewriteController>();
@@ -306,6 +298,7 @@ class _AudienceSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final audiences = context.watch<ConfigStore>().audiences;
     return SizedBox(
       width: double.infinity,
       child: Wrap(
@@ -313,11 +306,11 @@ class _AudienceSelector extends StatelessWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
-          for (final a in _RewriteScreenState._audiences)
+          for (final audience in audiences)
             FilterChip(
-              label: Text(a),
-              selected: selected.contains(a),
-              onSelected: (_) => onToggle(a),
+              label: Text(audience.label),
+              selected: selected.contains(audience.label),
+              onSelected: (_) => onToggle(audience.label),
             ),
         ],
       ),

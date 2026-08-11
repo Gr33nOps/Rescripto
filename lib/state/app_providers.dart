@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../engine/engine_registry.dart';
 import '../engine/local/local_engine_host.dart';
 import '../engine/local/local_llm_engine.dart';
+import '../services/config_store.dart';
 import '../services/db/app_database.dart';
 import '../services/local_llm_service.dart';
 import '../services/model_manager.dart';
@@ -18,9 +19,17 @@ import 'speech_controller.dart';
 
 /// Registers all services + controllers with provider.
 class AppProviders extends StatelessWidget {
-  const AppProviders({super.key, required this.settings, required this.child});
+  const AppProviders({
+    super.key,
+    required this.settings,
+    required this.database,
+    required this.configStore,
+    required this.child,
+  });
 
   final SettingsService settings;
+  final AppDatabase database;
+  final ConfigStore configStore;
   final Widget child;
 
   @override
@@ -28,11 +37,14 @@ class AppProviders extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<SettingsService>(create: (_) => settings),
-        // Owns the connection; every store below shares it.
+        // Built and loaded before runApp (see main.dart) so every store
+        // below shares the one connection, and ConfigStore never renders an
+        // empty frame while its seed rows are still being written.
         Provider<AppDatabase>(
-          create: (_) => AppDatabase(),
+          create: (_) => database,
           dispose: (_, database) => database.close(),
         ),
+        ChangeNotifierProvider<ConfigStore>.value(value: configStore),
         Provider<StorageService>(
           create: (ctx) => StorageService(ctx.read<AppDatabase>()),
         ),
@@ -70,6 +82,7 @@ class AppProviders extends StatelessWidget {
             registry: ctx.read<EngineRegistry>(),
             settings: ctx.read<SettingsService>(),
             storage: ctx.read<StorageService>(),
+            configStore: ctx.read<ConfigStore>(),
           ),
         ),
         ChangeNotifierProvider<HistoryController>(

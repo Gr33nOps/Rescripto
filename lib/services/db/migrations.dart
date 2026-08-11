@@ -27,11 +27,49 @@ Future<void> createBaseline(Database db) async {
   ''');
 }
 
-/// Forward migrations, keyed by the schema version each one produces.
+/// Tone presets and audience tags, moved out of `static const` Dart lists so
+/// they can be edited and, later, backed up. `is_builtin`/`seed_version`/
+/// `user_modified` let `ConfigSeeder` refresh built-in copy on a future
+/// release without overwriting anything the user has changed. `is_hidden` is
+/// how a built-in gets "deleted" without losing the seed row to re-hide
+/// against next launch.
 ///
-/// Deliberately empty: the runner ships one release ahead of the first schema
-/// change so that when tone presets and the network log arrive there is
-/// already a tested upgrade path for the installs in the field. Before this,
-/// `openDatabase` was called with no `onUpgrade` at all, so bumping the
-/// version would have thrown on open for every existing user.
-const Map<int, Migration> kMigrations = <int, Migration>{};
+/// `idx_history_created_at` rides along here rather than waiting for its own
+/// migration: `StorageService.getHistory`'s `ORDER BY created_at DESC` has
+/// been a full table scan since 1.0.3's paging, and there is no reason to
+/// carry that forward into a release that touches this table anyway.
+Future<void> _v2ConfigTables(Database db) async {
+  await db.execute('''
+    CREATE TABLE tone_preset (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      icon_token    TEXT NOT NULL,
+      description   TEXT NOT NULL DEFAULT '',
+      instruction   TEXT NOT NULL,
+      temperature   REAL NOT NULL,
+      is_builtin    INTEGER NOT NULL DEFAULT 0,
+      is_hidden     INTEGER NOT NULL DEFAULT 0,
+      sort_order    INTEGER NOT NULL DEFAULT 0,
+      seed_version  INTEGER NOT NULL DEFAULT 0,
+      user_modified INTEGER NOT NULL DEFAULT 0,
+      updated_at    TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE audience_tag (
+      id            TEXT PRIMARY KEY,
+      label         TEXT NOT NULL,
+      is_builtin    INTEGER NOT NULL DEFAULT 0,
+      is_hidden     INTEGER NOT NULL DEFAULT 0,
+      sort_order    INTEGER NOT NULL DEFAULT 0,
+      seed_version  INTEGER NOT NULL DEFAULT 0,
+      user_modified INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+  await db.execute(
+    'CREATE INDEX idx_history_created_at ON history(created_at DESC)',
+  );
+}
+
+/// Forward migrations, keyed by the schema version each one produces.
+const Map<int, Migration> kMigrations = <int, Migration>{2: _v2ConfigTables};

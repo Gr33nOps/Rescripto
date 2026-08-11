@@ -8,14 +8,9 @@ import 'package:rescripto/models/tone_preset.dart';
 void main() {
   group('ToneLibrary', () {
     test('has a non-empty tone catalog with unique ids', () {
-      final ids = ToneLibrary.all.map((t) => t.id).toSet();
-      expect(ids.length, ToneLibrary.all.length);
-      expect(ToneLibrary.all, isNotEmpty);
-    });
-
-    test('byId falls back to the first tone for unknown ids', () {
-      expect(ToneLibrary.byId('does-not-exist').id, ToneLibrary.all.first.id);
-      expect(ToneLibrary.byId('professional').id, 'professional');
+      final ids = ToneLibrary.builtIns.map((t) => t.id).toSet();
+      expect(ids.length, ToneLibrary.builtIns.length);
+      expect(ToneLibrary.builtIns, isNotEmpty);
     });
   });
 

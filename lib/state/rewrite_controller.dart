@@ -14,7 +14,7 @@ import '../models/history_entry.dart';
 import '../models/rewrite_output.dart';
 import '../models/rewrite_request.dart';
 import '../models/rewrite_result.dart';
-import '../models/tone_preset.dart';
+import '../services/config_store.dart';
 import '../services/prompt_builder.dart';
 import '../services/settings_service.dart';
 import '../services/storage_service.dart';
@@ -33,11 +33,13 @@ class RewriteController extends ChangeNotifier {
     required this._registry,
     required this._settings,
     required this._storage,
+    required this._configStore,
   });
 
   final EngineRegistry _registry;
   final SettingsService _settings;
   final StorageService _storage;
+  final ConfigStore _configStore;
 
   // Editor state.
   String _sourceText = '';
@@ -160,7 +162,7 @@ class RewriteController extends ChangeNotifier {
       final engine = _registry.resolve(target);
       await engine.prepare(target);
 
-      final tone = ToneLibrary.byId(_toneId);
+      final tone = _configStore.toneById(_toneId);
       final prompt = PromptBuilder.build(request, tone: tone);
       final options = GenerationOptions(
         temperature: tone.temperature,

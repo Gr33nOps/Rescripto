@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../core/icon_catalog.dart';
 import '../models/history_entry.dart';
-import '../models/tone_preset.dart';
+import '../services/config_store.dart';
 import '../state/history_controller.dart';
 import 'history_detail_screen.dart';
 
@@ -145,7 +146,7 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = ToneLibrary.byId(entry.toneId);
+    final tone = context.watch<ConfigStore>().toneById(entry.toneId);
     final scheme = Theme.of(context).colorScheme;
     final date = DateFormat('MMM d, HH:mm').format(entry.createdAt);
 
@@ -168,7 +169,11 @@ class _HistoryCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Icon(tone.icon, size: 18, color: scheme.primary),
+                            Icon(
+                              IconCatalog.resolve(tone.iconToken),
+                              size: 18,
+                              color: scheme.primary,
+                            ),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
