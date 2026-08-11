@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../engine/cloud/anthropic_protocol.dart';
+import '../engine/cloud/cloud_rewrite_engine.dart';
+import '../engine/cloud/gemini_protocol.dart';
+import '../engine/cloud/openai_compatible_protocol.dart';
 import '../engine/engine_registry.dart';
 import '../engine/local/local_engine_host.dart';
 import '../engine/local/local_llm_engine.dart';
@@ -95,6 +99,27 @@ class AppProviders extends StatelessWidget {
         Provider<EngineRegistry>(
           create: (ctx) => EngineRegistry([
             LocalLlmEngine(ctx.read<LocalEngineHost>(), ctx.read<SettingsService>()),
+            CloudRewriteEngine(
+              'cloud.openaiCompatible',
+              const OpenAiCompatibleProtocol(),
+              ctx.read<ProviderRegistry>(),
+              ctx.read<CredentialStore>(),
+              ctx.read<NetworkGuard>(),
+            ),
+            CloudRewriteEngine(
+              'cloud.anthropic',
+              const AnthropicProtocol(),
+              ctx.read<ProviderRegistry>(),
+              ctx.read<CredentialStore>(),
+              ctx.read<NetworkGuard>(),
+            ),
+            CloudRewriteEngine(
+              'cloud.gemini',
+              const GeminiProtocol(),
+              ctx.read<ProviderRegistry>(),
+              ctx.read<CredentialStore>(),
+              ctx.read<NetworkGuard>(),
+            ),
           ]),
           dispose: (_, registry) => registry.dispose(),
         ),

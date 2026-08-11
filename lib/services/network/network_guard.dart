@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../models/network_log_entry.dart';
@@ -30,14 +31,24 @@ const _secretQueryParams = {'key', 'api_key', 'access_token', 'token'};
 /// are none), but nothing here could stop native code that did. The only
 /// mechanism that strong is not holding the `INTERNET` permission at all.
 class NetworkGuard {
-  NetworkGuard(this._policy, this._log);
+  NetworkGuard(this._policy, this._log, {@visibleForTesting this.adapterOverride});
 
   final NetworkPolicy _policy;
   final NetworkLog _log;
 
+  /// Replaces every [Dio] instance's transport with a fake one, for tests.
+  /// `ModelManager`/`GuardedHttpClient` callers hand the test their own `Dio`
+  /// to swap `httpClientAdapter` on directly (see `network_guard_test.dart`);
+  /// a caller that builds its `Dio` internally — like `CloudRewriteEngine` —
+  /// has no such handle, so this is the seam for those instead.
+  @visibleForTesting
+  final HttpClientAdapter Function()? adapterOverride;
+
   Dio dioFor(NetworkFeature feature, {String? purpose}) {
     final dio = Dio();
     dio.interceptors.add(_GuardInterceptor(feature, _policy, _log, purpose));
+    final override = adapterOverride;
+    if (override != null) dio.httpClientAdapter = override();
     return dio;
   }
 
