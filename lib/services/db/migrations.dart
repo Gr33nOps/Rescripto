@@ -96,8 +96,29 @@ Future<void> _v3NetworkLog(Database db) async {
   ''');
 }
 
+/// A non-secret index of which credentials exist, written by
+/// `CredentialStore`. The actual secret lives only in the platform Keystore
+/// (`flutter_secure_storage`), keyed by `CredentialRef.storageKey` — this
+/// table has no column that could hold one. It exists so the settings UI can
+/// render "OpenAI — key configured" without touching plaintext, and so
+/// `CredentialStore.deleteAll` has a list to sweep without a slow
+/// `readAll()` across the whole secure store.
+Future<void> _v4CredentialIndex(Database db) async {
+  await db.execute('''
+    CREATE TABLE credential_ref (
+      provider_id TEXT NOT NULL,
+      account_id  TEXT NOT NULL,
+      kind        TEXT NOT NULL,
+      label       TEXT,
+      created_at  TEXT NOT NULL,
+      PRIMARY KEY (provider_id, account_id, kind)
+    )
+  ''');
+}
+
 /// Forward migrations, keyed by the schema version each one produces.
 const Map<int, Migration> kMigrations = <int, Migration>{
   2: _v2ConfigTables,
   3: _v3NetworkLog,
+  4: _v4CredentialIndex,
 };

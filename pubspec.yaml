@@ -41,6 +41,10 @@ dependencies:
   # Version matches third_party/flutter_whisper's own constraint.
   http: ^1.2.0
 
+  # BYO API keys, backed by Android Keystore (EncryptedSharedPreferences).
+  # Never written to SharedPreferences, SQLite, or Android's own backup.
+  flutter_secure_storage: ^9.2.4
+
   # State management.
   provider: ^6.1.5+1
 

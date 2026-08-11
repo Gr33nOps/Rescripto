@@ -177,16 +177,44 @@ void main() {
   });
 
   group('real kMigrations (default AppDatabase())', () {
-    test('a fresh database has tone_preset, audience_tag, and network_log', () async {
+    test('a fresh database has every foundation-phase table', () async {
       final db = await AppDatabase().openAt(pathFor('real_fresh.db'));
       final tables = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type = 'table'",
       );
       expect(
         tables.map((t) => t['name']),
-        containsAll(['history', 'tone_preset', 'audience_tag', 'network_log']),
+        containsAll([
+          'history',
+          'tone_preset',
+          'audience_tag',
+          'network_log',
+          'credential_ref',
+        ]),
       );
       await db.close();
+    });
+
+    test('upgrading a real v3 database adds credential_ref without touching earlier tables', () async {
+      final path = pathFor('real_v3_upgrade.db');
+      final v3 = await AppDatabase(
+        version: 3,
+        migrations: {2: kMigrations[2]!, 3: kMigrations[3]!},
+      ).openAt(path);
+      await v3.insert('network_log', {
+        'feature': 'modelDownload',
+        'method': 'GET',
+        'host': 'huggingface.co',
+        'path': '/x',
+        'started_at': DateTime.utc(2026).toIso8601String(),
+        'outcome': 'allowed',
+      });
+      await v3.close();
+
+      final upgraded = await AppDatabase().openAt(path);
+      expect(await upgraded.query('network_log'), hasLength(1));
+      expect(await upgraded.query('credential_ref'), isEmpty);
+      await upgraded.close();
     });
 
     test('upgrading a real v2 database adds network_log without touching config', () async {

@@ -5,6 +5,7 @@ import '../engine/engine_registry.dart';
 import '../engine/local/local_engine_host.dart';
 import '../engine/local/local_llm_engine.dart';
 import '../services/config_store.dart';
+import '../services/credentials/credential_store.dart';
 import '../services/db/app_database.dart';
 import '../services/local_llm_service.dart';
 import '../services/model_manager.dart';
@@ -12,6 +13,7 @@ import '../services/network/network_feature.dart';
 import '../services/network/network_guard.dart';
 import '../services/network/network_log.dart';
 import '../services/network/network_policy.dart';
+import '../services/panic_service.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
 import '../services/storage_service.dart';
@@ -64,6 +66,15 @@ class AppProviders extends StatelessWidget {
         Provider<NetworkGuard>(
           create: (ctx) =>
               NetworkGuard(ctx.read<NetworkPolicy>(), ctx.read<NetworkLog>()),
+        ),
+        Provider<CredentialStore>(
+          create: (ctx) => CredentialStore(ctx.read<AppDatabase>()),
+        ),
+        Provider<PanicService>(
+          create: (ctx) => PanicService(
+            ctx.read<CredentialStore>(),
+            ctx.read<NetworkPolicy>(),
+          ),
         ),
         // Sole owner of the native llama.cpp singleton — every mutating call
         // to it, from either controller below, is routed through here.

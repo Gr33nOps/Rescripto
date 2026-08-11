@@ -27,7 +27,8 @@ abstract final class AppConstants {
   static const String dbName = 'rescripto.db';
   // 2: tone_preset + audience_tag tables, history(created_at) index.
   // 3: network_log table.
-  static const int dbVersion = 3;
+  // 4: credential_ref table.
+  static const int dbVersion = 4;
 
   // Directories.
   static const String modelsDir = 'models';
