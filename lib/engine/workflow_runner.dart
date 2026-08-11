@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/constants.dart';
 import '../models/history_entry.dart';
 import '../models/rewrite_request.dart';
 import '../models/workflow_definition.dart';
@@ -140,7 +139,11 @@ class WorkflowRunner extends ChangeNotifier {
     final prompt = PromptBuilder.build(request, tone: tone, audienceLabels: audienceLabels);
     final options = GenerationOptions(
       temperature: tone.temperature,
-      maxOutputTokens: AppConstants.defaultMaxTokens,
+      topP: tone.topP,
+      topK: tone.topK,
+      repeatPenalty: tone.repeatPenalty,
+      maxOutputTokens: tone.maxOutputTokens,
+      stopSequences: tone.stopSequences,
     );
 
     final handle = engine.start(

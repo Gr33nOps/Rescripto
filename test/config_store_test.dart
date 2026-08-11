@@ -95,6 +95,45 @@ void main() {
       expect(store.toneById('user_1').name, 'My Tone');
     });
 
+    test('round-trips the Pro generation fields through save and reload', () async {
+      await store.upsertTone(const TonePreset(
+        id: 'user_generation',
+        name: 'Tuned',
+        iconToken: 'bolt_outlined',
+        description: '',
+        instruction: 'Be terse.',
+        temperature: 0.5,
+        topP: 0.8,
+        topK: 25,
+        repeatPenalty: 1.3,
+        maxOutputTokens: 512,
+        stopSequences: ['###', 'END'],
+      ));
+
+      final resyncedDb = AppDatabase(
+        path: '${tempDir.path}${Platform.pathSeparator}test.db',
+      );
+      final resynced = ConfigStore(resyncedDb);
+      await resynced.load();
+      final tone = resynced.toneById('user_generation');
+
+      expect(tone.topP, 0.8);
+      expect(tone.topK, 25);
+      expect(tone.repeatPenalty, 1.3);
+      expect(tone.maxOutputTokens, 512);
+      expect(tone.stopSequences, ['###', 'END']);
+      await resyncedDb.close();
+    });
+
+    test('a built-in tone gets GenerationOptions-matching defaults for the new fields', () {
+      final tone = store.toneById('professional');
+      expect(tone.topP, 0.95);
+      expect(tone.topK, 40);
+      expect(tone.repeatPenalty, 1.1);
+      expect(tone.maxOutputTokens, 1024);
+      expect(tone.stopSequences, isEmpty);
+    });
+
     test('editing a built-in marks it user-modified so the seeder leaves it alone', () async {
       final edited = store.toneById('professional').copyWith(name: 'Work Voice');
       await store.upsertTone(edited);

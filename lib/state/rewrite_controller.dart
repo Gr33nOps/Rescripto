@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/constants.dart';
 import '../engine/active_request_registry.dart';
 import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
@@ -301,7 +300,11 @@ class RewriteController extends ChangeNotifier {
       final prompt = PromptBuilder.build(request, tone: tone, audienceLabels: audienceLabels);
       final options = GenerationOptions(
         temperature: tone.temperature,
-        maxOutputTokens: AppConstants.defaultMaxTokens,
+        topP: tone.topP,
+        topK: tone.topK,
+        repeatPenalty: tone.repeatPenalty,
+        maxOutputTokens: tone.maxOutputTokens,
+        stopSequences: tone.stopSequences,
       );
 
       handle = engine.start(

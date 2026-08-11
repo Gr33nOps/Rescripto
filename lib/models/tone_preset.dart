@@ -1,8 +1,19 @@
+import 'dart:convert';
+
 /// A named style/tone that the rewrite engine can apply to text.
 ///
 /// Pure Dart: [iconToken] is a string resolved through `IconCatalog`, not an
 /// `IconData` directly — see that class for why. This is also what makes the
 /// class serializable, which storing it in SQLite requires.
+///
+/// [topP], [topK], [repeatPenalty], [maxOutputTokens], and [stopSequences]
+/// mirror `GenerationOptions`' fields, letting Pro mode tune sampling per
+/// tone rather than only via the hardcoded defaults every tone used to
+/// share. There is no `seed` field to go with them: the vendored
+/// `flutter_llama` plugin's `GenerationParams` has no seed parameter to pass
+/// one through to, so exposing a seed slider here would be a control that
+/// silently does nothing on-device. Left out rather than shipped broken;
+/// adding it needs a change to the vendored plugin, not this class.
 class TonePreset {
   const TonePreset({
     required this.id,
@@ -11,6 +22,11 @@ class TonePreset {
     required this.description,
     required this.instruction,
     required this.temperature,
+    this.topP = 0.95,
+    this.topK = 40,
+    this.repeatPenalty = 1.1,
+    this.maxOutputTokens = 1024,
+    this.stopSequences = const [],
     this.isBuiltin = false,
   });
 
@@ -24,6 +40,14 @@ class TonePreset {
 
   /// Sampling temperature for this tone (0.0 - 1.0).
   final double temperature;
+
+  final double topP;
+  final int topK;
+  final double repeatPenalty;
+  final int maxOutputTokens;
+
+  /// Merged on top of whatever the engine's own chat template requires.
+  final List<String> stopSequences;
 
   /// Whether this tone ships with the app. Not part of [toMap] — `is_builtin`
   /// is a column `ConfigStore` manages itself (0 on `upsertTone`, 1 when
@@ -39,6 +63,11 @@ class TonePreset {
     String? description,
     String? instruction,
     double? temperature,
+    double? topP,
+    int? topK,
+    double? repeatPenalty,
+    int? maxOutputTokens,
+    List<String>? stopSequences,
   }) {
     return TonePreset(
       id: id,
@@ -47,6 +76,11 @@ class TonePreset {
       description: description ?? this.description,
       instruction: instruction ?? this.instruction,
       temperature: temperature ?? this.temperature,
+      topP: topP ?? this.topP,
+      topK: topK ?? this.topK,
+      repeatPenalty: repeatPenalty ?? this.repeatPenalty,
+      maxOutputTokens: maxOutputTokens ?? this.maxOutputTokens,
+      stopSequences: stopSequences ?? this.stopSequences,
       isBuiltin: isBuiltin,
     );
   }
@@ -58,6 +92,11 @@ class TonePreset {
     'description': description,
     'instruction': instruction,
     'temperature': temperature,
+    'top_p': topP,
+    'top_k': topK,
+    'repeat_penalty': repeatPenalty,
+    'max_output_tokens': maxOutputTokens,
+    'stop_sequences': jsonEncode(stopSequences),
   };
 
   factory TonePreset.fromMap(Map<String, Object?> map) => TonePreset(
@@ -67,6 +106,13 @@ class TonePreset {
     description: map['description'] as String? ?? '',
     instruction: map['instruction'] as String,
     temperature: (map['temperature'] as num).toDouble(),
+    topP: (map['top_p'] as num?)?.toDouble() ?? 0.95,
+    topK: (map['top_k'] as num?)?.toInt() ?? 40,
+    repeatPenalty: (map['repeat_penalty'] as num?)?.toDouble() ?? 1.1,
+    maxOutputTokens: (map['max_output_tokens'] as num?)?.toInt() ?? 1024,
+    stopSequences: (jsonDecode(map['stop_sequences'] as String? ?? '[]') as List<Object?>)
+        .map((s) => s as String)
+        .toList(),
     isBuiltin: (map['is_builtin'] as int? ?? 0) != 0,
   );
 }

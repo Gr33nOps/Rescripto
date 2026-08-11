@@ -290,6 +290,40 @@ void main() {
       await upgraded.close();
     });
 
+    test('upgrading a real v6 database adds tone_preset generation columns with matching defaults', () async {
+      final path = pathFor('real_v6_upgrade.db');
+      final v6 = await AppDatabase(
+        version: 6,
+        migrations: {
+          2: kMigrations[2]!,
+          3: kMigrations[3]!,
+          4: kMigrations[4]!,
+          5: kMigrations[5]!,
+          6: kMigrations[6]!,
+        },
+      ).openAt(path);
+      await v6.insert('tone_preset', {
+        'id': 'professional',
+        'name': 'Professional',
+        'icon_token': 'business_center_outlined',
+        'instruction': 'Be professional.',
+        'temperature': 0.4,
+        'updated_at': DateTime.utc(2026).toIso8601String(),
+      });
+      await v6.close();
+
+      final upgraded = await AppDatabase().openAt(path);
+      final rows = await upgraded.query('tone_preset', where: 'id = ?', whereArgs: ['professional']);
+
+      expect(rows, hasLength(1));
+      expect(rows.single['top_p'], 0.95);
+      expect(rows.single['top_k'], 40);
+      expect(rows.single['repeat_penalty'], 1.1);
+      expect(rows.single['max_output_tokens'], 1024);
+      expect(rows.single['stop_sequences'], '[]');
+      await upgraded.close();
+    });
+
     test('the history(created_at) index exists', () async {
       final db = await AppDatabase().openAt(pathFor('real_index.db'));
       final indexes = await db.rawQuery(

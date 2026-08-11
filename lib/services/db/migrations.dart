@@ -202,6 +202,29 @@ Future<void> _v6Workflows(Database db) async {
   );
 }
 
+/// Per-tone sampling overrides, so Pro mode can tune generation beyond
+/// `temperature` (already a column since v2) without every tone sharing one
+/// hardcoded default. Defaults match `GenerationOptions`' own defaults
+/// exactly, so a tone nobody has edited yet behaves identically to before
+/// this migration ran. No `seed` column — see `TonePreset`'s own doc for why.
+Future<void> _v7ToneGenerationOptions(Database db) async {
+  await db.execute(
+    "ALTER TABLE tone_preset ADD COLUMN top_p REAL NOT NULL DEFAULT 0.95",
+  );
+  await db.execute(
+    'ALTER TABLE tone_preset ADD COLUMN top_k INTEGER NOT NULL DEFAULT 40',
+  );
+  await db.execute(
+    'ALTER TABLE tone_preset ADD COLUMN repeat_penalty REAL NOT NULL DEFAULT 1.1',
+  );
+  await db.execute(
+    'ALTER TABLE tone_preset ADD COLUMN max_output_tokens INTEGER NOT NULL DEFAULT 1024',
+  );
+  await db.execute(
+    "ALTER TABLE tone_preset ADD COLUMN stop_sequences TEXT NOT NULL DEFAULT '[]'",
+  );
+}
+
 /// Forward migrations, keyed by the schema version each one produces.
 const Map<int, Migration> kMigrations = <int, Migration>{
   2: _v2ConfigTables,
@@ -209,4 +232,5 @@ const Map<int, Migration> kMigrations = <int, Migration>{
   4: _v4CredentialIndex,
   5: _v5Providers,
   6: _v6Workflows,
+  7: _v7ToneGenerationOptions,
 };

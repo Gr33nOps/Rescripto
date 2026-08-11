@@ -48,7 +48,8 @@ abstract final class AppConstants {
   // 4: credential_ref table.
   // 5: provider_config + provider_model tables.
   // 6: workflow + workflow_step tables.
-  static const int dbVersion = 6;
+  // 7: tone_preset gains top_p/top_k/repeat_penalty/max_output_tokens/stop_sequences.
+  static const int dbVersion = 7;
 
   // Directories.
   static const String modelsDir = 'models';
