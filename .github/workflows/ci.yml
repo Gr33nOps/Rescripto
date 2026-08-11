@@ -43,7 +43,11 @@ jobs:
       - name: Install Android native build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ccache
+          # libsqlite3-dev: sqflite_common_ffi runs SQLite in-process for the
+          # migration/config-store/network-log/credential-store tests, since
+          # sqflite itself needs a device. Without it those tests fail to
+          # find a native SQLite to load.
+          sudo apt-get install -y ccache libsqlite3-dev
           ccache --max-size=6G
           "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358"
 

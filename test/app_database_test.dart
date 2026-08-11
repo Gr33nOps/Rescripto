@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rescripto/core/constants.dart';
 import 'package:rescripto/services/db/app_database.dart';
 import 'package:rescripto/services/db/migrations.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -246,8 +247,12 @@ void main() {
       await db.close();
     });
 
-    test('upgrading a real 1.0.3 database adds the config tables without touching history', () async {
-      final path = pathFor('real_upgrade.db');
+    test('a real 1.0.3 install upgrades through the full v2-v4 chain in one open', () async {
+      // The end-to-end version of the pairwise upgrade tests above: an
+      // install that has genuinely sat on a device since 1.0.3, opened once
+      // against the current app, applying migrations 2, 3, and 4 in a single
+      // onUpgrade call — not three separate opens each covering one step.
+      final path = pathFor('real_full_chain_upgrade.db');
       final v1 = await AppDatabase(version: 1, migrations: const {})
           .openAt(path);
       await v1.insert('history', {
@@ -260,8 +265,25 @@ void main() {
 
       final upgraded = await AppDatabase().openAt(path);
 
+      expect(await upgraded.getVersion(), AppConstants.dbVersion);
       expect(await upgraded.query('history'), hasLength(1));
       expect(await upgraded.query('tone_preset'), isEmpty);
+      expect(await upgraded.query('audience_tag'), isEmpty);
+      expect(await upgraded.query('network_log'), isEmpty);
+      expect(await upgraded.query('credential_ref'), isEmpty);
+      final tables = await upgraded.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      );
+      expect(
+        tables.map((t) => t['name']),
+        containsAll([
+          'history',
+          'tone_preset',
+          'audience_tag',
+          'network_log',
+          'credential_ref',
+        ]),
+      );
       await upgraded.close();
     });
   });
