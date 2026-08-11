@@ -202,18 +202,23 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${AppConstants.tagline}\n${AppConstants.privacyPromise}',
+                      '${AppConstants.tagline}\n${settings.processingMode == ProcessingMode.local ? AppConstants.localModePromise : AppConstants.privacyPromise}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'No accounts, ads, or tracking. Your text, recordings, and '
-                      'rewrite history stay on this device unless you choose to '
-                      'send a rewrite to a cloud provider you\'ve configured. AI '
-                      'and voice model files are downloaded from Hugging Face '
-                      'only when you choose to use them.',
+                      settings.processingMode == ProcessingMode.local
+                          ? 'No accounts, ads, or tracking. Your text, recordings, '
+                                'and rewrite history stay on this device. AI and '
+                                'voice model files are downloaded from Hugging Face '
+                                'only when you choose to use them.'
+                          : 'No accounts, ads, or tracking. Your text, recordings, '
+                                'and rewrite history stay on this device unless you '
+                                'choose to send a rewrite to a cloud provider you\'ve '
+                                'configured. AI and voice model files are downloaded '
+                                'from Hugging Face only when you choose to use them.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),

@@ -2,8 +2,19 @@
 abstract final class AppConstants {
   static const String appName = 'Rescripto';
   static const String tagline = 'Polished text. Private, on-device AI.';
+
+  /// True in every processing mode — the part of the original promise that
+  /// survived Cloud/Hybrid mode existing at all.
   static const String privacyPromise =
+      'No accounts · No tracking · You choose where your text is processed';
+
+  /// Only true in [ProcessingMode.local] — the original, stronger claim.
+  /// `AppConstants.privacyPromise` alone became false the moment a Cloud
+  /// mode existed; this is what's shown instead when the mode genuinely
+  /// backs it.
+  static const String localModePromise =
       'No accounts · No cloud processing · Your content stays local';
+
   static const String sourceUrl = 'https://github.com/Gr33nOps/Rescripto';
   static const String issuesUrl =
       'https://github.com/Gr33nOps/Rescripto/issues';

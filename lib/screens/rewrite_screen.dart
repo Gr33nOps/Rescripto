@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_routes.dart';
 import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
@@ -9,6 +10,7 @@ import '../engine/engine_stage.dart';
 import '../engine/engine_target.dart';
 import '../services/config_store.dart';
 import '../services/providers/provider_registry.dart';
+import '../services/routing/target_router.dart';
 import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
 import '../widgets/mic_button.dart';
@@ -66,8 +68,8 @@ class _RewriteScreenState extends State<RewriteScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
           children: [
-            if (!models.isInstalled(models.selectedModelId) && !models.scanning)
-              _ModelMissingBanner(onTap: () => TabNavigator.of(context).goToTab(2)),
+            if (controller.routing.isBlocked && !models.scanning)
+              _TargetNotReadyBanner(blocker: controller.routing.blocker!),
             const SizedBox(height: 12),
             const _SourceInput(),
             const SizedBox(height: 12),
@@ -492,45 +494,76 @@ class _StreamingPanel extends StatelessWidget {
   }
 }
 
-class _ModelMissingBanner extends StatelessWidget {
-  const _ModelMissingBanner({required this.onTap});
+/// Replaces the old `_ModelMissingBanner`, which had two bugs beyond its
+/// copy: it rendered purely from `models.isInstalled(...)` with no
+/// capability check at all, so it could appear over a perfectly working
+/// cloud rewrite once Cloud/Hybrid mode existed; and its copy ("Everything
+/// runs on your phone. No accounts, no cloud.") was only ever true on the
+/// local branch. This is driven by `RoutingDecision.blocker` instead, with
+/// a route to the actual fix per case.
+class _TargetNotReadyBanner extends StatelessWidget {
+  const _TargetNotReadyBanner({required this.blocker});
 
-  final VoidCallback onTap;
+  final RoutingBlocker blocker;
+
+  (String, String, IconData) get _copy => switch (blocker) {
+    RoutingBlocker.noLocalModel => (
+      'First step: install an AI model',
+      'On-device rewriting needs a model downloaded to this phone.',
+      Icons.download_done_outlined,
+    ),
+    RoutingBlocker.noCloudProvider => (
+      'Add a cloud provider',
+      'Cloud rewriting needs at least one provider set up with an API key.',
+      Icons.cloud_outlined,
+    ),
+    RoutingBlocker.cloudDisabledByPolicy => (
+      'Cloud rewriting is turned off',
+      'Enable it in Privacy settings, or switch to Local mode.',
+      Icons.privacy_tip_outlined,
+    ),
+  };
+
+  void _onTap(BuildContext context) {
+    switch (blocker) {
+      case RoutingBlocker.noLocalModel:
+        TabNavigator.of(context).goToTab(2);
+      case RoutingBlocker.noCloudProvider:
+        Navigator.of(context).pushNamed(AppRoutes.providers);
+      case RoutingBlocker.cloudDisabledByPolicy:
+        Navigator.of(context).pushNamed(AppRoutes.privacy);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final (title, subtitle, icon) = _copy;
     return Material(
       color: scheme.primaryContainer,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        onTap: onTap,
+        onTap: () => _onTap(context),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Icon(
-                Icons.download_done_outlined,
-                color: scheme.onPrimaryContainer,
-              ),
+              Icon(icon, color: scheme.onPrimaryContainer),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'First step: install an AI model',
+                      title,
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: scheme.onPrimaryContainer,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      'Everything runs on your phone. No accounts, no cloud.',
-                      style: TextStyle(color: scheme.onPrimaryContainer),
-                    ),
+                    Text(subtitle, style: TextStyle(color: scheme.onPrimaryContainer)),
                   ],
                 ),
               ),

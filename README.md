@@ -1,9 +1,14 @@
 # Rescripto
 
-Rescripto is a Flutter app for private, on-device text rewriting. User text,
-recordings, generated output, settings, and history stay on the device. The app
-uses the network only to download the AI and voice models you choose; after
-download, rewriting and dictation run locally without an account or API key.
+Rescripto is a Flutter app for private, on-device text rewriting — on-device by
+default, and still the differentiator. In **Local** mode (the default) user
+text, recordings, generated output, settings, and history stay on the device;
+the network is used only to download the AI and voice models you choose, and
+after that, rewriting and dictation run locally without an account or API key.
+**Cloud** and **Hybrid** modes are opt-in: they let you rewrite with a cloud AI
+provider you configure with your own API key, off by default and gated behind
+an explicit choice during onboarding or in Privacy settings. See
+[Processing modes](#processing-modes) below for exactly what that changes.
 
 Source, releases, and issue tracking live on GitHub:
 
@@ -15,10 +20,51 @@ Source, releases, and issue tracking live on GitHub:
 
 - Local GGUF rewriting with tone, intensity, length, audience, instructions,
   and up to three requested variants
+- Optional Cloud/Hybrid rewriting against a provider you configure with your
+  own API key — OpenAI, Anthropic, Gemini, Groq, OpenRouter, Mistral,
+  Together, Ollama, or a custom OpenAI-compatible endpoint
 - Resumable, checksum-verified model downloads
 - Local SQLite rewrite history, copy, and share
-- Android microphone dictation through whisper.cpp
+- Android microphone dictation through whisper.cpp, or cloud speech-to-text
+  via a configured provider
+- A network kill switch, per-feature network toggles, and an in-app network
+  log auditing every request the app has made or blocked
 - Light, dark, and system themes
+
+## Processing modes
+
+Set once during onboarding, changeable anytime in Settings → Processing mode.
+
+- **Local** (default) — rewriting always runs on-device. No network request
+  a rewrite could ever trigger.
+- **Cloud** — rewriting always uses the cloud provider and model you've
+  selected. Needs at least one configured provider; otherwise the app tells
+  you what's missing rather than silently falling back.
+- **Hybrid** — prefers on-device; routes to cloud automatically only for
+  long input (over ~1,500 characters) when a provider is configured. If
+  on-device rewriting fails, Rescripto asks before sending your text to the
+  cloud instead of retrying there silently — except when the *cloud* side
+  fails and the fallback is *back* to your own device, which needs no
+  permission. The AppBar always shows which side a rewrite will actually
+  run on, and why.
+
+### What leaves the device
+
+| Mode | What's sent | To whom | In the network log? |
+| --- | --- | --- | --- |
+| Local | Nothing (beyond one-time model downloads) | Hugging Face (model files only) | Yes |
+| Cloud | The text you're rewriting | Your configured cloud provider | Yes |
+| Hybrid | The text you're rewriting, only for long input or after a local failure you approved | Your configured cloud provider | Yes |
+| Cloud/system speech-to-text | Your voice recording | Your configured provider, or (system recognizer) Android itself | Cloud: yes. System recognizer: **no** — that audio path is native code this app cannot see |
+
+Every Dart-initiated network request goes through one chokepoint
+(`NetworkGuard`) that checks policy first and logs host + path — never a
+header, body, or query string, and never a URL carrying a credential. The
+in-app Network log (Settings → Privacy & network) shows this history
+directly, and its own empty state and footer repeat what it cannot see. A
+panic button on the same screen turns on the kill switch, cancels anything
+in flight, disables every cloud provider, and deletes every saved API key,
+in that order.
 
 ## Platform support
 
@@ -120,8 +166,16 @@ README and the in-app About section so they stay aligned.
 
 ## Architecture
 
+- `lib/engine`: the `RewriteEngine` abstraction — local llama.cpp and the
+  three cloud protocol adapters (`lib/engine/cloud`: OpenAI-compatible,
+  Anthropic, Gemini) behind one interface, dispatched by
+  `lib/services/routing/target_router.dart`
+- `lib/speech`: the parallel `SpeechEngine` abstraction — local whisper.cpp,
+  cloud transcription, and (not yet wired to a platform channel) the system
+  recognizer
 - `lib/state`: UI operation state and controllers
-- `lib/services`: settings, SQLite, downloads, llama, speech, and prompting
+- `lib/services`: settings, SQLite, downloads, network policy/guard/log,
+  credentials, provider configuration, and prompting
 - `lib/models`: immutable app/domain models
 - `third_party/flutter_llama`: vendored llama.cpp Flutter/native bridge
 - `third_party/flutter_whisper`: vendored whisper.cpp Flutter/native bridge

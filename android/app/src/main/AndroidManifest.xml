@@ -1,8 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Microphone access for on-device voice dictation. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <!-- Network is used ONLY to download the on-device AI models once.
-         After setup the app works fully offline. -->
+    <!-- Network is used to download on-device AI/voice models, and — only in
+         Cloud or Hybrid mode, off by default and gated behind an explicit
+         opt-in during onboarding or in Privacy settings — to send a rewrite
+         or a voice recording to a cloud provider you configure with your own
+         API key. In Local mode (the default) the app works fully offline
+         after model setup. See lib/services/network/ (NetworkGuard,
+         NetworkPolicy) for the chokepoint every request goes through, and
+         the in-app Network log for an audit trail of what's actually gone
+         out. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Rewrite history, settings and downloaded models never leave the device,
          so they must not be swept into Google's cloud backup either. Without
