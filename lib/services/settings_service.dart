@@ -143,4 +143,18 @@ class SettingsService {
   Future<void> setSpeechEngine(String value) async {
     await _p.setString(AppConstants.keySpeechEngine, value);
   }
+
+  /// Whether onboarding has been shown and completed.
+  ///
+  /// Written only at the very end of the onboarding flow, so an interrupted
+  /// run repeats — see `OnboardingScreen`. An upgrading install never sees
+  /// it either, but for a different reason: `_v2MarkExistingInstallsOnboarded`
+  /// (`settings_migrations.dart`) sets this to true during migration itself,
+  /// before the app ever renders a frame.
+  bool get onboardingCompleted =>
+      _p.getBool(AppConstants.keyOnboardingCompleted) ?? false;
+
+  Future<void> setOnboardingCompleted(bool value) async {
+    await _p.setBool(AppConstants.keyOnboardingCompleted, value);
+  }
 }

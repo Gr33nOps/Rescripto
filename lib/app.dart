@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/app_routes.dart';
 import 'core/app_theme.dart';
 import 'screens/home_shell.dart';
+import 'screens/onboarding_screen.dart';
 import 'services/config_store.dart';
 import 'services/credentials/credential_store.dart';
 import 'services/db/app_database.dart';
@@ -59,7 +60,7 @@ class _RescriptoMaterialApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: settings.themeModeValue,
-      home: const HomeShell(),
+      home: settings.onboardingCompleted ? const HomeShell() : const OnboardingScreen(),
       routes: AppRoutes.routes,
     );
   }

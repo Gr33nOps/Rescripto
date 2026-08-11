@@ -11,11 +11,14 @@ abstract final class SettingsSchema {
   ///
   /// 1 — GPU default reset. Shipped in 1.0.3 behind a one-off sentinel key,
   ///     before this versioning existed.
-  static const int version = 1;
+  /// 2 — Onboarding introduced (Phase 2). Existing installs are marked as
+  ///     already onboarded so they never see the new-user flow.
+  static const int version = 2;
 }
 
 const Map<int, SettingsMigration> _steps = <int, SettingsMigration>{
   1: _v1ResetGpuDefault,
+  2: _v2MarkExistingInstallsOnboarded,
 };
 
 /// Brings stored preferences up to [SettingsSchema.version].
@@ -85,4 +88,16 @@ Future<void> _v1ResetGpuDefault(SharedPreferences prefs) async {
   // downgrades to 1.0.3 and upgrades again would otherwise have the reset
   // applied a second time, discarding a GPU choice they made in between.
   await prefs.setBool(AppConstants.keyGpuResetDone, true);
+}
+
+/// Onboarding is new in this release, and it exists to get affirmative
+/// consent for cloud/hybrid modes before they're reachable — not to
+/// introduce a screen every existing user has to click through for
+/// features they haven't touched. This step only ever runs for an install
+/// that [inferLegacyVersion] placed below the current version, which by
+/// construction means it already had at least one pre-existing settings
+/// key — a fresh install infers straight to [SettingsSchema.version] and
+/// skips every step, this one included, and sees onboarding as intended.
+Future<void> _v2MarkExistingInstallsOnboarded(SharedPreferences prefs) async {
+  await prefs.setBool(AppConstants.keyOnboardingCompleted, true);
 }

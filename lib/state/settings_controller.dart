@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/processing_mode.dart';
 import '../services/settings_service.dart';
 
 /// App-level settings exposed to the UI.
@@ -14,6 +15,8 @@ class SettingsController extends ChangeNotifier {
   bool get useGpu => _service.useGpu;
   int get contextSize => _service.contextSize;
   String get whisperModel => _service.whisperModel;
+  ProcessingMode get processingMode => _service.processingMode;
+  bool get onboardingCompleted => _service.onboardingCompleted;
 
   ThemeMode get themeModeValue => switch (_service.themeMode) {
     'light' => ThemeMode.light,
@@ -48,6 +51,17 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setWhisperModel(String value) async {
     await _service.setWhisperModel(value);
+    notifyListeners();
+  }
+
+  Future<void> setProcessingMode(ProcessingMode mode) async {
+    await _service.setProcessingMode(mode);
+    notifyListeners();
+  }
+
+  /// Written only at the very end of onboarding — see `OnboardingScreen`.
+  Future<void> setOnboardingCompleted(bool value) async {
+    await _service.setOnboardingCompleted(value);
     notifyListeners();
   }
 }

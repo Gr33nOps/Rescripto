@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_routes.dart';
 import '../core/constants.dart';
+import '../models/processing_mode.dart';
 import '../state/settings_controller.dart';
 import '../widgets/settings_tiles.dart';
 
@@ -43,6 +44,36 @@ class SettingsScreen extends StatelessWidget {
                       icon: Icons.dark_mode_outlined,
                       label: 'Dark',
                       value: 'dark',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const SectionTitle('Processing mode'),
+            Card(
+              child: RadioGroup<ProcessingMode>(
+                groupValue: settings.processingMode,
+                onChanged: (mode) => settings.setProcessingMode(mode ?? settings.processingMode),
+                child: Column(
+                  children: [
+                    _ModeRadioTile(
+                      icon: Icons.lock_outline,
+                      label: 'Local',
+                      subtitle: 'Always on-device. Never sends text anywhere.',
+                      value: ProcessingMode.local,
+                    ),
+                    _ModeRadioTile(
+                      icon: Icons.cloud_outlined,
+                      label: 'Cloud',
+                      subtitle: 'Always uses your configured cloud provider.',
+                      value: ProcessingMode.cloud,
+                    ),
+                    _ModeRadioTile(
+                      icon: Icons.swap_horiz_outlined,
+                      label: 'Hybrid',
+                      subtitle: 'Prefers on-device; asks before falling back to cloud.',
+                      value: ProcessingMode.hybrid,
                     ),
                   ],
                 ),
@@ -205,6 +236,34 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// [ProcessingMode] radio tile — `RadioTile` (settings_tiles.dart) is
+/// typed for `String` values, which every other setting on this screen
+/// happens to use; this is the one exception.
+class _ModeRadioTile extends StatelessWidget {
+  const _ModeRadioTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final ProcessingMode value;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      subtitle: Text(subtitle),
+      trailing: Radio<ProcessingMode>(value: value),
+      onTap: () => RadioGroup.maybeOf<ProcessingMode>(context)?.onChanged.call(value),
     );
   }
 }

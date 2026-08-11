@@ -107,4 +107,49 @@ void main() {
       expect(prefs.getBool(AppConstants.keyUseGpu), isTrue);
     });
   });
+
+  group('migrateSettings — onboarding (v2)', () {
+    test('a fresh install is not marked onboarded — it must see onboarding', () async {
+      final prefs = await prefsWith({});
+
+      await migrateSettings(prefs);
+
+      expect(prefs.getBool(AppConstants.keyOnboardingCompleted), isNot(isTrue));
+    });
+
+    test('a pre-1.0.3 install (no GPU sentinel) is marked already onboarded', () async {
+      final prefs = await prefsWith({
+        AppConstants.keyThemeMode: 'dark',
+        AppConstants.keyUseGpu: true,
+      });
+
+      await migrateSettings(prefs);
+
+      expect(prefs.getBool(AppConstants.keyOnboardingCompleted), isTrue);
+    });
+
+    test('a 1.0.3 install (GPU sentinel present) is marked already onboarded', () async {
+      final prefs = await prefsWith({
+        AppConstants.keyThemeMode: 'dark',
+        AppConstants.keyGpuResetDone: true,
+      });
+
+      await migrateSettings(prefs);
+
+      expect(prefs.getBool(AppConstants.keyOnboardingCompleted), isTrue);
+    });
+
+    test('an install already at the current version is left alone', () async {
+      final prefs = await prefsWith({
+        AppConstants.keyThemeMode: 'dark',
+        AppConstants.keySettingsSchemaVersion: SettingsSchema.version,
+      });
+
+      await migrateSettings(prefs);
+
+      // Nothing forced this true — a real user might not have onboarded
+      // yet on this exact build, and migration must not fabricate consent.
+      expect(prefs.getBool(AppConstants.keyOnboardingCompleted), isNot(isTrue));
+    });
+  });
 }

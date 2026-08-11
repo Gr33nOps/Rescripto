@@ -12,6 +12,7 @@ import '../services/providers/provider_registry.dart';
 import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
 import '../widgets/mic_button.dart';
+import '../widgets/processing_indicator.dart';
 import '../widgets/result_view.dart';
 import '../widgets/rewrite_controls.dart';
 import '../widgets/tab_navigator.dart';
@@ -49,6 +50,10 @@ class _RewriteScreenState extends State<RewriteScreen> {
           ],
         ),
         actions: [
+          const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: ProcessingIndicator(),
+          ),
           if (controller.isRunning)
             IconButton(
               tooltip: 'Stop',
