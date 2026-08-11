@@ -73,6 +73,13 @@ class RewriteController extends ChangeNotifier {
   String get toneId => _toneId;
   RewriteIntensity get intensity => _intensity;
   RewriteLength get length => _length;
+
+  /// Selected audience *ids* (`AudienceTag.id`), not display labels. An id
+  /// is stable across a rename and a label isn't — resolving to text
+  /// happens once, at prompt-build time, via `ConfigStore.audienceById`.
+  /// Before the audience editor existed every built-in had `id == label`,
+  /// which is what let this get away with storing labels directly; it
+  /// stopped being safe the moment an id and its label could diverge.
   List<String> get audience => List.unmodifiable(_audience);
   String get customInstruction => _customInstruction;
   int get variantCount => _variantCount;
@@ -139,11 +146,12 @@ class RewriteController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleAudience(String audience) {
-    if (_audience.contains(audience)) {
-      _audience.remove(audience);
+  /// [audienceId] is an [AudienceTag.id] — see [audience]'s own doc.
+  void toggleAudience(String audienceId) {
+    if (_audience.contains(audienceId)) {
+      _audience.remove(audienceId);
     } else {
-      _audience.add(audience);
+      _audience.add(audienceId);
     }
     notifyListeners();
   }
@@ -287,7 +295,10 @@ class RewriteController extends ChangeNotifier {
       await engine.prepare(target);
 
       final tone = _configStore.toneById(request.toneId);
-      final prompt = PromptBuilder.build(request, tone: tone);
+      final audienceLabels = request.audience
+          .map((id) => _configStore.audienceById(id).label)
+          .toList();
+      final prompt = PromptBuilder.build(request, tone: tone, audienceLabels: audienceLabels);
       final options = GenerationOptions(
         temperature: tone.temperature,
         maxOutputTokens: AppConstants.defaultMaxTokens,

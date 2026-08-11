@@ -51,6 +51,19 @@ class ConfigStore extends ChangeNotifier {
     );
   }
 
+  /// Looks up an audience by id, synthesising a placeholder for one no
+  /// longer in the store — mirrors [toneById] exactly, and for the same
+  /// reason: `RewriteRequest.audience` stores ids, not labels (a fix made
+  /// alongside the audience editor — see that screen's own history), so a
+  /// deleted or renamed audience must not silently resolve to an unrelated
+  /// one.
+  AudienceTag audienceById(String id) {
+    for (final audience in _audiences) {
+      if (audience.id == id) return audience;
+    }
+    return AudienceTag(id: id, label: id);
+  }
+
   Future<void> load() async {
     final db = await _database.db;
     await _seeder.sync(db);

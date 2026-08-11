@@ -8,6 +8,7 @@ import 'package:rescripto/engine/engine_registry.dart';
 import 'package:rescripto/engine/engine_stage.dart';
 import 'package:rescripto/engine/engine_target.dart';
 import 'package:rescripto/engine/generation_handle.dart';
+import 'package:rescripto/models/audience_tag.dart';
 import 'package:rescripto/models/processing_mode.dart';
 import 'package:rescripto/models/provider_config.dart';
 import 'package:rescripto/models/rewrite_output.dart';
@@ -214,6 +215,25 @@ void main() {
     test('throws EngineNotAvailableException immediately when routing is blocked', () async {
       localInstalled = false; // local mode (the default), nothing installed
       await expectLater(controller.rewrite(), throwsA(isA<EngineNotAvailableException>()));
+    });
+
+    test('the prompt carries the audience\'s current label, resolved from the id — the id/label bug fix', () async {
+      // Renaming a built-in after it's been selected must not orphan the
+      // selection: RewriteRequest.audience holds ids, and the label is
+      // resolved fresh at rewrite time via ConfigStore.audienceById.
+      await configStore.upsertAudience(
+        const AudienceTag(id: 'coworkers', label: 'my new team name'),
+      );
+      controller.toggleAudience('coworkers');
+
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(const RewriteOutput(text: 'done'));
+      await future;
+
+      final promptSystem = localEngine.lastRequest!.prompt.system;
+      expect(promptSystem, contains('my new team name'));
+      expect(promptSystem, isNot(contains('coworkers')));
     });
   });
 

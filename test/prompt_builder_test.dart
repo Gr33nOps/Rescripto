@@ -31,14 +31,28 @@ void main() {
       expect(prompt.system, contains(PromptBuilder.variantMarker));
     });
 
-    test('mentions audience and custom instruction when provided', () {
+    test('mentions the resolved audience label and custom instruction when provided', () {
+      // request.audience holds ids, not display text — the caller resolves
+      // them (ConfigStore.audienceById) before this runs, so the prompt
+      // must reflect audienceLabels, never request.audience directly.
       final req = base.copyWith(
-        audience: ['a manager'],
+        audience: ['a_manager_id'],
         customInstruction: 'sound more optimistic',
       );
-      final prompt = PromptBuilder.build(req, tone: tone);
+      final prompt = PromptBuilder.build(
+        req,
+        tone: tone,
+        audienceLabels: const ['a manager'],
+      );
       expect(prompt.system, contains('a manager'));
+      expect(prompt.system, isNot(contains('a_manager_id')));
       expect(prompt.system, contains('sound more optimistic'));
+    });
+
+    test('omits the audience line entirely when audienceLabels is empty', () {
+      final req = base.copyWith(audience: ['some_id']);
+      final prompt = PromptBuilder.build(req, tone: tone);
+      expect(prompt.system, isNot(contains('Audience:')));
     });
 
     test('never includes raw punctuation noise in single version mode', () {

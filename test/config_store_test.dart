@@ -280,6 +280,28 @@ void main() {
     });
   });
 
+  group('ConfigStore.audienceById', () {
+    test('returns the matching audience', () {
+      expect(store.audienceById('coworkers').label, 'coworkers');
+    });
+
+    test('synthesises a placeholder for an unknown id, not the first audience', () {
+      final placeholder = store.audienceById('a-deleted-audience-id');
+      expect(placeholder.id, 'a-deleted-audience-id');
+      expect(placeholder.label, 'a-deleted-audience-id');
+    });
+
+    test('resolves the current label after a rename — the id/label bug fix', () async {
+      // Before the audience editor existed, RewriteRequest.audience stored
+      // labels directly, which only worked because every built-in had
+      // id == label. Renaming must not orphan anything still holding the id.
+      await store.upsertAudience(
+        const AudienceTag(id: 'coworkers', label: 'my team'),
+      );
+      expect(store.audienceById('coworkers').label, 'my team');
+    });
+  });
+
   group('ConfigStore.hiddenAudiences', () {
     test('lists a hidden built-in so it can be brought back', () async {
       await store.hideAudience('coworkers');

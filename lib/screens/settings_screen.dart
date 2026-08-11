@@ -108,12 +108,24 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 20),
             const SectionTitle('Authoring'),
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.style_outlined),
-                title: const Text('Tones'),
-                subtitle: const Text('Edit, reorder, add, or remove tone presets'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).pushNamed(AppRoutes.tones),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.style_outlined),
+                    title: const Text('Tones'),
+                    subtitle: const Text('Edit, reorder, add, or remove tone presets'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.tones),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.groups_outlined),
+                    title: const Text('Audiences'),
+                    subtitle: const Text('Edit, reorder, add, or remove audience tags'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.audiences),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),

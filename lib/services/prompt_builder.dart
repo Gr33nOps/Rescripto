@@ -16,16 +16,31 @@ class PromptBuilder {
   /// Builds the system + user text for the given request and tone.
   ///
   /// Takes the resolved [tone] rather than a `toneId` and looking it up
-  /// internally, so this stays pure once tones move into a user-editable
-  /// store (`ConfigStore`, planned) instead of `ToneLibrary`'s static list.
-  static PromptSpec build(RewriteRequest request, {required TonePreset tone}) {
+  /// internally, so this stays pure now that tones live in a user-editable
+  /// store (`ConfigStore`) instead of `ToneLibrary`'s static list.
+  ///
+  /// Same reasoning for [audienceLabels]: `request.audience` holds audience
+  /// *ids*, not display text — an id is stable across a rename, a label
+  /// isn't, and that's the whole reason it's an id — so the caller resolves
+  /// ids to the text that actually belongs in the prompt (via
+  /// `ConfigStore.audienceById`) before this ever runs, the same way it
+  /// already resolves `toneId` to a [TonePreset].
+  static PromptSpec build(
+    RewriteRequest request, {
+    required TonePreset tone,
+    List<String> audienceLabels = const [],
+  }) {
     return PromptSpec(
-      system: _buildSystemPrompt(request, tone),
+      system: _buildSystemPrompt(request, tone, audienceLabels),
       user: request.sourceText.trim(),
     );
   }
 
-  static String _buildSystemPrompt(RewriteRequest request, TonePreset tone) {
+  static String _buildSystemPrompt(
+    RewriteRequest request,
+    TonePreset tone,
+    List<String> audienceLabels,
+  ) {
     final buffer = StringBuffer()
       ..writeln('You are Rescripto, a professional writing assistant.')
       ..writeln('You rewrite the user\'s rough text into polished writing.')
@@ -76,8 +91,8 @@ class PromptBuilder {
         buffer.writeln('Length: SAME as the original.');
     }
 
-    if (request.audience.isNotEmpty) {
-      buffer.writeln('Audience: written for ${request.audience.join(', ')}.');
+    if (audienceLabels.isNotEmpty) {
+      buffer.writeln('Audience: written for ${audienceLabels.join(', ')}.');
     }
     if (request.customInstruction.trim().isNotEmpty) {
       buffer.writeln(

@@ -392,6 +392,8 @@ class _InstructionInputState extends State<_InstructionInput> {
 class _AudienceSelector extends StatelessWidget {
   const _AudienceSelector({required this.selected, required this.onToggle});
 
+  /// Audience *ids* — see `RewriteController.toggleAudience`'s own doc for
+  /// why this is an id list, not a label list.
   final List<String> selected;
   final ValueChanged<String> onToggle;
 
@@ -408,8 +410,8 @@ class _AudienceSelector extends StatelessWidget {
           for (final audience in audiences)
             FilterChip(
               label: Text(audience.label),
-              selected: selected.contains(audience.label),
-              onSelected: (_) => onToggle(audience.label),
+              selected: selected.contains(audience.id),
+              onSelected: (_) => onToggle(audience.id),
             ),
         ],
       ),
