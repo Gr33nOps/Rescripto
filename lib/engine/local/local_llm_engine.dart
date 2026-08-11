@@ -38,6 +38,9 @@ class LocalLlmEngine implements RewriteEngine {
   @override
   Future<void> prepare(EngineTarget target) async {
     final model = ModelCatalog.byId(target.modelRef);
+    if (model == null) {
+      throw ModelNotInstalledException(target.modelRef);
+    }
     await _host.withEngine(
       (service) => service.loadModel(
         model,

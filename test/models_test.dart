@@ -27,9 +27,13 @@ void main() {
 
     test('default model exists in the catalog', () {
       expect(
-        ModelCatalog.byId(ModelCatalog.defaultModel.id).id,
+        ModelCatalog.byId(ModelCatalog.defaultModel.id)?.id,
         ModelCatalog.defaultModel.id,
       );
+    });
+
+    test('byId returns null for an unknown id instead of falling back', () {
+      expect(ModelCatalog.byId('not-a-real-model'), isNull);
     });
   });
 

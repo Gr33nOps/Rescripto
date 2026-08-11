@@ -134,8 +134,17 @@ class ModelCatalog {
     ),
   ];
 
-  static AiModel byId(String id) {
-    return models.firstWhere((m) => m.id == id, orElse: () => models.first);
+  /// Looks up a catalog entry by id, or null if none matches.
+  ///
+  /// Previously fell back to `models.first` on a miss — harmless while every
+  /// `modelRef` was guaranteed to be a local catalog id, but once a
+  /// `modelRef` can also hold a cloud model name, that fallback would
+  /// silently rewrite with Gemma instead of surfacing the mismatch.
+  static AiModel? byId(String id) {
+    for (final model in models) {
+      if (model.id == id) return model;
+    }
+    return null;
   }
 
   static AiModel get defaultModel => models.first;

@@ -77,7 +77,14 @@ class RewriteController extends ChangeNotifier {
 
   /// Capabilities of the engine the current model selection would run on —
   /// what the UI's stage copy adapts to.
-  EngineCapabilities get capabilities => _registry.resolve(_target).capabilities;
+  ///
+  /// Runs inside widget `build()`, so it uses `maybeResolve` rather than
+  /// `resolve` — a missing engine here must never throw mid-frame. Falls
+  /// back to capabilities with no special-case copy, which is the same
+  /// "genuinely unknown" default `stageLabel` already treats correctly.
+  EngineCapabilities get capabilities =>
+      _registry.maybeResolve(_target)?.capabilities ??
+      const EngineCapabilities(needsLocalInstall: false, requiresNetwork: false);
 
   bool get canRewrite => _sourceText.trim().isNotEmpty && !_isRunning;
 
@@ -169,7 +176,9 @@ class RewriteController extends ChangeNotifier {
         maxOutputTokens: AppConstants.defaultMaxTokens,
       );
 
-      final handle = engine.start(EngineRequest(prompt: prompt, options: options));
+      final handle = engine.start(
+        EngineRequest(target: target, prompt: prompt, options: options),
+      );
       _active = handle;
       notifyListeners();
 

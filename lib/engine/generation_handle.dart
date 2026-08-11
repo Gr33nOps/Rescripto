@@ -59,7 +59,13 @@ class StreamGenerationHandle implements GenerationHandle {
   StreamGenerationHandle({required this.onCancel});
 
   final Future<void> Function() onCancel;
-  final _events = StreamController<GenerationEvent>.broadcast();
+  // Non-broadcast: buffers events emitted before the first (and only)
+  // listener subscribes. An async engine body runs synchronously to its
+  // first await, so the earliest StageChanged events land before start()
+  // even returns — a broadcast controller would drop them silently. A
+  // handle is one request's identity, so exactly one listener is correct;
+  // a second `.listen()` call throws, which is the intended failure mode.
+  final _events = StreamController<GenerationEvent>();
   final _completer = Completer<RewriteOutput>();
   bool _isCancelled = false;
 
