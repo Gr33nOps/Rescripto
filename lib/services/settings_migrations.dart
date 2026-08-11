@@ -55,6 +55,13 @@ Future<void> migrateSettings(SharedPreferences prefs) async {
 /// * settings exist without the sentinel — 1.0.2 or earlier, so 0
 @visibleForTesting
 int inferLegacyVersion(SharedPreferences prefs) {
+  // Deliberately frozen to exactly what a pre-versioning (pre-1.0.4) build
+  // could have written. Do NOT add processing_mode, cloud_provider_id, or
+  // any other Phase-2-or-later key here: this list answers "did some old
+  // build ever write this key," and a build from before those keys existed
+  // could not have. Adding one would misclassify a fresh install that has
+  // simply completed onboarding as a legacy install, and replay migrations
+  // against it that were never meant to run.
   const written = <String>[
     AppConstants.keySelectedModel,
     AppConstants.keyThemeMode,

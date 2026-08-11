@@ -18,6 +18,12 @@ abstract final class AppConstants {
   static const String keyUseGpu = 'use_gpu';
   static const String keyContextSize = 'context_size';
   static const String keyWhisperModel = 'whisper_model';
+  static const String keyProcessingMode = 'processing_mode';
+  static const String keyCloudProviderId = 'cloud_provider_id';
+  static const String keyCloudModelRef = 'cloud_model_ref';
+  static const String keyCloudFallbackConsent = 'cloud_fallback_consent';
+  static const String keySpeechEngine = 'speech_engine';
+  static const String keyOnboardingCompleted = 'onboarding_completed';
   static const String keySettingsSchemaVersion = 'settings_schema_version';
   // Superseded by keySettingsSchemaVersion. Still written so that downgrading
   // to 1.0.3 and upgrading again does not re-apply the GPU reset.

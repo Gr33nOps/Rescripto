@@ -20,6 +20,7 @@ import '../services/network/network_policy.dart';
 import '../services/panic_service.dart';
 import '../services/providers/provider_registry.dart';
 import '../services/providers/provider_store.dart';
+import '../services/routing/target_router.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
 import '../services/storage_service.dart';
@@ -149,9 +150,16 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider<RewriteController>(
           create: (ctx) => RewriteController(
             registry: ctx.read<EngineRegistry>(),
-            settings: ctx.read<SettingsService>(),
             storage: ctx.read<StorageService>(),
             configStore: ctx.read<ConfigStore>(),
+            router: TargetRouter(
+              settings: ctx.read<SettingsService>(),
+              providerRegistry: ctx.read<ProviderRegistry>(),
+              networkPolicy: ctx.read<NetworkPolicy>(),
+              isLocalModelInstalled: () => ctx
+                  .read<ModelsController>()
+                  .isInstalled(ctx.read<SettingsService>().selectedModelId),
+            ),
           ),
         ),
         ChangeNotifierProvider<HistoryController>(

@@ -16,7 +16,7 @@ import '../models/rewrite_request.dart';
 import '../models/rewrite_result.dart';
 import '../services/config_store.dart';
 import '../services/prompt_builder.dart';
-import '../services/settings_service.dart';
+import '../services/routing/target_router.dart';
 import '../services/storage_service.dart';
 
 /// Thrown by [RewriteController.rewrite] when there is no text to act on.
@@ -31,15 +31,15 @@ class EmptySourceError implements Exception {
 class RewriteController extends ChangeNotifier {
   RewriteController({
     required this._registry,
-    required this._settings,
     required this._storage,
     required this._configStore,
+    required this._router,
   });
 
   final EngineRegistry _registry;
-  final SettingsService _settings;
   final StorageService _storage;
   final ConfigStore _configStore;
+  final TargetRouter _router;
 
   // Editor state.
   String _sourceText = '';
@@ -59,6 +59,13 @@ class RewriteController extends ChangeNotifier {
   RewriteResult? _lastResult;
   String? _lastError;
 
+  // Hybrid local→cloud fallback. Only ever set from inside `_run`, and only
+  // ever cleared by `dismissFallback`/`retryWithFallback` or the start of
+  // the next `rewrite()` call.
+  RewriteRequest? _pendingFallbackRequest;
+  EngineTarget? _pendingFallback;
+  bool _pendingFallbackNeedsConsent = false;
+
   String get sourceText => _sourceText;
   String get toneId => _toneId;
   RewriteIntensity get intensity => _intensity;
@@ -75,24 +82,38 @@ class RewriteController extends ChangeNotifier {
   RewriteResult? get lastResult => _lastResult;
   String? get lastError => _lastError;
 
-  /// Capabilities of the engine the current model selection would run on —
-  /// what the UI's stage copy adapts to.
+  /// Where a rewrite of the current input would run right now, and why —
+  /// cheap enough to read on every keystroke (`RoutingDecision` does no
+  /// I/O), which is what lets `processing_indicator.dart` recompute it live.
+  RoutingDecision get routing => _router.route(inputLength: _sourceText.length);
+
+  /// The other engine to retry on if the last rewrite failed before
+  /// producing any text — null unless [rewrite] just set it.
+  EngineTarget? get pendingFallback => _pendingFallback;
+
+  /// Whether using [pendingFallback] needs the user's explicit go-ahead.
+  /// True only when the failed attempt was local and the fallback is
+  /// cloud — that direction sends text the user never chose to send
+  /// anywhere. Cloud failing back to local never needs asking.
+  bool get pendingFallbackNeedsConsent => _pendingFallbackNeedsConsent;
+
+  /// Capabilities of the engine [routing] currently resolves to — what the
+  /// UI's stage copy adapts to.
   ///
   /// Runs inside widget `build()`, so it uses `maybeResolve` rather than
   /// `resolve` — a missing engine here must never throw mid-frame. Falls
   /// back to capabilities with no special-case copy, which is the same
   /// "genuinely unknown" default `stageLabel` already treats correctly.
-  EngineCapabilities get capabilities =>
-      _registry.maybeResolve(_target)?.capabilities ??
-      const EngineCapabilities(needsLocalInstall: false, requiresNetwork: false);
+  EngineCapabilities get capabilities {
+    final target = routing.target;
+    if (target == null) {
+      return const EngineCapabilities(needsLocalInstall: false, requiresNetwork: false);
+    }
+    return _registry.maybeResolve(target)?.capabilities ??
+        const EngineCapabilities(needsLocalInstall: false, requiresNetwork: false);
+  }
 
   bool get canRewrite => _sourceText.trim().isNotEmpty && !_isRunning;
-
-  // Only the local engine exists today; the model id already distinguishes
-  // catalog entries, so this is the one place that would change to route by
-  // processing mode once a cloud engine is registered alongside it.
-  EngineTarget get _target =>
-      EngineTarget(engineId: 'local.llama', modelRef: _settings.selectedModelId);
 
   void setSource(String text) {
     if (text == _sourceText) return;
@@ -144,15 +165,62 @@ class RewriteController extends ChangeNotifier {
     variantCount: _variantCount,
   );
 
-  /// Runs the rewrite. Throws [EmptySourceError] or an [EngineException] on
-  /// failure; resolves to an empty result if cancelled via [stop].
+  /// Runs the rewrite on whatever [routing] resolves to right now. Throws
+  /// [EmptySourceError] or an [EngineException] on failure; resolves to an
+  /// empty result if cancelled via [stop].
   Future<RewriteResult> rewrite() async {
     if (_isRunning) return _lastResult ?? RewriteResult.empty(_request);
     if (_sourceText.trim().isEmpty) {
       throw const EmptySourceError();
     }
 
-    final request = _request;
+    final decision = routing;
+    final target = decision.target;
+    if (target == null) {
+      final error = EngineNotAvailableException(decision.reason);
+      _lastError = describeEngineError(error);
+      notifyListeners();
+      throw error;
+    }
+
+    _clearFallback();
+    return _run(_request, target, fallback: decision.fallback);
+  }
+
+  /// Retries the request that just failed against [pendingFallback].
+  ///
+  /// A distinct, explicit call rather than a loop inside [rewrite] — that
+  /// is what keeps the consent gate for local→cloud fallback un-bypassable.
+  /// [pendingFallback] is cleared before the retry even starts, so a second
+  /// failure doesn't chain into a third target.
+  Future<RewriteResult> retryWithFallback() async {
+    final target = _pendingFallback;
+    final request = _pendingFallbackRequest;
+    if (target == null || request == null) {
+      throw StateError('retryWithFallback() called with no pending fallback.');
+    }
+    _clearFallback();
+    return _run(request, target, fallback: null);
+  }
+
+  /// Discards a pending fallback offer without acting on it.
+  void dismissFallback() {
+    if (_pendingFallback == null) return;
+    _clearFallback();
+    notifyListeners();
+  }
+
+  void _clearFallback() {
+    _pendingFallback = null;
+    _pendingFallbackRequest = null;
+    _pendingFallbackNeedsConsent = false;
+  }
+
+  Future<RewriteResult> _run(
+    RewriteRequest request,
+    EngineTarget target, {
+    required EngineTarget? fallback,
+  }) async {
     _isRunning = true;
     _active = null;
     _streamingText = '';
@@ -164,12 +232,13 @@ class RewriteController extends ChangeNotifier {
     _lastResult = null;
     notifyListeners();
 
+    var emittedAnyText = false;
+
     try {
-      final target = _target;
       final engine = _registry.resolve(target);
       await engine.prepare(target);
 
-      final tone = _configStore.toneById(_toneId);
+      final tone = _configStore.toneById(request.toneId);
       final prompt = PromptBuilder.build(request, tone: tone);
       final options = GenerationOptions(
         temperature: tone.temperature,
@@ -188,6 +257,7 @@ class RewriteController extends ChangeNotifier {
             _stage = stage;
           case TokenDelta(:final delta):
             _streamingText += delta;
+            emittedAnyText = true;
         }
         notifyListeners();
       });
@@ -201,7 +271,7 @@ class RewriteController extends ChangeNotifier {
 
       final variants = PromptBuilder.parseVariants(
         output.text,
-        expected: _variantCount,
+        expected: request.variantCount,
       );
       final outputs = variants
           .map(
@@ -227,6 +297,13 @@ class RewriteController extends ChangeNotifier {
       return RewriteResult.empty(request);
     } on EngineException catch (e) {
       _lastError = describeEngineError(e);
+      _offerFallbackIfEligible(
+        request: request,
+        failedTarget: target,
+        fallback: fallback,
+        error: e,
+        emittedAnyText: emittedAnyText,
+      );
       rethrow;
     } finally {
       _isRunning = false;
@@ -234,6 +311,32 @@ class RewriteController extends ChangeNotifier {
       _elapsed.stop();
       notifyListeners();
     }
+  }
+
+  /// Surfaces [fallback] as [pendingFallback] when it's safe to.
+  ///
+  /// Never after a token has already streamed to the screen — silently
+  /// restarting elsewhere is worse than an error once partial output is
+  /// visible. Never for [ProviderAuthException] — that hides a
+  /// configuration problem the user needs to fix, not route around.
+  /// Cancellation never gets a fallback offer either; the user already
+  /// chose to stop.
+  void _offerFallbackIfEligible({
+    required RewriteRequest request,
+    required EngineTarget failedTarget,
+    required EngineTarget? fallback,
+    required EngineException error,
+    required bool emittedAnyText,
+  }) {
+    if (fallback == null || emittedAnyText) return;
+    if (error is ProviderAuthException) return;
+
+    // A local target never carries a providerId; only that direction —
+    // sending text the user didn't choose to send off-device — needs an
+    // explicit go-ahead.
+    _pendingFallbackNeedsConsent = failedTarget.providerId == null;
+    _pendingFallback = fallback;
+    _pendingFallbackRequest = request;
   }
 
   Future<void> stop() async {

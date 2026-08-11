@@ -6,7 +6,9 @@ import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
 import '../engine/engine_stage.dart';
+import '../engine/engine_target.dart';
 import '../services/config_store.dart';
+import '../services/providers/provider_registry.dart';
 import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
 import '../widgets/mic_button.dart';
@@ -167,6 +169,69 @@ class _RewriteScreenState extends State<RewriteScreen> {
     } on ModelNotInstalledException {
       if (!mounted) return;
       widget.onGoToModels();
+    } on EngineException catch (e) {
+      if (!mounted) return;
+      final fallback = controller.pendingFallback;
+      if (fallback != null) {
+        await _offerFallback(controller, fallback);
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(describeEngineError(e))));
+    }
+  }
+
+  /// Reacts to a Hybrid-mode fallback `rewrite()` just offered.
+  ///
+  /// Cloud→local never needs asking (see `RewriteController.pendingFallback`'s
+  /// own doc) and retries immediately. Local→cloud sends text the user never
+  /// explicitly chose to send off-device, so it asks first, naming the
+  /// provider and model in full.
+  Future<void> _offerFallback(RewriteController controller, EngineTarget fallback) async {
+    if (!controller.pendingFallbackNeedsConsent) {
+      await _retryFallback(controller);
+      return;
+    }
+
+    final providerId = fallback.providerId;
+    final provider = providerId == null
+        ? null
+        : context.read<ProviderRegistry>().byId(providerId);
+    final label = provider?.displayName ?? 'the cloud provider';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Send to the cloud instead?'),
+        content: Text(
+          'The on-device rewrite failed. Send this text to $label '
+          '(${fallback.modelRef}) instead?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Send once'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    if (confirmed == true) {
+      await _retryFallback(controller);
+    } else {
+      controller.dismissFallback();
+    }
+  }
+
+  Future<void> _retryFallback(RewriteController controller) async {
+    try {
+      await controller.retryWithFallback();
     } on EngineException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

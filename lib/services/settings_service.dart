@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
 import '../models/ai_model.dart';
+import '../models/cloud_fallback_consent.dart';
+import '../models/processing_mode.dart';
 import 'settings_migrations.dart';
 
 /// Thin persistence layer for app preferences (all on-device).
@@ -74,5 +78,69 @@ class SettingsService {
 
   Future<void> setWhisperModel(String value) async {
     await _p.setString(AppConstants.keyWhisperModel, value);
+  }
+
+  ProcessingMode get processingMode {
+    final raw = _p.getString(AppConstants.keyProcessingMode);
+    for (final mode in ProcessingMode.values) {
+      if (mode.name == raw) return mode;
+    }
+    return ProcessingMode.local;
+  }
+
+  Future<void> setProcessingMode(ProcessingMode mode) async {
+    await _p.setString(AppConstants.keyProcessingMode, mode.name);
+  }
+
+  /// The [ProviderConfig.id] currently selected for cloud rewriting, or null
+  /// if none has been chosen yet.
+  String? get cloudProviderId => _p.getString(AppConstants.keyCloudProviderId);
+
+  Future<void> setCloudProviderId(String? id) async {
+    if (id == null) {
+      await _p.remove(AppConstants.keyCloudProviderId);
+    } else {
+      await _p.setString(AppConstants.keyCloudProviderId, id);
+    }
+  }
+
+  String? get cloudModelRef => _p.getString(AppConstants.keyCloudModelRef);
+
+  Future<void> setCloudModelRef(String? modelRef) async {
+    if (modelRef == null) {
+      await _p.remove(AppConstants.keyCloudModelRef);
+    } else {
+      await _p.setString(AppConstants.keyCloudModelRef, modelRef);
+    }
+  }
+
+  CloudFallbackConsent get cloudFallbackConsent {
+    final raw = _p.getString(AppConstants.keyCloudFallbackConsent);
+    if (raw == null) return CloudFallbackConsent.none;
+    try {
+      return CloudFallbackConsent.fromJson(
+        jsonDecode(raw) as Map<String, Object?>,
+      );
+    } catch (_) {
+      // Corrupt or unrecognisable stored consent must never be read as
+      // "granted" — degrade to "not granted," the same way CredentialStore
+      // degrades a Keystore failure to "not configured."
+      return CloudFallbackConsent.none;
+    }
+  }
+
+  Future<void> setCloudFallbackConsent(CloudFallbackConsent consent) async {
+    await _p.setString(
+      AppConstants.keyCloudFallbackConsent,
+      jsonEncode(consent.toJson()),
+    );
+  }
+
+  /// Which engine handles speech-to-text: `'local'`, `'cloud'`, or
+  /// `'system'`. Plumbing only until `lib/speech/` reads it.
+  String get speechEngine => _p.getString(AppConstants.keySpeechEngine) ?? 'local';
+
+  Future<void> setSpeechEngine(String value) async {
+    await _p.setString(AppConstants.keySpeechEngine, value);
   }
 }
