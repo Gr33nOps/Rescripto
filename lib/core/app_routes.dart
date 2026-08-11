@@ -4,6 +4,7 @@ import '../screens/authoring/audience_list_screen.dart';
 import '../screens/authoring/tone_list_screen.dart';
 import '../screens/authoring/workflow_list_screen.dart';
 import '../screens/backup/backup_screen.dart';
+import '../screens/backup/sync_screen.dart';
 import '../screens/network_log_screen.dart';
 import '../screens/privacy_screen.dart';
 import '../screens/providers_screen.dart';
@@ -26,6 +27,7 @@ abstract final class AppRoutes {
   static const audiences = '/audiences';
   static const workflows = '/workflows';
   static const backup = '/backup';
+  static const sync = '/sync';
 
   static Map<String, WidgetBuilder> get routes => {
     privacy: (_) => const PrivacyScreen(),
@@ -35,5 +37,6 @@ abstract final class AppRoutes {
     audiences: (_) => const AudienceListScreen(),
     workflows: (_) => const WorkflowListScreen(),
     backup: (_) => const BackupScreen(),
+    sync: (_) => const SyncScreen(),
   };
 }

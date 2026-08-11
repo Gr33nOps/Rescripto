@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_routes.dart';
 import '../../models/backup_bundle.dart';
 import '../../services/backup/backup_exception.dart';
 import '../../services/backup/backup_scheduler.dart';
@@ -63,6 +64,16 @@ class _BackupScreenState extends State<BackupScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.cloud_sync_outlined),
+                title: const Text('WebDAV sync'),
+                subtitle: const Text('Keep this device and a self-hosted server in sync'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).pushNamed(AppRoutes.sync),
+              ),
+            ),
+            const SizedBox(height: 20),
             Text('Export', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(

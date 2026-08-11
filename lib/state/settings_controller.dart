@@ -23,6 +23,15 @@ class SettingsController extends ChangeNotifier {
   DateTime? get lastScheduledBackupAt => _service.lastScheduledBackupAt;
   bool get scheduledBackupIncludeHistory => _service.scheduledBackupIncludeHistory;
   bool get scheduledBackupIncludeCredentials => _service.scheduledBackupIncludeCredentials;
+  String? get webdavUrl => _service.webdavUrl;
+  String? get webdavUsername => _service.webdavUsername;
+  DateTime? get lastSyncPushAt => _service.lastSyncPushAt;
+  bool get syncIncludeSettings => _service.syncIncludeSettings;
+  bool get syncIncludePresets => _service.syncIncludePresets;
+  bool get syncIncludeWorkflows => _service.syncIncludeWorkflows;
+  bool get syncIncludeProviderConfigs => _service.syncIncludeProviderConfigs;
+  bool get syncIncludeHistory => _service.syncIncludeHistory;
+  bool get syncIncludeCredentials => _service.syncIncludeCredentials;
 
   ThemeMode get themeModeValue => switch (_service.themeMode) {
     'light' => ThemeMode.light,
@@ -93,6 +102,46 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setScheduledBackupIncludeCredentials(bool value) async {
     await _service.setScheduledBackupIncludeCredentials(value);
+    notifyListeners();
+  }
+
+  Future<void> setWebdavUrl(String? value) async {
+    await _service.setWebdavUrl(value);
+    notifyListeners();
+  }
+
+  Future<void> setWebdavUsername(String? value) async {
+    await _service.setWebdavUsername(value);
+    notifyListeners();
+  }
+
+  Future<void> setSyncIncludeSettings(bool value) async {
+    await _service.setSyncIncludeSettings(value);
+    notifyListeners();
+  }
+
+  Future<void> setSyncIncludePresets(bool value) async {
+    await _service.setSyncIncludePresets(value);
+    notifyListeners();
+  }
+
+  Future<void> setSyncIncludeWorkflows(bool value) async {
+    await _service.setSyncIncludeWorkflows(value);
+    notifyListeners();
+  }
+
+  Future<void> setSyncIncludeProviderConfigs(bool value) async {
+    await _service.setSyncIncludeProviderConfigs(value);
+    notifyListeners();
+  }
+
+  Future<void> setSyncIncludeHistory(bool value) async {
+    await _service.setSyncIncludeHistory(value);
+    notifyListeners();
+  }
+
+  Future<void> setSyncIncludeCredentials(bool value) async {
+    await _service.setSyncIncludeCredentials(value);
     notifyListeners();
   }
 

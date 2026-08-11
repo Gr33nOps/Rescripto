@@ -38,7 +38,15 @@ class BackupScheduler {
   /// `getApplicationSupportDirectory` has no fake for in a plain host test.
   final Future<Directory> Function()? _backupsDirectoryOverride;
 
-  static const _passphraseRef = CredentialRef(
+  /// Shared with `SyncService` — a sync push/pull needs a passphrase with
+  /// no user present to type one in, the same constraint that motivated
+  /// this ref for scheduled backups in the first place. Splitting them
+  /// into two separately-remembered secrets would add friction without
+  /// adding security: both are "encrypt this content at rest with a
+  /// device-chosen passphrase," as opposed to the WebDAV account password,
+  /// which authenticates to the server and never touches the bundle's
+  /// contents at all.
+  static const passphraseRef = CredentialRef(
     providerId: 'device',
     kind: CredentialKind.backupPassphrase,
   );
@@ -64,7 +72,7 @@ class BackupScheduler {
     final last = settings.lastScheduledBackupAt;
     if (last != null && DateTime.now().difference(last) < interval) return;
 
-    final passphrase = await credentialStore.read(_passphraseRef);
+    final passphrase = await credentialStore.read(passphraseRef);
     if (passphrase == null) return;
 
     try {
@@ -86,12 +94,12 @@ class BackupScheduler {
     }
   }
 
-  Future<bool> hasPassphrase() => credentialStore.has(_passphraseRef);
+  Future<bool> hasPassphrase() => credentialStore.has(passphraseRef);
 
   Future<void> setPassphrase(String passphrase) =>
-      credentialStore.write(_passphraseRef, passphrase);
+      credentialStore.write(passphraseRef, passphrase);
 
-  Future<void> clearPassphrase() => credentialStore.delete(_passphraseRef);
+  Future<void> clearPassphrase() => credentialStore.delete(passphraseRef);
 
   Future<Directory> _backupsDirectory() async {
     final override = _backupsDirectoryOverride;

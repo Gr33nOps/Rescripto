@@ -40,6 +40,15 @@ abstract final class AppConstants {
   static const String keyLastScheduledBackupAt = 'last_scheduled_backup_at';
   static const String keyScheduledBackupIncludeHistory = 'scheduled_backup_include_history';
   static const String keyScheduledBackupIncludeCredentials = 'scheduled_backup_include_credentials';
+  static const String keyWebdavUrl = 'webdav_url';
+  static const String keyWebdavUsername = 'webdav_username';
+  static const String keyLastSyncPushAt = 'last_sync_push_at';
+  static const String keySyncIncludeSettings = 'sync_include_settings';
+  static const String keySyncIncludePresets = 'sync_include_presets';
+  static const String keySyncIncludeWorkflows = 'sync_include_workflows';
+  static const String keySyncIncludeProviderConfigs = 'sync_include_provider_configs';
+  static const String keySyncIncludeHistory = 'sync_include_history';
+  static const String keySyncIncludeCredentials = 'sync_include_credentials';
   static const String keySettingsSchemaVersion = 'settings_schema_version';
   // Superseded by keySettingsSchemaVersion. Still written so that downgrading
   // to 1.0.3 and upgrading again does not re-apply the GPU reset.

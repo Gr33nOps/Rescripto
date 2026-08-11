@@ -42,11 +42,18 @@ class BackupService {
   final CredentialStore credentialStore;
   final BackupCrypto crypto;
 
-  /// Reads current app state into a bundle. [includeHistory] and
-  /// [includeCredentials] default to false — both are opt-in even for a
-  /// caller that skips the UI, so the safer bundle is always the one
-  /// produced without extra arguments.
+  /// Reads current app state into a bundle. Every section defaults to
+  /// included **except** [includeHistory] and [includeCredentials] — those
+  /// two stay opt-in even for a caller that skips the UI entirely, so the
+  /// safer bundle is always the one produced with no arguments. The other
+  /// five flags exist for [SyncService]'s per-section selection (Step 5);
+  /// a manual export or a scheduled backup never has a reason to pass them.
   Future<BackupBundle> gather({
+    bool includeSettings = true,
+    bool includeTones = true,
+    bool includeAudiences = true,
+    bool includeWorkflows = true,
+    bool includeProviderConfigs = true,
     bool includeHistory = false,
     bool includeCredentials = false,
   }) async {
@@ -69,22 +76,24 @@ class BackupService {
       createdAt: DateTime.now(),
       appVersion: AppConstants.versionName,
       dbVersion: AppConstants.dbVersion,
-      settings: BackupSettings(
-        themeMode: settings.themeMode,
-        threads: settings.threads,
-        useGpu: settings.useGpu,
-        contextSize: settings.contextSize,
-        whisperModel: settings.whisperModel,
-        processingMode: settings.processingMode.name,
-        uiMode: settings.uiMode.name,
-        cloudProviderId: settings.cloudProviderId,
-        cloudModelRef: settings.cloudModelRef,
-        speechEngine: settings.speechEngine,
-      ),
-      tones: configStore.tones,
-      audiences: configStore.audiences,
-      workflows: workflowRegistry.workflows,
-      providerConfigs: providerRegistry.configs,
+      settings: includeSettings
+          ? BackupSettings(
+              themeMode: settings.themeMode,
+              threads: settings.threads,
+              useGpu: settings.useGpu,
+              contextSize: settings.contextSize,
+              whisperModel: settings.whisperModel,
+              processingMode: settings.processingMode.name,
+              uiMode: settings.uiMode.name,
+              cloudProviderId: settings.cloudProviderId,
+              cloudModelRef: settings.cloudModelRef,
+              speechEngine: settings.speechEngine,
+            )
+          : null,
+      tones: includeTones ? configStore.tones : const [],
+      audiences: includeAudiences ? configStore.audiences : const [],
+      workflows: includeWorkflows ? workflowRegistry.workflows : const [],
+      providerConfigs: includeProviderConfigs ? providerRegistry.configs : const [],
       history: includeHistory ? await storage.getHistory() : const [],
       credentials: credentials,
     );

@@ -212,4 +212,74 @@ class SettingsService {
   Future<void> setScheduledBackupIncludeCredentials(bool value) async {
     await _p.setBool(AppConstants.keyScheduledBackupIncludeCredentials, value);
   }
+
+  /// The WebDAV server's base URL, e.g. `https://cloud.example.com/remote.php/dav/files/me`.
+  /// Null until the user configures sync. The password never lives here —
+  /// see `SyncService.passwordRef`, which routes it through
+  /// [CredentialStore] like any other secret.
+  String? get webdavUrl => _p.getString(AppConstants.keyWebdavUrl);
+
+  Future<void> setWebdavUrl(String? value) async {
+    if (value == null || value.isEmpty) {
+      await _p.remove(AppConstants.keyWebdavUrl);
+    } else {
+      await _p.setString(AppConstants.keyWebdavUrl, value);
+    }
+  }
+
+  String? get webdavUsername => _p.getString(AppConstants.keyWebdavUsername);
+
+  Future<void> setWebdavUsername(String? value) async {
+    if (value == null || value.isEmpty) {
+      await _p.remove(AppConstants.keyWebdavUsername);
+    } else {
+      await _p.setString(AppConstants.keyWebdavUsername, value);
+    }
+  }
+
+  /// When this device last successfully pushed to the sync server — what
+  /// `SyncService.remoteNewerThanLastPush` compares the server's own
+  /// `getlastmodified` against.
+  DateTime? get lastSyncPushAt {
+    final raw = _p.getString(AppConstants.keyLastSyncPushAt);
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  Future<void> setLastSyncPushAt(DateTime value) async {
+    await _p.setString(AppConstants.keyLastSyncPushAt, value.toIso8601String());
+  }
+
+  /// Per-section sync selection (Step 5). Everything defaults on except
+  /// history — the same "off by default" stance as export and scheduled
+  /// backups, and for the same reason: it's the most sensitive section.
+  bool get syncIncludeSettings => _p.getBool(AppConstants.keySyncIncludeSettings) ?? true;
+  Future<void> setSyncIncludeSettings(bool value) async {
+    await _p.setBool(AppConstants.keySyncIncludeSettings, value);
+  }
+
+  bool get syncIncludePresets => _p.getBool(AppConstants.keySyncIncludePresets) ?? true;
+  Future<void> setSyncIncludePresets(bool value) async {
+    await _p.setBool(AppConstants.keySyncIncludePresets, value);
+  }
+
+  bool get syncIncludeWorkflows => _p.getBool(AppConstants.keySyncIncludeWorkflows) ?? true;
+  Future<void> setSyncIncludeWorkflows(bool value) async {
+    await _p.setBool(AppConstants.keySyncIncludeWorkflows, value);
+  }
+
+  bool get syncIncludeProviderConfigs =>
+      _p.getBool(AppConstants.keySyncIncludeProviderConfigs) ?? true;
+  Future<void> setSyncIncludeProviderConfigs(bool value) async {
+    await _p.setBool(AppConstants.keySyncIncludeProviderConfigs, value);
+  }
+
+  bool get syncIncludeHistory => _p.getBool(AppConstants.keySyncIncludeHistory) ?? false;
+  Future<void> setSyncIncludeHistory(bool value) async {
+    await _p.setBool(AppConstants.keySyncIncludeHistory, value);
+  }
+
+  bool get syncIncludeCredentials => _p.getBool(AppConstants.keySyncIncludeCredentials) ?? false;
+  Future<void> setSyncIncludeCredentials(bool value) async {
+    await _p.setBool(AppConstants.keySyncIncludeCredentials, value);
+  }
 }

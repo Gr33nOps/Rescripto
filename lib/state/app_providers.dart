@@ -28,6 +28,7 @@ import '../services/routing/target_router.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
 import '../services/storage_service.dart';
+import '../services/sync/sync_service.dart';
 import '../services/workflows/workflow_registry.dart';
 import '../services/workflows/workflow_store.dart';
 import 'history_controller.dart';
@@ -211,6 +212,14 @@ class AppProviders extends StatelessWidget {
             settings: ctx.read<SettingsService>(),
             backupService: ctx.read<BackupService>(),
             credentialStore: ctx.read<CredentialStore>(),
+          ),
+        ),
+        Provider<SyncService>(
+          create: (ctx) => SyncService.withGuard(
+            settings: ctx.read<SettingsService>(),
+            backupService: ctx.read<BackupService>(),
+            credentialStore: ctx.read<CredentialStore>(),
+            networkGuard: ctx.read<NetworkGuard>(),
           ),
         ),
         ChangeNotifierProvider<HistoryController>(
