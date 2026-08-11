@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../models/backup_bundle.dart';
 import '../../services/backup/backup_exception.dart';
+import '../../services/backup/backup_scheduler.dart';
 import '../../services/backup/backup_service.dart';
 import '../../services/backup/restore_options.dart';
 import '../../state/settings_controller.dart';
@@ -144,6 +145,10 @@ class _BackupScreenState extends State<BackupScreen> {
                   : const Icon(Icons.upload_outlined),
               label: Text(_exporting ? 'Exporting…' : 'Export backup'),
             ),
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+            const _ScheduledBackupsSection(),
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 16),
@@ -530,6 +535,188 @@ class _RestorePreviewCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Automatic, unattended local backups — see [BackupScheduler]'s own doc
+/// for why this is an in-app timer rather than `workmanager`.
+class _ScheduledBackupsSection extends StatefulWidget {
+  const _ScheduledBackupsSection();
+
+  @override
+  State<_ScheduledBackupsSection> createState() => _ScheduledBackupsSectionState();
+}
+
+class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final settingsController = context.watch<SettingsController>();
+    final scheme = Theme.of(context).colorScheme;
+    final lastBackup = settingsController.lastScheduledBackupAt;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Scheduled backups', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'About once a week when you open the app, writes an encrypted '
+          'copy to this device\'s private storage and keeps the most '
+          'recent ${BackupScheduler.retentionCount}. Nothing leaves the '
+          'device — this isn\'t a substitute for the export above.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: settingsController.scheduledBackupsEnabled,
+          onChanged: _busy ? null : (v) => _toggle(context, v),
+          title: const Text('Automatic local backups'),
+          subtitle: Text(
+            lastBackup == null ? 'No backup yet' : 'Last backup: ${lastBackup.toLocal()}',
+          ),
+        ),
+        if (settingsController.scheduledBackupsEnabled) ...[
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: settingsController.scheduledBackupIncludeHistory,
+            onChanged: (v) => settingsController.setScheduledBackupIncludeHistory(v ?? false),
+            title: const Text('Include rewrite history'),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: settingsController.scheduledBackupIncludeCredentials,
+            onChanged: (v) => settingsController.setScheduledBackupIncludeCredentials(v ?? false),
+            title: const Text('Include cloud provider keys'),
+          ),
+          const SizedBox(height: 4),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : () => _changePassphrase(context),
+            icon: const Icon(Icons.password_outlined),
+            label: const Text('Change backup passphrase'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _toggle(BuildContext context, bool enabled) async {
+    final controller = context.read<SettingsController>();
+    if (!enabled) {
+      await controller.setScheduledBackupsEnabled(false);
+      return;
+    }
+
+    final scheduler = context.read<BackupScheduler>();
+    if (await scheduler.hasPassphrase()) {
+      await controller.setScheduledBackupsEnabled(true);
+      return;
+    }
+
+    if (!context.mounted) return;
+    final passphrase = await _promptForPassphrase(context);
+    if (passphrase == null || !context.mounted) return;
+    await scheduler.setPassphrase(passphrase);
+    await controller.setScheduledBackupsEnabled(true);
+  }
+
+  Future<void> _changePassphrase(BuildContext context) async {
+    final passphrase = await _promptForPassphrase(context);
+    if (passphrase == null || !context.mounted) return;
+    setState(() => _busy = true);
+    try {
+      await context.read<BackupScheduler>().setPassphrase(passphrase);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Backup passphrase updated.')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<String?> _promptForPassphrase(BuildContext context) {
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _PassphraseDialog(),
+    );
+  }
+}
+
+class _PassphraseDialog extends StatefulWidget {
+  @override
+  State<_PassphraseDialog> createState() => _PassphraseDialogState();
+}
+
+class _PassphraseDialogState extends State<_PassphraseDialog> {
+  final _passphraseController = TextEditingController();
+  final _confirmController = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _passphraseController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Backup passphrase'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Used only for automatic backups, stored in this device\'s '
+            'secure Keystore — never sent anywhere, never used for a '
+            'manual export above.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _passphraseController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Passphrase'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _confirmController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Confirm passphrase'),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final passphrase = _passphraseController.text;
+            if (passphrase.length < 8) {
+              setState(() => _error = 'Use at least 8 characters.');
+              return;
+            }
+            if (passphrase != _confirmController.text) {
+              setState(() => _error = 'Passphrases don\'t match.');
+              return;
+            }
+            Navigator.pop(context, passphrase);
+          },
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

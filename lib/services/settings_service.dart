@@ -175,4 +175,41 @@ class SettingsService {
   Future<void> setUiMode(UiMode mode) async {
     await _p.setString(AppConstants.keyUiMode, mode.name);
   }
+
+  /// Whether `BackupScheduler` should write an unattended local backup on
+  /// app start once the interval has elapsed. Off by default — this is an
+  /// opt-in convenience, not something a fresh install starts doing to a
+  /// passphrase nobody has set yet.
+  bool get scheduledBackupsEnabled =>
+      _p.getBool(AppConstants.keyScheduledBackupsEnabled) ?? false;
+
+  Future<void> setScheduledBackupsEnabled(bool value) async {
+    await _p.setBool(AppConstants.keyScheduledBackupsEnabled, value);
+  }
+
+  /// Null until the first scheduled backup succeeds.
+  DateTime? get lastScheduledBackupAt {
+    final raw = _p.getString(AppConstants.keyLastScheduledBackupAt);
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  Future<void> setLastScheduledBackupAt(DateTime value) async {
+    await _p.setString(AppConstants.keyLastScheduledBackupAt, value.toIso8601String());
+  }
+
+  /// Mirrors the manual export screen's own toggle, off by default for the
+  /// same reason: history is the most sensitive section.
+  bool get scheduledBackupIncludeHistory =>
+      _p.getBool(AppConstants.keyScheduledBackupIncludeHistory) ?? false;
+
+  Future<void> setScheduledBackupIncludeHistory(bool value) async {
+    await _p.setBool(AppConstants.keyScheduledBackupIncludeHistory, value);
+  }
+
+  bool get scheduledBackupIncludeCredentials =>
+      _p.getBool(AppConstants.keyScheduledBackupIncludeCredentials) ?? false;
+
+  Future<void> setScheduledBackupIncludeCredentials(bool value) async {
+    await _p.setBool(AppConstants.keyScheduledBackupIncludeCredentials, value);
+  }
 }

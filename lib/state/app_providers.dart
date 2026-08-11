@@ -10,6 +10,7 @@ import '../engine/engine_registry.dart';
 import '../engine/local/local_engine_host.dart';
 import '../engine/local/local_llm_engine.dart';
 import '../engine/workflow_runner.dart';
+import '../services/backup/backup_scheduler.dart';
 import '../services/backup/backup_service.dart';
 import '../services/config_store.dart';
 import '../services/credentials/credential_store.dart';
@@ -202,6 +203,13 @@ class AppProviders extends StatelessWidget {
             workflowRegistry: ctx.read<WorkflowRegistry>(),
             providerRegistry: ctx.read<ProviderRegistry>(),
             storage: ctx.read<StorageService>(),
+            credentialStore: ctx.read<CredentialStore>(),
+          ),
+        ),
+        Provider<BackupScheduler>(
+          create: (ctx) => BackupScheduler(
+            settings: ctx.read<SettingsService>(),
+            backupService: ctx.read<BackupService>(),
             credentialStore: ctx.read<CredentialStore>(),
           ),
         ),

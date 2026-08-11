@@ -11,6 +11,13 @@ enum CredentialKind {
   /// A WebDAV/Nextcloud password (Phase 4 sync). Lives in the same store
   /// under the same kill switch as everything else here.
   webdavPassword,
+
+  /// The passphrase `BackupScheduler` encrypts an unattended scheduled
+  /// backup with — never used for a manual export, which always prompts
+  /// for a fresh passphrase instead. Storing it in the Keystore is no
+  /// weaker a guarantee than everything else this store already protects;
+  /// an automatic backup has no user present to type one in.
+  backupPassphrase,
 }
 
 /// Identifies one secret in [CredentialStore] without ever carrying the

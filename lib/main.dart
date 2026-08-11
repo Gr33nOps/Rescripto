@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'app.dart';
+import 'services/backup/backup_scheduler.dart';
+import 'services/backup/backup_service.dart';
 import 'services/config_store.dart';
 import 'services/credentials/credential_store.dart';
 import 'services/db/app_database.dart';
@@ -8,6 +10,7 @@ import 'services/network/network_policy.dart';
 import 'services/providers/provider_registry.dart';
 import 'services/providers/provider_store.dart';
 import 'services/settings_service.dart';
+import 'services/storage_service.dart';
 import 'services/workflows/workflow_registry.dart';
 import 'services/workflows/workflow_store.dart';
 
@@ -53,4 +56,21 @@ Future<void> main() async {
       networkPolicy: networkPolicy,
     ),
   );
+
+  // Fire-and-forget, deliberately after runApp rather than awaited before
+  // it: Argon2id plus a full gather()/export() is real work, and nothing
+  // about "keep a recent local copy" should be allowed to delay the first
+  // frame. A failed or skipped run just means the next launch tries again.
+  BackupScheduler(
+    settings: settings,
+    backupService: BackupService(
+      settings: settings,
+      configStore: configStore,
+      workflowRegistry: workflowRegistry,
+      providerRegistry: providerRegistry,
+      storage: StorageService(database),
+      credentialStore: credentialStore,
+    ),
+    credentialStore: credentialStore,
+  ).runIfDue();
 }

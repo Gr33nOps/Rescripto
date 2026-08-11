@@ -19,6 +19,10 @@ class SettingsController extends ChangeNotifier {
   ProcessingMode get processingMode => _service.processingMode;
   bool get onboardingCompleted => _service.onboardingCompleted;
   UiMode get uiMode => _service.uiMode;
+  bool get scheduledBackupsEnabled => _service.scheduledBackupsEnabled;
+  DateTime? get lastScheduledBackupAt => _service.lastScheduledBackupAt;
+  bool get scheduledBackupIncludeHistory => _service.scheduledBackupIncludeHistory;
+  bool get scheduledBackupIncludeCredentials => _service.scheduledBackupIncludeCredentials;
 
   ThemeMode get themeModeValue => switch (_service.themeMode) {
     'light' => ThemeMode.light,
@@ -74,6 +78,21 @@ class SettingsController extends ChangeNotifier {
   /// another controller to do itself.
   Future<void> setUiMode(UiMode mode) async {
     await _service.setUiMode(mode);
+    notifyListeners();
+  }
+
+  Future<void> setScheduledBackupsEnabled(bool value) async {
+    await _service.setScheduledBackupsEnabled(value);
+    notifyListeners();
+  }
+
+  Future<void> setScheduledBackupIncludeHistory(bool value) async {
+    await _service.setScheduledBackupIncludeHistory(value);
+    notifyListeners();
+  }
+
+  Future<void> setScheduledBackupIncludeCredentials(bool value) async {
+    await _service.setScheduledBackupIncludeCredentials(value);
     notifyListeners();
   }
 
