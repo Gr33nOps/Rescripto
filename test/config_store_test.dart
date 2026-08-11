@@ -139,6 +139,33 @@ void main() {
     });
   });
 
+  group('ConfigStore.hiddenTones', () {
+    test('lists a hidden built-in so it can be brought back', () async {
+      await store.hideTone('professional');
+      final hidden = await store.hiddenTones();
+      expect(hidden.map((t) => t.id), contains('professional'));
+    });
+
+    test('never lists a deleted custom tone — it has no default to reset to', () async {
+      await store.upsertTone(const TonePreset(
+        id: 'user_hidden_check',
+        name: 'Temp',
+        iconToken: 'bolt_outlined',
+        description: '',
+        instruction: '',
+        temperature: 0.5,
+      ));
+      await store.hideTone('user_hidden_check');
+
+      final hidden = await store.hiddenTones();
+      expect(hidden.map((t) => t.id), isNot(contains('user_hidden_check')));
+    });
+
+    test('is empty when nothing is hidden', () async {
+      expect(await store.hiddenTones(), isEmpty);
+    });
+  });
+
   group('ConfigStore.resetToneToDefault', () {
     test('restores an edited built-in to its seed content', () async {
       await store.upsertTone(
@@ -250,6 +277,18 @@ void main() {
       await store.reorderAudiences(reversed);
 
       expect(store.audiences.map((a) => a.id).toList(), reversed);
+    });
+  });
+
+  group('ConfigStore.hiddenAudiences', () {
+    test('lists a hidden built-in so it can be brought back', () async {
+      await store.hideAudience('coworkers');
+      final hidden = await store.hiddenAudiences();
+      expect(hidden.map((a) => a.id), contains('coworkers'));
+    });
+
+    test('is empty when nothing is hidden', () async {
+      expect(await store.hiddenAudiences(), isEmpty);
     });
   });
 }

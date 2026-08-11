@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 /// construct an `IconData` from a codepoint pulled out of the database.
 abstract final class IconCatalog {
   static const Map<String, IconData> _byToken = {
+    // One per built-in tone (ToneLibrary.builtIns).
     'business_center_outlined': Icons.business_center_outlined,
     'waving_hand_outlined': Icons.waving_hand_outlined,
     'sentiment_satisfied_alt_outlined': Icons.sentiment_satisfied_alt_outlined,
@@ -31,6 +32,35 @@ abstract final class IconCatalog {
     'handshake_outlined': Icons.handshake_outlined,
     'memory_outlined': Icons.memory_outlined,
     'campaign_outlined': Icons.campaign_outlined,
+    // The rest: a wider picker for a user-created tone, added for the tone
+    // editor (`lib/screens/authoring/tone_editor_screen.dart`) — this
+    // class's own doc named it as the reason `tokens` exists at all.
+    'auto_awesome_outlined': Icons.auto_awesome_outlined,
+    'chat_bubble_outline': Icons.chat_bubble_outline,
+    'lightbulb_outline': Icons.lightbulb_outline,
+    'mood_outlined': Icons.mood_outlined,
+    'mood_bad_outlined': Icons.mood_bad_outlined,
+    'psychology_outlined': Icons.psychology_outlined,
+    'gavel_outlined': Icons.gavel_outlined,
+    'menu_book_outlined': Icons.menu_book_outlined,
+    'theater_comedy_outlined': Icons.theater_comedy_outlined,
+    'nightlight_outlined': Icons.nightlight_outlined,
+    'wb_sunny_outlined': Icons.wb_sunny_outlined,
+    'eco_outlined': Icons.eco_outlined,
+    'rocket_launch_outlined': Icons.rocket_launch_outlined,
+    'star_outline': Icons.star_outline,
+    'flag_outlined': Icons.flag_outlined,
+    'groups_outlined': Icons.groups_outlined,
+    'record_voice_over_outlined': Icons.record_voice_over_outlined,
+    'article_outlined': Icons.article_outlined,
+    'edit_note_outlined': Icons.edit_note_outlined,
+    'psychology_alt_outlined': Icons.psychology_alt_outlined,
+    'diversity_3_outlined': Icons.diversity_3_outlined,
+    'spa_outlined': Icons.spa_outlined,
+    'local_fire_department_outlined': Icons.local_fire_department_outlined,
+    'shield_outlined': Icons.shield_outlined,
+    'public_outlined': Icons.public_outlined,
+    'terminal_outlined': Icons.terminal_outlined,
   };
 
   /// Shown for a token this catalog doesn't recognise — an id that predates

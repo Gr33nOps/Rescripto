@@ -106,6 +106,17 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            const SectionTitle('Authoring'),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.style_outlined),
+                title: const Text('Tones'),
+                subtitle: const Text('Edit, reorder, add, or remove tone presets'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).pushNamed(AppRoutes.tones),
+              ),
+            ),
+            const SizedBox(height: 20),
             const SectionTitle('AI engine'),
             Card(
               child: Column(

@@ -58,6 +58,30 @@ class ConfigStore extends ChangeNotifier {
     _isLoaded = true;
   }
 
+  /// Hidden built-in tones — the list [resetToneToDefault] can bring back.
+  /// A hidden custom tone never shows up here because [hideTone] deletes
+  /// one outright instead; only a built-in has anything to reset *to*.
+  Future<List<TonePreset>> hiddenTones() async {
+    final db = await _database.db;
+    final rows = await db.query(
+      'tone_preset',
+      where: 'is_hidden = 1 AND is_builtin = 1',
+      orderBy: 'sort_order',
+    );
+    return rows.map(TonePreset.fromMap).toList();
+  }
+
+  /// Mirrors [hiddenTones] for audiences.
+  Future<List<AudienceTag>> hiddenAudiences() async {
+    final db = await _database.db;
+    final rows = await db.query(
+      'audience_tag',
+      where: 'is_hidden = 1 AND is_builtin = 1',
+      orderBy: 'sort_order',
+    );
+    return rows.map(AudienceTag.fromMap).toList();
+  }
+
   /// Creates a tone, or overwrites one with a matching id and marks it
   /// user-modified so [ConfigSeeder] stops refreshing it from the built-in.
   Future<void> upsertTone(TonePreset tone) async {

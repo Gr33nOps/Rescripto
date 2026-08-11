@@ -40,5 +40,20 @@ void main() {
       final tokens = ToneLibrary.builtIns.map((t) => t.iconToken).toList();
       expect(tokens.toSet().length, tokens.length);
     });
+
+    test('offers more than one icon per built-in tone, for the tone editor\'s picker', () {
+      expect(IconCatalog.tokens.length, greaterThan(ToneLibrary.builtIns.length));
+    });
+
+    test('every token in the catalog resolves to a real icon', () {
+      for (final token in IconCatalog.tokens) {
+        expect(IconCatalog.resolve(token), isNot(IconCatalog.fallback));
+      }
+    });
+
+    test('every token in the catalog is unique', () {
+      final tokens = IconCatalog.tokens.toList();
+      expect(tokens.toSet().length, tokens.length);
+    });
   });
 }
