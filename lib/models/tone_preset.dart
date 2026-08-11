@@ -11,6 +11,7 @@ class TonePreset {
     required this.description,
     required this.instruction,
     required this.temperature,
+    this.isBuiltin = false,
   });
 
   final String id;
@@ -23,6 +24,14 @@ class TonePreset {
 
   /// Sampling temperature for this tone (0.0 - 1.0).
   final double temperature;
+
+  /// Whether this tone ships with the app. Not part of [toMap] — `is_builtin`
+  /// is a column `ConfigStore` manages itself (0 on `upsertTone`, 1 when
+  /// `ConfigSeeder` writes a seed row), never something the editor's own
+  /// `toMap()`/`copyWith()` round-trips as ordinary content. An editor still
+  /// needs to *read* it, though, to know whether "Reset to default" applies
+  /// — which is the entire reason this field exists on the model at all.
+  final bool isBuiltin;
 
   TonePreset copyWith({
     String? name,
@@ -38,6 +47,7 @@ class TonePreset {
       description: description ?? this.description,
       instruction: instruction ?? this.instruction,
       temperature: temperature ?? this.temperature,
+      isBuiltin: isBuiltin,
     );
   }
 
@@ -57,6 +67,7 @@ class TonePreset {
     description: map['description'] as String? ?? '',
     instruction: map['instruction'] as String,
     temperature: (map['temperature'] as num).toDouble(),
+    isBuiltin: (map['is_builtin'] as int? ?? 0) != 0,
   );
 }
 

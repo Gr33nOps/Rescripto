@@ -69,4 +69,60 @@ class RewriteRequest {
       variantCount: variantCount ?? this.variantCount,
     );
   }
+
+  /// A workflow step needs to persist the request that produced it — see
+  /// `workflow_step.step_options` — so this round-trips through JSON rather
+  /// than SQLite columns directly, the way `CloudFallbackConsent` does.
+  Map<String, Object?> toMap() => {
+    'sourceText': sourceText,
+    'toneId': toneId,
+    'intensity': intensity.name,
+    'length': length.name,
+    'audience': audience,
+    'customInstruction': customInstruction,
+    'variantCount': variantCount,
+  };
+
+  factory RewriteRequest.fromMap(Map<String, Object?> map) => RewriteRequest(
+    sourceText: map['sourceText'] as String,
+    toneId: map['toneId'] as String,
+    intensity: RewriteIntensity.values.byName(map['intensity'] as String),
+    length: RewriteLength.values.byName(map['length'] as String),
+    audience: (map['audience'] as List<Object?>? ?? const [])
+        .map((a) => a as String)
+        .toList(),
+    customInstruction: map['customInstruction'] as String? ?? '',
+    variantCount: map['variantCount'] as int? ?? 1,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is RewriteRequest &&
+      other.sourceText == sourceText &&
+      other.toneId == toneId &&
+      other.intensity == intensity &&
+      other.length == length &&
+      _listEquals(other.audience, audience) &&
+      other.customInstruction == customInstruction &&
+      other.variantCount == variantCount;
+
+  @override
+  int get hashCode => Object.hash(
+    sourceText,
+    toneId,
+    intensity,
+    length,
+    Object.hashAll(audience),
+    customInstruction,
+    variantCount,
+  );
+
+  static bool _listEquals(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }

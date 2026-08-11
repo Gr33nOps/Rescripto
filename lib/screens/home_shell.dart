@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_tab.dart';
 import '../state/history_controller.dart';
 import '../widgets/tab_navigator.dart';
 import 'history_screen.dart';
@@ -17,11 +18,11 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  int _index = 0;
+  AppTab _tab = AppTab.rewrite;
 
-  void _goToTab(int index) {
-    setState(() => _index = index);
-    if (index == 1) {
+  void _goToTab(AppTab tab) {
+    setState(() => _tab = tab);
+    if (tab == AppTab.history) {
       context.read<HistoryController>().refresh();
     }
   }
@@ -32,7 +33,7 @@ class _HomeShellState extends State<HomeShell> {
       goToTab: _goToTab,
       child: Scaffold(
         body: IndexedStack(
-          index: _index,
+          index: _tab.index,
           children: const [
             RewriteScreen(),
             HistoryScreen(),
@@ -41,8 +42,8 @@ class _HomeShellState extends State<HomeShell> {
           ],
         ),
         bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: _goToTab,
+          selectedIndex: _tab.index,
+          onDestinationSelected: (i) => _goToTab(AppTab.values[i]),
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.auto_fix_high_outlined),

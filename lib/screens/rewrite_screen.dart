@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_routes.dart';
+import '../core/app_tab.dart';
 import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
@@ -174,7 +175,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
       );
     } on ModelNotInstalledException {
       if (!mounted) return;
-      TabNavigator.of(context).goToTab(2);
+      TabNavigator.of(context).goToTab(AppTab.models);
     } on EngineException catch (e) {
       if (!mounted) return;
       final fallback = controller.pendingFallback;
@@ -527,7 +528,7 @@ class _TargetNotReadyBanner extends StatelessWidget {
   void _onTap(BuildContext context) {
     switch (blocker) {
       case RoutingBlocker.noLocalModel:
-        TabNavigator.of(context).goToTab(2);
+        TabNavigator.of(context).goToTab(AppTab.models);
       case RoutingBlocker.noCloudProvider:
         Navigator.of(context).pushNamed(AppRoutes.providers);
       case RoutingBlocker.cloudDisabledByPolicy:

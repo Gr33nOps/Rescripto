@@ -190,6 +190,45 @@ class ConfigStore extends ChangeNotifier {
     await _reload();
   }
 
+  /// Discards any edits to a built-in audience and un-hides it. No-op for a
+  /// user-created audience, which has no built-in to reset to. Mirrors
+  /// [resetToneToDefault] — audiences never had this before, purely because
+  /// nothing needed it yet, not because the asymmetry was intentional.
+  Future<void> resetAudienceToDefault(String id) async {
+    final seed = _findBuiltinAudience(id);
+    if (seed == null) return;
+
+    final db = await _database.db;
+    await db.update(
+      'audience_tag',
+      {
+        ...seed.toMap(),
+        'is_hidden': 0,
+        'user_modified': 0,
+        'seed_version': ConfigSeeder.seedVersion,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    await _reload();
+  }
+
+  /// Persists a new display order. Mirrors [reorderTones].
+  Future<void> reorderAudiences(List<String> idsInOrder) async {
+    final db = await _database.db;
+    final batch = db.batch();
+    for (var i = 0; i < idsInOrder.length; i++) {
+      batch.update(
+        'audience_tag',
+        {'sort_order': i},
+        where: 'id = ?',
+        whereArgs: [idsInOrder[i]],
+      );
+    }
+    await batch.commit(noResult: true);
+    await _reload();
+  }
+
   Future<void> _reload() async {
     final db = await _database.db;
     final toneRows = await db.query(
@@ -228,6 +267,13 @@ class ConfigStore extends ChangeNotifier {
   TonePreset? _findBuiltinTone(String id) {
     for (final tone in ToneLibrary.builtIns) {
       if (tone.id == id) return tone;
+    }
+    return null;
+  }
+
+  AudienceTag? _findBuiltinAudience(String id) {
+    for (final audience in AudienceLibrary.builtIns) {
+      if (audience.id == id) return audience;
     }
     return null;
   }

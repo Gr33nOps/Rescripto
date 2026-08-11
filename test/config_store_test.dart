@@ -46,6 +46,22 @@ void main() {
         ToneLibrary.builtIns.map((t) => t.id).toList(),
       );
     });
+
+    test('seeded tones are flagged isBuiltin so an editor can offer "Reset to default"', () {
+      expect(store.tones.every((t) => t.isBuiltin), isTrue);
+    });
+
+    test('a user-created tone is not flagged isBuiltin', () async {
+      await store.upsertTone(const TonePreset(
+        id: 'user_builtin_check',
+        name: 'Mine',
+        iconToken: 'bolt_outlined',
+        description: '',
+        instruction: '',
+        temperature: 0.5,
+      ));
+      expect(store.toneById('user_builtin_check').isBuiltin, isFalse);
+    });
   });
 
   group('ConfigStore.toneById', () {
@@ -188,6 +204,52 @@ void main() {
       );
       await store.hideAudience('temp');
       expect(store.audiences.map((a) => a.id), isNot(contains('temp')));
+    });
+
+    test('resetAudienceToDefault restores an edited built-in to its seed content', () async {
+      await store.upsertAudience(
+        const AudienceTag(id: 'coworkers', label: 'my team'),
+      );
+      expect(
+        store.audiences.firstWhere((a) => a.id == 'coworkers').label,
+        'my team',
+      );
+
+      await store.resetAudienceToDefault('coworkers');
+
+      expect(
+        store.audiences.firstWhere((a) => a.id == 'coworkers').label,
+        'coworkers',
+      );
+    });
+
+    test('resetAudienceToDefault un-hides a hidden built-in', () async {
+      await store.hideAudience('coworkers');
+      expect(store.audiences.map((a) => a.id), isNot(contains('coworkers')));
+
+      await store.resetAudienceToDefault('coworkers');
+
+      expect(store.audiences.map((a) => a.id), contains('coworkers'));
+    });
+
+    test('resetAudienceToDefault is a no-op for an audience with no built-in to reset to', () async {
+      await store.upsertAudience(const AudienceTag(id: 'custom_aud', label: 'Custom'));
+
+      await store.resetAudienceToDefault('custom_aud');
+
+      expect(
+        store.audiences.firstWhere((a) => a.id == 'custom_aud').label,
+        'Custom',
+      );
+    });
+
+    test('reorderAudiences changes the order audiences are returned in', () async {
+      final ids = store.audiences.map((a) => a.id).toList();
+      final reversed = ids.reversed.toList();
+
+      await store.reorderAudiences(reversed);
+
+      expect(store.audiences.map((a) => a.id).toList(), reversed);
     });
   });
 }

@@ -66,6 +66,49 @@ void main() {
       expect(copy.intensity, RewriteIntensity.light);
       expect(copy.length, RewriteLength.shorter);
     });
+
+    test('toMap/fromMap round-trips every field, including enums and audience', () {
+      const original = RewriteRequest(
+        sourceText: 'draft text',
+        toneId: 'casual',
+        intensity: RewriteIntensity.full,
+        length: RewriteLength.longer,
+        audience: ['coworkers', 'a manager'],
+        customInstruction: 'be brief',
+        variantCount: 3,
+      );
+
+      final restored = RewriteRequest.fromMap(original.toMap());
+
+      expect(restored, original);
+    });
+
+    test('== and hashCode are value-based, not identity-based', () {
+      const a = RewriteRequest(
+        sourceText: 'x',
+        toneId: 'casual',
+        intensity: RewriteIntensity.moderate,
+        length: RewriteLength.same,
+        audience: ['friends'],
+      );
+      const b = RewriteRequest(
+        sourceText: 'x',
+        toneId: 'casual',
+        intensity: RewriteIntensity.moderate,
+        length: RewriteLength.same,
+        audience: ['friends'],
+      );
+      const c = RewriteRequest(
+        sourceText: 'x',
+        toneId: 'formal',
+        intensity: RewriteIntensity.moderate,
+        length: RewriteLength.same,
+      );
+
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(a, isNot(c));
+    });
   });
 
   group('RewriteOutput', () {
