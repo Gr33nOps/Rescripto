@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown in the text-selection toolbar/overflow menu when this app
+         handles ACTION_PROCESS_TEXT — distinct from the launcher label,
+         which stays "Rescripto" (set directly on <application>). -->
+    <string name="process_text_label">Rewrite with Rescripto</string>
+    <!-- Quick Settings tile label. -->
+    <string name="tile_label">Rescripto</string>
+</resources>

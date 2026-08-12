@@ -26,6 +26,7 @@ import '../services/providers/provider_registry.dart';
 import '../services/providers/provider_store.dart';
 import '../services/routing/target_router.dart';
 import '../services/settings_service.dart';
+import '../services/share_intent_bridge.dart';
 import '../services/speech_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync/sync_service.dart';
@@ -232,6 +233,11 @@ class AppProviders extends StatelessWidget {
             ctx.read<NetworkGuard>(),
           ),
         ),
+        // One instance for the app's lifetime — it starts listening for the
+        // platform channel the moment it's constructed, so the very first
+        // frame is never too late to catch a cold-launch PROCESS_TEXT/SEND
+        // intent.
+        ChangeNotifierProvider<ShareIntentBridge>(create: (_) => ShareIntentBridge()),
       ],
       child: child,
     );

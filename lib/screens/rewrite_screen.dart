@@ -13,6 +13,7 @@ import '../models/ui_mode.dart';
 import '../services/config_store.dart';
 import '../services/providers/provider_registry.dart';
 import '../services/routing/target_router.dart';
+import '../services/share_intent_bridge.dart';
 import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
 import '../state/settings_controller.dart';
@@ -37,6 +38,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
     final controller = context.watch<RewriteController>();
     final models = context.watch<ModelsController>();
     final settings = context.watch<SettingsController>();
+    final shareIntent = context.watch<ShareIntentBridge>();
     final isPro = settings.uiMode == UiMode.pro;
 
     return Scaffold(
@@ -80,6 +82,10 @@ class _RewriteScreenState extends State<RewriteScreen> {
           children: [
             if (controller.routing.isBlocked && !models.scanning)
               _TargetNotReadyBanner(blocker: controller.routing.blocker!),
+            if (shareIntent.awaitingProcessTextResult) ...[
+              const SizedBox(height: 12),
+              const _ProcessTextBanner(),
+            ],
             const SizedBox(height: 12),
             const _SourceInput(),
             const SizedBox(height: 12),
@@ -154,6 +160,16 @@ class _RewriteScreenState extends State<RewriteScreen> {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Rewrite again'),
               ),
+              if (shareIntent.awaitingProcessTextResult) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: () => shareIntent.finishProcessText(
+                    controller.lastResult!.primary.text,
+                  ),
+                  icon: const Icon(Icons.keyboard_return_outlined),
+                  label: const Text('Insert & return'),
+                ),
+              ],
             ],
           ],
         ),
@@ -519,6 +535,41 @@ class _StreamingPanel extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown while a `ShareIntentBridge.awaitingProcessTextResult` request is
+/// live — the text below came from another app's selection toolbar, and
+/// once a rewrite finishes, an "Insert & return" action appears alongside
+/// the result to hand it back and close this screen. Nothing here forces
+/// that path: the rewrite still behaves like any other, and the user can
+/// just navigate away, which Android reads as declining (see
+/// `MainActivity.kt`'s own doc for why that needs no extra code).
+class _ProcessTextBanner extends StatelessWidget {
+  const _ProcessTextBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.text_fields_outlined, color: scheme.onTertiaryContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Rewrite this, then tap "Insert & return" to send it back.',
+              style: TextStyle(color: scheme.onTertiaryContainer, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }

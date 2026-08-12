@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_tab.dart';
+import '../services/share_intent_bridge.dart';
 import '../state/history_controller.dart';
+import '../state/rewrite_controller.dart';
 import '../widgets/tab_navigator.dart';
 import 'history_screen.dart';
 import 'models_screen.dart';
@@ -27,8 +29,30 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  /// Text arrived via PROCESS_TEXT/SEND/the Quick Settings tile lands in
+  /// [ShareIntentBridge] as pending state, not a callback — [build] reacts
+  /// to it and schedules the actual mutation ([RewriteController.setSource]
+  /// plus the tab switch) for after the frame, since neither belongs inside
+  /// `build()` itself. Scheduling this more than once before [consume]
+  /// clears [ShareIntentBridge.pending] is harmless: every extra callback
+  /// before the first one runs is a no-op repeat of the same assignment.
+  void _applyPendingIncomingText(BuildContext context, ShareIntentBridge bridge, String text) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<RewriteController>().setSource(text);
+      _goToTab(AppTab.rewrite);
+      bridge.consume();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bridge = context.watch<ShareIntentBridge>();
+    final pending = bridge.pending;
+    if (pending != null) {
+      _applyPendingIncomingText(context, bridge, pending.text);
+    }
+
     return TabNavigator(
       goToTab: _goToTab,
       child: Scaffold(

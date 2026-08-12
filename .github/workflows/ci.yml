@@ -82,5 +82,13 @@ jobs:
           flutter analyze lib
           flutter test
 
+      - name: Lint Android debug build
+        # AGP does not verify a manifest-declared class (an <activity> or
+        # <service> name) against the compiled classpath — that only fails
+        # at install time on a device. This is the one check that catches it
+        # in CI, before a full APK build.
+        working-directory: android
+        run: ./gradlew :app:lintDebug
+
       - name: Build Android debug APK
         run: flutter build apk --debug --target-platform android-arm64
