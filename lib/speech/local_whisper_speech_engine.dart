@@ -51,8 +51,16 @@ class LocalWhisperSpeechEngine implements SpeechEngine {
     );
   }
 
+  /// Ends whichever stage is in flight. Both underlying calls are already
+  /// guarded against being made at the wrong time — `cancelRecording`
+  /// returns early when nothing is recording, `cancelTranscription` is
+  /// null-aware — so this doesn't need to know which stage it's in, and the
+  /// controller doesn't need a second cancel path just for local.
   @override
-  Future<void> cancel() => _service.cancelRecording();
+  Future<void> cancel() async {
+    _service.cancelTranscription();
+    await _service.cancelRecording();
+  }
 
   @override
   Future<void> dispose() => _service.dispose();

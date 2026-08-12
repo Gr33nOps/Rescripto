@@ -32,6 +32,7 @@ import '../services/storage_service.dart';
 import '../services/sync/sync_service.dart';
 import '../services/workflows/workflow_registry.dart';
 import '../services/workflows/workflow_store.dart';
+import '../speech/speech_engine_resolver.dart';
 import 'history_controller.dart';
 import 'models_controller.dart';
 import 'rewrite_controller.dart';
@@ -226,11 +227,20 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider<HistoryController>(
           create: (ctx) => HistoryController(ctx.read<StorageService>()),
         ),
+        Provider<SpeechEngineResolver>(
+          create: (ctx) => SpeechEngineResolver(
+            settings: ctx.read<SettingsService>(),
+            speechService: ctx.read<SpeechService>(),
+            providerRegistry: ctx.read<ProviderRegistry>(),
+            credentialStore: ctx.read<CredentialStore>(),
+            networkGuard: ctx.read<NetworkGuard>(),
+          ),
+        ),
         ChangeNotifierProvider<SpeechController>(
           create: (ctx) => SpeechController(
             ctx.read<SpeechService>(),
             ctx.read<SettingsService>(),
-            ctx.read<NetworkGuard>(),
+            ctx.read<SpeechEngineResolver>(),
           ),
         ),
         // One instance for the app's lifetime — it starts listening for the

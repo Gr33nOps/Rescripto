@@ -95,7 +95,9 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
       expect(runner.currentStepIndex, 1);
-      expect(cloudEngine.lastRequest!.prompt.user, 'polished draft');
+      // Fenced by PromptBuilder — see its `textStart` doc — so this asserts
+      // the text was carried over, not the exact wrapper around it.
+      expect(cloudEngine.lastRequest!.prompt.user, contains('polished draft'));
       cloudEngine.lastHandle!.complete(const RewriteOutput(text: 'Formal Polished Draft.'));
 
       final result = await future;

@@ -19,6 +19,9 @@ class SettingsController extends ChangeNotifier {
   ProcessingMode get processingMode => _service.processingMode;
   bool get onboardingCompleted => _service.onboardingCompleted;
   UiMode get uiMode => _service.uiMode;
+  String? get cloudProviderId => _service.cloudProviderId;
+  String? get cloudModelRef => _service.cloudModelRef;
+  String get speechEngine => _service.speechEngine;
   bool get scheduledBackupsEnabled => _service.scheduledBackupsEnabled;
   DateTime? get lastScheduledBackupAt => _service.lastScheduledBackupAt;
   bool get scheduledBackupIncludeHistory => _service.scheduledBackupIncludeHistory;
@@ -102,6 +105,30 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setScheduledBackupIncludeCredentials(bool value) async {
     await _service.setScheduledBackupIncludeCredentials(value);
+    notifyListeners();
+  }
+
+  /// Which configured provider cloud rewrites go to. `TargetRouter` falls
+  /// back to the first enabled provider when this is unset, so setting it is
+  /// a preference rather than a prerequisite — see that class's own doc for
+  /// why routing must never depend on a setting nothing forces the user to
+  /// fill in.
+  Future<void> setCloudProviderId(String? id) async {
+    await _service.setCloudProviderId(id);
+    notifyListeners();
+  }
+
+  Future<void> setCloudModelRef(String? modelRef) async {
+    await _service.setCloudModelRef(modelRef);
+    notifyListeners();
+  }
+
+  /// `'local'` or `'cloud'` — see `SpeechEngineResolver`, which is what
+  /// actually reads this. It was written and backed up but read by nothing
+  /// before that resolver existed, so choosing Cloud transcribed on-device
+  /// anyway.
+  Future<void> setSpeechEngine(String value) async {
+    await _service.setSpeechEngine(value);
     notifyListeners();
   }
 

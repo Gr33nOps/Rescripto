@@ -40,6 +40,19 @@ final class EmptyResponseException extends EngineException {
   const EmptyResponseException();
 }
 
+/// The model declined to rewrite the text, or replied that it could not see
+/// any text to rewrite, rather than producing a rewrite.
+///
+/// Distinct from [ContentFilteredException], which is a provider's own
+/// filter blocking the request out of band. This is the model itself
+/// answering in prose when it was asked to edit — small instruction-tuned
+/// models do it to entirely ordinary drafts (a `$24.50` read as payment
+/// credentials, say). `RewriteController` retries once with a stricter
+/// prompt before surfacing this; see `RefusalDetector`.
+final class ModelRefusedException extends EngineException {
+  const ModelRefusedException();
+}
+
 /// The request was cancelled before it produced a result.
 final class GenerationCancelledException extends EngineException {
   const GenerationCancelledException();

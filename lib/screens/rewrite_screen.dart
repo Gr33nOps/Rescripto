@@ -33,6 +33,19 @@ class RewriteScreen extends StatefulWidget {
 }
 
 class _RewriteScreenState extends State<RewriteScreen> {
+  /// Which variant `ResultView` is currently showing. Mirrored here because
+  /// "Insert & return" has to send the variant the user is actually looking
+  /// at — it used to send `lastResult.primary.text`, which is always V1.
+  int _selectedVariant = 0;
+
+  /// The text "Insert & return" should hand back, clamped because a new
+  /// result can arrive with fewer variants than the last selection.
+  String _selectedText(RewriteController controller) {
+    final outputs = controller.lastResult?.outputs ?? const [];
+    if (outputs.isEmpty) return '';
+    return outputs[_selectedVariant.clamp(0, outputs.length - 1)].text;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<RewriteController>();
@@ -153,7 +166,14 @@ class _RewriteScreenState extends State<RewriteScreen> {
               ),
             if (controller.lastResult != null) ...[
               const SizedBox(height: 8),
-              ResultView(result: controller.lastResult!),
+              ResultView(
+                result: controller.lastResult!,
+                onVariantSelected: (index) {
+                  if (index != _selectedVariant) {
+                    setState(() => _selectedVariant = index);
+                  }
+                },
+              ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () => _rewrite(controller),
@@ -163,9 +183,8 @@ class _RewriteScreenState extends State<RewriteScreen> {
               if (shareIntent.awaitingProcessTextResult) ...[
                 const SizedBox(height: 8),
                 FilledButton.icon(
-                  onPressed: () => shareIntent.finishProcessText(
-                    controller.lastResult!.primary.text,
-                  ),
+                  onPressed: () =>
+                      shareIntent.finishProcessText(_selectedText(controller)),
                   icon: const Icon(Icons.keyboard_return_outlined),
                   label: const Text('Insert & return'),
                 ),

@@ -1,11 +1,11 @@
 /// A distinct reason the app might reach the network, each independently
 /// switchable in [NetworkPolicy].
 ///
-/// Only [modelDownload] and [voiceModelDownload] have a caller today; the
-/// other four exist so the policy vocabulary — and its default of "off until
-/// the user opts in" for anything that isn't already app's existing
-/// behavior — doesn't need a breaking shape change the day a cloud engine or
-/// sync actually lands.
+/// Every member except [updateCheck] now has a real caller. The enum was
+/// written ahead of them on purpose, so the policy vocabulary — and its
+/// default of "off until the user opts in" for anything that wasn't already
+/// the app's existing behaviour — never needed a breaking shape change as
+/// each one landed.
 enum NetworkFeature {
   /// Downloading a GGUF model (`ModelManager`).
   modelDownload,
@@ -13,13 +13,13 @@ enum NetworkFeature {
   /// Downloading a whisper.cpp voice model (`flutter_whisper`'s downloader).
   voiceModelDownload,
 
-  /// A cloud rewrite provider (Phase 2). Not wired to a caller yet.
+  /// A cloud rewrite provider (`CloudRewriteEngine`).
   cloudRewrite,
 
-  /// A cloud speech-to-text provider (Phase 2). Not wired to a caller yet.
+  /// A cloud speech-to-text provider (`CloudSpeechEngine`).
   cloudSpeech,
 
-  /// Encrypted backup / WebDAV sync (Phase 4). Not wired to a caller yet.
+  /// Encrypted backup / WebDAV sync (`SyncService`).
   sync,
 
   /// Checking for a new app release. Not wired to a caller yet.

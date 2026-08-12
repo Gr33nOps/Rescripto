@@ -16,6 +16,7 @@ import '../models/rewrite_request.dart';
 import '../models/rewrite_result.dart';
 import '../services/config_store.dart';
 import '../services/prompt_builder.dart';
+import '../services/refusal_detector.dart';
 import '../services/routing/target_router.dart';
 import '../services/storage_service.dart';
 
@@ -287,7 +288,6 @@ class RewriteController extends ChangeNotifier {
     notifyListeners();
 
     var emittedAnyText = false;
-    GenerationHandle? handle;
 
     try {
       final engine = _registry.resolve(target);
@@ -297,7 +297,6 @@ class RewriteController extends ChangeNotifier {
       final audienceLabels = request.audience
           .map((id) => _configStore.audienceById(id).label)
           .toList();
-      final prompt = PromptBuilder.build(request, tone: tone, audienceLabels: audienceLabels);
       final options = GenerationOptions(
         temperature: tone.temperature,
         topP: tone.topP,
@@ -307,38 +306,72 @@ class RewriteController extends ChangeNotifier {
         stopSequences: tone.stopSequences,
       );
 
-      handle = engine.start(
-        EngineRequest(target: target, prompt: prompt, options: options),
-      );
-      _active = handle;
-      // Lets PanicService's kill switch reach an already-open stream, which
-      // NetworkPolicy alone cannot — it's only ever checked before a
-      // request is dispatched.
-      _activeRequests.register(handle);
-      notifyListeners();
-
-      final subscription = handle.events.listen((event) {
-        switch (event) {
-          case StageChanged(:final stage):
-            _stage = stage;
-          case TokenDelta(:final delta):
-            _streamingText += delta;
-            emittedAnyText = true;
-        }
+      Future<RewriteOutput> attempt({required bool strictRetry}) async {
+        final prompt = PromptBuilder.build(
+          request,
+          tone: tone,
+          audienceLabels: audienceLabels,
+          strictRetry: strictRetry,
+        );
+        final started = engine.start(
+          EngineRequest(target: target, prompt: prompt, options: options),
+        );
+        _active = started;
+        // Lets PanicService's kill switch reach an already-open stream, which
+        // NetworkPolicy alone cannot — it's only ever checked before a
+        // request is dispatched.
+        _activeRequests.register(started);
         notifyListeners();
-      });
 
-      final RewriteOutput output;
-      try {
-        output = await handle.done;
-      } finally {
-        await subscription.cancel();
+        final subscription = started.events.listen((event) {
+          switch (event) {
+            case StageChanged(:final stage):
+              _stage = stage;
+            case TokenDelta(:final delta):
+              _streamingText += delta;
+              emittedAnyText = true;
+          }
+          notifyListeners();
+        });
+
+        try {
+          return await started.done;
+        } finally {
+          await subscription.cancel();
+          _activeRequests.unregister(started);
+        }
       }
 
-      final variants = PromptBuilder.parseVariants(
+      var output = await attempt(strictRetry: false);
+      var variants = PromptBuilder.parseVariants(
         output.text,
         expected: request.variantCount,
       );
+
+      // A refusal arrives as a perfectly normal completion — without this it
+      // would be saved to history and shown as though it were the rewrite.
+      // One retry, because the stricter prompt clears it often enough to be
+      // worth the wait and a second failure is a real signal about the model
+      // rather than luck. See RefusalDetector for why this is deliberately
+      // conservative about what counts.
+      if (_looksLikeRefusal(variants)) {
+        _streamingText = '';
+        // The discarded refusal must not count as visible partial output, or
+        // `_offerFallbackIfEligible` would suppress the cloud fallback that
+        // is exactly the right escape hatch when a local model refuses.
+        emittedAnyText = false;
+        notifyListeners();
+
+        output = await attempt(strictRetry: true);
+        variants = PromptBuilder.parseVariants(
+          output.text,
+          expected: request.variantCount,
+        );
+        if (_looksLikeRefusal(variants)) {
+          throw const ModelRefusedException();
+        }
+      }
+
       final outputs = variants
           .map(
             (v) => RewriteOutput(
@@ -372,13 +405,25 @@ class RewriteController extends ChangeNotifier {
       );
       rethrow;
     } finally {
-      if (handle != null) _activeRequests.unregister(handle);
+      // Each attempt unregisters its own handle in its own `finally`, which
+      // covers the retry path too — a single unregister out here would leave
+      // the first attempt's handle in the registry forever once a retry
+      // replaced it.
       _isRunning = false;
       _active = null;
       _elapsed.stop();
       notifyListeners();
     }
   }
+
+  /// True when the model answered in prose instead of rewriting.
+  ///
+  /// Only ever applied to a single-variant response: with more than one
+  /// variant parsed the model clearly understood the task, and a multi-part
+  /// answer that merely opens with a refusal-shaped clause is far more
+  /// likely to be a rewrite of a draft that said so.
+  static bool _looksLikeRefusal(List<String> variants) =>
+      variants.length == 1 && RefusalDetector.isRefusal(variants.first);
 
   /// Surfaces [fallback] as [pendingFallback] when it's safe to.
   ///

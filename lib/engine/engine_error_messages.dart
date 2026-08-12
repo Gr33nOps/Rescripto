@@ -22,6 +22,10 @@ String describeEngineError(EngineException error) => switch (error) {
             'increase Context size in Settings.',
   EmptyResponseException() =>
     'The model returned an empty result. Try a different intensity.',
+  ModelRefusedException() =>
+    'This model declined to rewrite that text, even after a retry. Small '
+        'on-device models sometimes refuse ordinary writing. Try a different '
+        'model in the Models tab, or a lighter intensity.',
   OutOfMemoryException() =>
     'Not enough memory on this device. Try a smaller model or lower '
         'context size in Settings.',

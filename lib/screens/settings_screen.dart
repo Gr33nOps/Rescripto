@@ -5,6 +5,8 @@ import '../core/app_routes.dart';
 import '../core/constants.dart';
 import '../models/processing_mode.dart';
 import '../models/ui_mode.dart';
+import '../services/providers/provider_registry.dart';
+import '../speech/speech_engine_resolver.dart';
 import '../state/rewrite_controller.dart';
 import '../state/settings_controller.dart';
 import '../widgets/settings_tiles.dart';
@@ -181,6 +183,8 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             const SectionTitle('Voice input'),
+            const _SpeechEngineCard(),
+            const SizedBox(height: 12),
             Card(
               child: RadioGroup<String>(
                 groupValue: settings.whisperModel,
@@ -325,6 +329,75 @@ class SettingsScreen extends StatelessWidget {
       rewrite.enterProMode();
     }
     context.read<SettingsController>().setUiMode(mode);
+  }
+}
+
+/// Where voice input is transcribed.
+///
+/// Only two options. Android's own `SpeechRecognizer` has a `SpeechEngine`
+/// implementation, but every method on it throws — it needs a platform
+/// channel that isn't built — so it is deliberately not offered here rather
+/// than shipped as a choice that always fails. Cloud is disabled unless a
+/// transcription-capable provider is actually enabled, so the option is
+/// never selectable and then refused at record time.
+class _SpeechEngineCard extends StatelessWidget {
+  const _SpeechEngineCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    // Watched so enabling a provider elsewhere re-enables the Cloud option
+    // without needing this screen rebuilt by hand.
+    context.watch<ProviderRegistry>();
+    final resolver = context.read<SpeechEngineResolver>();
+    final cloudAvailable = resolver.hasCloudSpeechProvider;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Column(
+        children: [
+          RadioGroup<String>(
+            groupValue: settings.speechEngine,
+            onChanged: (v) => settings.setSpeechEngine(v ?? SpeechEngineResolver.localId),
+            child: Column(
+              children: [
+                const RadioListTile<String>(
+                  value: SpeechEngineResolver.localId,
+                  secondary: Icon(Icons.phone_android_outlined),
+                  title: Text('On-device'),
+                  subtitle: Text('Private. Downloads a voice model once.'),
+                ),
+                RadioListTile<String>(
+                  value: SpeechEngineResolver.cloudId,
+                  enabled: cloudAvailable,
+                  secondary: const Icon(Icons.cloud_outlined),
+                  title: const Text('Cloud'),
+                  subtitle: Text(
+                    cloudAvailable
+                        ? 'Faster on older phones. Your recording is uploaded '
+                              'to your configured provider.'
+                        : 'Needs a provider that supports transcription '
+                              '(OpenAI or Groq) enabled in Cloud providers.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (settings.speechEngine == SpeechEngineResolver.cloudId)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                'Cloud transcription sends the whole recording to your '
+                'provider. It appears in the Network log like any other '
+                'request.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

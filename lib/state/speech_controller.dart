@@ -7,10 +7,10 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../models/speech_result.dart';
 import '../services/network/network_exceptions.dart';
-import '../services/network/network_feature.dart';
-import '../services/network/network_guard.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
+import '../speech/speech_engine.dart';
+import '../speech/speech_engine_resolver.dart';
 
 enum SpeechPhase {
   idle,
@@ -22,12 +22,25 @@ enum SpeechPhase {
 }
 
 /// Voice input flow: push-to-talk / continuous dictation.
+///
+/// Runs whichever [SpeechEngine] `SpeechEngineResolver` picks for the
+/// current `speechEngine` setting, rather than reaching for [SpeechService]
+/// directly. It used to do the latter unconditionally, which meant the
+/// Local/Cloud setting was stored, backed up, restorable — and read by
+/// nothing, so choosing Cloud transcribed on-device anyway.
 class SpeechController extends ChangeNotifier {
-  SpeechController(this._service, this._settings, this._guard);
+  SpeechController(this._service, this._settings, this._resolver);
 
+  /// Retained only for [isSupported] — the platform check. Every actual
+  /// recording/transcription call now goes through [_resolver]'s engine.
   final SpeechService _service;
   final SettingsService _settings;
-  final NetworkGuard _guard;
+  final SpeechEngineResolver _resolver;
+
+  /// The engine for the session in flight. Resolved once at [start] so a
+  /// setting changed mid-recording can't strand `stopAndTranscribe` on a
+  /// different engine than the one holding the audio.
+  SpeechEngine? _engine;
 
   SpeechPhase _phase = SpeechPhase.idle;
   String _partialText = '';
@@ -73,24 +86,22 @@ class SpeechController extends ChangeNotifier {
       }
 
       if (operationId != _operationId) return;
+      final engine = _resolver.resolve();
+      _engine = engine;
       _phase = SpeechPhase.initializing;
       _progress = 0;
       _downloadSize = SpeechService.downloadSizeFor(_settings.whisperModel);
       notifyListeners();
-      await _service.initialize(
-        model: _settings.whisperModel,
-        onDownloadProgress: (download) {
+      await engine.prepare(
+        onProgress: (fraction) {
           if (operationId != _operationId) return;
           // A first-run model download takes minutes; without saying so the
-          // spinner is indistinguishable from a hang.
+          // spinner is indistinguishable from a hang. Cloud engines have
+          // nothing to download and simply never call this.
           _phase = SpeechPhase.downloadingModel;
-          _progress = download.fraction;
+          _progress = fraction;
           notifyListeners();
         },
-        httpClient: _guard.httpClientFor(
-          NetworkFeature.voiceModelDownload,
-          purpose: 'Download voice model (${_settings.whisperModel})',
-        ),
       );
       if (operationId != _operationId) return;
       _phase = SpeechPhase.initializing;
@@ -98,9 +109,9 @@ class SpeechController extends ChangeNotifier {
       notifyListeners();
 
       if (operationId != _operationId) return;
-      await _service.startRecording();
+      await engine.startRecording();
       if (operationId != _operationId) {
-        await _service.cancelRecording();
+        await engine.cancel();
         return;
       }
       _phase = SpeechPhase.recording;
@@ -121,15 +132,17 @@ class SpeechController extends ChangeNotifier {
     if (_phase != SpeechPhase.recording) {
       return const SpeechResult(text: '', language: '');
     }
+    final engine = _engine;
+    if (engine == null) return const SpeechResult(text: '', language: '');
     final operationId = _operationId;
     _phase = SpeechPhase.transcribing;
     _progress = 0;
     notifyListeners();
     try {
-      final result = await _service.stopAndTranscribe(
-        onProgress: (percent) {
+      final result = await engine.stopAndTranscribe(
+        onProgress: (fraction) {
           if (operationId != _operationId) return;
-          _progress = (percent / 100).clamp(0, 1);
+          _progress = fraction.clamp(0, 1);
           notifyListeners();
         },
       );
@@ -153,6 +166,8 @@ class SpeechController extends ChangeNotifier {
     // Match on the typed failure first. Everything used to collapse into
     // "Couldn't start voice input", which told nobody whether the download
     // failed, the disk was full, or the microphone was busy.
+    if (error is SpeechEngineUnavailable) return error.message;
+
     if (error is NetworkBlockedByPolicyException) {
       // A deliberate block, not a network fault — the generic "check your
       // connection" fallback below would send someone chasing a problem
@@ -244,11 +259,14 @@ class SpeechController extends ChangeNotifier {
 
   Future<void> cancel() async {
     final phase = _phase;
+    final engine = _engine;
     _operationId++;
-    if (phase == SpeechPhase.recording) {
-      await _service.cancelRecording();
-    } else if (phase == SpeechPhase.transcribing) {
-      _service.cancelTranscription();
+    if (engine != null &&
+        (phase == SpeechPhase.recording || phase == SpeechPhase.transcribing)) {
+      // One call for both stages — see LocalWhisperSpeechEngine.cancel for
+      // why the engine, not this controller, is the right place to know
+      // which underlying call applies.
+      await engine.cancel();
     }
     _phase = SpeechPhase.idle;
     _progress = 0;

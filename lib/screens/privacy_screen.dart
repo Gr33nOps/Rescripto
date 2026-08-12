@@ -157,7 +157,9 @@ class _FeatureSwitch extends StatelessWidget {
     NetworkFeature.voiceModelDownload: 'The on-device voice model files you choose to download.',
     NetworkFeature.cloudRewrite: 'The text you\'re rewriting, only when you use a cloud provider.',
     NetworkFeature.cloudSpeech: 'Your voice recording, only when you use cloud speech-to-text.',
-    NetworkFeature.sync: 'An encrypted backup, when sync is set up. Not available yet.',
+    NetworkFeature.sync:
+        'An encrypted backup file, only when you sync to a WebDAV server you '
+        'set up. The server never sees your text unencrypted.',
     NetworkFeature.updateCheck: 'A check for a new app version. Not available yet.',
   };
 

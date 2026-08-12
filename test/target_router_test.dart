@@ -74,6 +74,100 @@ void main() {
     return config;
   }
 
+  /// Saves an enabled provider and allows cloud rewriting, but **without**
+  /// touching `cloudProviderId` or `cloudModelRef` — exactly the state the
+  /// app actually produced, since nothing in the UI ever set either one.
+  Future<ProviderConfig> configureProviderWithoutSelecting(String presetId) async {
+    final id = providerRegistry.newConfigId(presetId);
+    final now = DateTime.now();
+    final config = ProviderConfig(
+      id: id,
+      presetId: presetId,
+      displayName: presetId,
+      credential: CredentialRef(providerId: id, kind: CredentialKind.apiKey),
+      createdAt: now,
+      updatedAt: now,
+    );
+    await providerRegistry.save(config);
+    await networkPolicy.setFeatureEnabled(NetworkFeature.cloudRewrite, true);
+    return config;
+  }
+
+  group('TargetRouter — cloud selection is derived, not required', () {
+    // The shipped bug: setCloudProviderId/setCloudModelRef had no UI callers
+    // at all, so a user could add a provider, save a key, pass "Test
+    // connection", and still be told "no cloud provider configured" forever.
+    test('routes to an enabled provider even with nothing explicitly selected', () async {
+      await settings.setProcessingMode(ProcessingMode.cloud);
+      final config = await configureProviderWithoutSelecting('openai');
+
+      expect(settings.cloudProviderId, isNull);
+      expect(settings.cloudModelRef, isNull);
+
+      final decision = router().route(inputLength: 10);
+
+      expect(
+        decision.isBlocked,
+        isFalse,
+        reason: 'a configured, enabled provider must be routable on its own',
+      );
+      expect(decision.target!.providerId, config.id);
+      expect(decision.target!.modelRef, isNotEmpty);
+    });
+
+    test('an explicit selection wins over the fallback', () async {
+      await settings.setProcessingMode(ProcessingMode.cloud);
+      await configureProviderWithoutSelecting('openai');
+      final second = await configureProviderWithoutSelecting('groq');
+      await settings.setCloudProviderId(second.id);
+      await settings.setCloudModelRef('llama-3.1-8b-instant');
+
+      final decision = router().route(inputLength: 10);
+
+      expect(decision.target!.providerId, second.id);
+      expect(decision.target!.modelRef, 'llama-3.1-8b-instant');
+    });
+
+    test('a model ref left over from another provider is not sent to this one', () async {
+      await settings.setProcessingMode(ProcessingMode.cloud);
+      final openai = await configureProviderWithoutSelecting('openai');
+      // Stale pairing: a Gemini model name with the OpenAI provider selected.
+      await settings.setCloudProviderId(openai.id);
+      await settings.setCloudModelRef('gemini-2.5-pro');
+
+      final decision = router().route(inputLength: 10);
+
+      expect(decision.target!.providerId, openai.id);
+      expect(
+        decision.target!.modelRef,
+        isNot('gemini-2.5-pro'),
+        reason: 'sending another provider\'s model name would 404 confusingly',
+      );
+    });
+
+    test('a disabled provider is not routed to', () async {
+      await settings.setProcessingMode(ProcessingMode.cloud);
+      final config = await configureProviderWithoutSelecting('openai');
+      await providerRegistry.setEnabled(config.id, false);
+
+      final decision = router().route(inputLength: 10);
+
+      expect(decision.isBlocked, isTrue);
+      expect(decision.blocker, RoutingBlocker.noCloudProvider);
+    });
+
+    test('policy still blocks a perfectly configured provider', () async {
+      await settings.setProcessingMode(ProcessingMode.cloud);
+      await configureProviderWithoutSelecting('openai');
+      await networkPolicy.setFeatureEnabled(NetworkFeature.cloudRewrite, false);
+
+      final decision = router().route(inputLength: 10);
+
+      expect(decision.isBlocked, isTrue);
+      expect(decision.blocker, RoutingBlocker.cloudDisabledByPolicy);
+    });
+  });
+
   group('TargetRouter — Local mode', () {
     test('routes to the local engine when the model is installed', () async {
       await settings.setProcessingMode(ProcessingMode.local);

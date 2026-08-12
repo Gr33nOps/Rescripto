@@ -92,20 +92,70 @@ class TargetRouter {
   bool get _cloudPolicyAllows =>
       !networkPolicy.killSwitch && networkPolicy.isAllowed(NetworkFeature.cloudRewrite);
 
+  /// The provider a cloud rewrite would use.
+  ///
+  /// Falls back to the first enabled provider when `cloudProviderId` names
+  /// nothing usable. Without that fallback this returned null whenever the
+  /// setting was unset — and nothing in the app ever set it, so a user could
+  /// add a provider, save a key, pass "Test connection", and still be told
+  /// "no cloud provider configured" forever. Deriving the answer from what
+  /// is actually configured means the state the user can see (a provider,
+  /// enabled, with a key) is the state that decides routing.
   ProviderConfig? get _selectedProvider {
     final id = settings.cloudProviderId;
-    if (id == null) return null;
-    final config = providerRegistry.byId(id);
-    return (config != null && config.enabled) ? config : null;
+    if (id != null) {
+      final config = providerRegistry.byId(id);
+      if (config != null && config.enabled) return config;
+    }
+    final enabled = providerRegistry.enabledConfigs;
+    return enabled.isEmpty ? null : enabled.first;
+  }
+
+  /// The model a cloud rewrite would use on [provider].
+  ///
+  /// Same reasoning as [_selectedProvider]: prefer the explicit choice, but
+  /// fall back to the provider's own first known model rather than refusing
+  /// to route. Every preset ships a `knownModels` list, so this is null only
+  /// for a custom endpoint whose model list the user hasn't filled in — the
+  /// one case where there genuinely is nothing to pick.
+  String? _modelRefFor(ProviderConfig provider) {
+    final models = provider.allModels;
+    final explicit = settings.cloudModelRef;
+
+    // Honoured only when this provider actually offers it. A ref left over
+    // from a different provider — after switching providers, or restoring a
+    // backup — would otherwise be sent to an API that has never heard of it,
+    // failing as a confusing 404 rather than falling back to something that
+    // works. Every model the picker can select comes from `allModels`, so a
+    // legitimate choice always passes this check, including a custom model
+    // the user added to this provider themselves.
+    if (explicit != null &&
+        explicit.isNotEmpty &&
+        models.any((m) => m.modelRef == explicit)) {
+      return explicit;
+    }
+
+    return models.isEmpty ? null : models.first.modelRef;
   }
 
   EngineTarget? get _cloudTarget {
     if (!_cloudPolicyAllows) return null;
     final provider = _selectedProvider;
-    final modelRef = settings.cloudModelRef;
-    if (provider == null || modelRef == null) return null;
+    if (provider == null) return null;
+    final modelRef = _modelRefFor(provider);
+    if (modelRef == null) return null;
     return provider.targetFor(modelRef);
   }
+
+  /// Which provider a cloud rewrite would actually use right now, whether
+  /// that came from an explicit choice or the fallback. Exposed so the
+  /// provider screen can show the real answer rather than re-deriving it and
+  /// risking a UI that disagrees with what routing does.
+  ProviderConfig? get effectiveCloudProvider => _selectedProvider;
+
+  /// Which model [provider] would be asked for, same reasoning as
+  /// [effectiveCloudProvider].
+  String? effectiveCloudModelRef(ProviderConfig provider) => _modelRefFor(provider);
 
   RoutingDecision _localOnly() {
     if (!isLocalModelInstalled()) {

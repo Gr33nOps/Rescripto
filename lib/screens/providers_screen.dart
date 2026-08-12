@@ -5,6 +5,8 @@ import '../models/provider_config.dart';
 import '../models/provider_preset.dart';
 import '../services/credentials/credential_store.dart';
 import '../services/providers/provider_registry.dart';
+import '../services/routing/target_router.dart';
+import '../state/settings_controller.dart';
 import 'provider_edit_screen.dart';
 
 /// Configured cloud providers: which are set up, whether each has a key,
@@ -68,11 +70,14 @@ class ProvidersScreen extends StatelessWidget {
                   ),
                 ),
               )
-            else
+            else ...[
+              const _ActiveCloudModelCard(),
+              const SizedBox(height: 16),
               for (final config in registry.configs) ...[
                 _ProviderTile(config: config),
                 const SizedBox(height: 8),
               ],
+            ],
           ],
         ),
       ),
@@ -100,6 +105,109 @@ class ProvidersScreen extends StatelessWidget {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ProviderEditScreen(presetId: preset.id)),
     );
+  }
+}
+
+/// Which provider and model a cloud rewrite will actually use.
+///
+/// Reads the answer from [TargetRouter] rather than re-deriving it, so this
+/// can never disagree with what routing does — the failure that made cloud
+/// unusable before was exactly a disagreement of that kind, with a provider
+/// visibly configured and passing its connection test while routing reported
+/// "no cloud provider configured".
+class _ActiveCloudModelCard extends StatelessWidget {
+  const _ActiveCloudModelCard();
+
+  @override
+  Widget build(BuildContext context) {
+    // Watched, not read: changing the selection writes through
+    // SettingsController, and this card has to repaint when it does.
+    context.watch<SettingsController>();
+    final registry = context.watch<ProviderRegistry>();
+    final router = context.read<TargetRouter>();
+    final scheme = Theme.of(context).colorScheme;
+
+    final provider = router.effectiveCloudProvider;
+    final modelRef = provider == null ? null : router.effectiveCloudModelRef(provider);
+
+    final subtitle = switch ((provider, modelRef)) {
+      (null, _) when registry.enabledConfigs.isEmpty =>
+        'No provider is enabled — turn one on below.',
+      (null, _) => 'No provider selected.',
+      (final p?, null) =>
+        'No model available for ${p.displayName}. Add one when editing it.',
+      (final p?, final m?) => '${p.displayName} · $m',
+    };
+
+    return Card(
+      child: ListTile(
+        leading: Icon(Icons.auto_awesome_outlined, color: scheme.primary),
+        title: const Text('Used for cloud rewriting'),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: registry.enabledConfigs.isEmpty ? null : () => _pick(context),
+      ),
+    );
+  }
+
+  Future<void> _pick(BuildContext context) async {
+    final registry = context.read<ProviderRegistry>();
+    final settings = context.read<SettingsController>();
+
+    final choice = await showModalBottomSheet<(String providerId, String modelRef)>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: [
+            Text(
+              'Choose a model',
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            for (final config in registry.enabledConfigs) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                child: Text(
+                  config.displayName,
+                  style: Theme.of(sheetContext).textTheme.labelLarge,
+                ),
+              ),
+              if (config.allModels.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'No models listed. Add one when editing this provider.',
+                    style: Theme.of(sheetContext).textTheme.bodySmall,
+                  ),
+                )
+              else
+                for (final model in config.allModels)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.memory_outlined),
+                    title: Text(model.displayName),
+                    onTap: () => Navigator.pop(sheetContext, (config.id, model.modelRef)),
+                  ),
+            ],
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+    // Both halves, always together: a provider id without a matching model
+    // ref is the stale-pairing case `TargetRouter._modelRefFor` has to guard
+    // against, and there is no reason to create one here.
+    await settings.setCloudProviderId(choice.$1);
+    await settings.setCloudModelRef(choice.$2);
   }
 }
 

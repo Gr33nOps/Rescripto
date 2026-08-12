@@ -36,12 +36,22 @@ abstract class ChatTemplate {
   };
 }
 
+/// Gemma has no system role, so the instructions and the draft have to share
+/// a single user turn. That merge is where a real bug lived: joined by a bare
+/// blank line, the rules ran straight into the text with nothing marking the
+/// seam, and the model would reply *"I don't see any text provided"* while
+/// quoting that very text back. `PromptSpec.user` now arrives already fenced
+/// by `PromptBuilder` (see its `textStart` doc), and the label below gives
+/// the seam a second, explicit boundary.
 class _GemmaChatTemplate extends ChatTemplate {
   const _GemmaChatTemplate();
 
   @override
   String render(PromptSpec spec) =>
-      '<start_of_turn>user\n${spec.system}\n\n'
+      '<start_of_turn>user\n'
+      '${spec.system}\n\n'
+      '--- END OF INSTRUCTIONS ---\n\n'
+      'Rewrite the text below and output only the rewritten text.\n\n'
       '${spec.user}<end_of_turn>\n<start_of_turn>model\n';
 
   @override
