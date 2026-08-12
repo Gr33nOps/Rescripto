@@ -1,0 +1,6 @@
+# The Gradle wrapper's shell script must keep LF line endings regardless of
+# any local core.autocrlf setting — a CRLF-corrupted shebang breaks it on
+# Linux CI with "bad interpreter: No such file or directory".
+/gradlew text eol=lf
+/gradlew.bat text eol=crlf
+/gradle/wrapper/gradle-wrapper.jar binary
