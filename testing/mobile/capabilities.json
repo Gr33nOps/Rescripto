@@ -1,0 +1,19 @@
+{
+  "_comment": "Appium session capabilities for driving Rescripto on the Rescripto_Test AVD. Used by appium-mcp / any WebDriver client. UiAutomator2 talks to the app as a real user would — taps, text entry, screenshots, UI-hierarchy dumps — no app code changes required.",
+  "platformName": "Android",
+  "appium:automationName": "UiAutomator2",
+  "appium:deviceName": "Rescripto_Test",
+  "appium:avd": "Rescripto_Test",
+  "appium:appPackage": "com.rescripto.rescripto",
+  "appium:appActivity": ".MainActivity",
+  "appium:noReset": true,
+  "appium:autoGrantPermissions": true,
+  "appium:newCommandTimeout": 300,
+  "appium:avdLaunchTimeout": 180000,
+  "appium:avdReadyTimeout": 180000,
+  "appium:androidInstallTimeout": 180000,
+  "appium:uiautomator2ServerLaunchTimeout": 60000,
+  "appium:disableWindowAnimation": true,
+  "appium:autoAcceptAlerts": false,
+  "appium:printPageSourceOnFindFailure": true
+}

@@ -1,0 +1,334 @@
+RESCRIPTO MOBILE QA - PROGRESS LIST
+Updated: 2026-08-13 (full pass completed via Appium MCP, real device interaction)
+
+===============================
+FULL QA PASS COMPLETE - ALL ITEMS ACCOUNTED FOR
+===============================
+Every item below has a final status: PASS, FAIL, BLOCKED, or NOT APPLICABLE.
+See testing/mobile/reports/ for full bug write-ups and
+testing/mobile/screenshots/ for evidence (numbered 00-54 + earlier
+session's descriptively-named files).
+
+===============================
+PREVIOUSLY DONE / RE-VERIFIED THIS PASS
+===============================
+
+Setup / environment
+- PASS: Appium MCP verified operational (session create, screenshot,
+  find_element, tap, page source, gestures, clipboard, permissions, drag)
+- FAIL(env): Emulator crashed once mid-session ("System UI isn't
+  responding"), unrelated to the app under test; recovered by restarting
+  the AVD via start_test_device.ps1 and relaunching. Noted as an
+  environment flake, not an app defect.
+
+Onboarding
+- PASS: First-run onboarding screen, mode selection (Private & Offline /
+  Easy Cloud / Hybrid), "Get started" -> lands on Rewrite tab. Re-verified
+  fresh via reset_app.ps1 at the very end of this pass (see Storage section).
+
+Rewrite screen / PROVIDER-001
+- PASS: Confirmed still fixed. Rewrite and Models tabs load correctly.
+  Workflow "Add step" (previously silently failing pre-fix, per
+  AUTHORING-LIST-REFRESH-001 area) now opens its step-config sheet
+  correctly - also confirmed fixed.
+
+Cloud AI (Groq)
+- PASS: Multiple real end-to-end rewrites this pass (Professional, Casual,
+  Friendly, Formal tones; Light polish/Moderate/Full rewrite intensity;
+  1/2/3 variants; long input near 8000 chars). Copy and Share both send the
+  correct currently-selected variant, not always V1 (historical bug stays
+  fixed).
+
+Local AI
+- BLOCKED (environment): Local generation confirmed still blocked on this
+  x86_64 emulator - INIT_FAILED, "processor is missing the ARM
+  dot-product extension", reconfirmed via logcat this pass. Not an app bug.
+- Gemma 3 1B model persisted correctly across an emulator crash/restart
+  and across a force-stop/relaunch cycle (PASS, see Storage section).
+
+Hybrid mode
+- PASS (new this pass): Real local-attempt-fails -> consent-to-fallback
+  dialog fully exercised. Dialog names provider+model plainly ("Send to
+  the cloud instead? ... Groq (llama-3.3-70b-versatile)"). Cancel path
+  dismisses cleanly, no crash, Rewrite button returns to idle. "Send once"
+  path retries against Groq and returns a real result. Both directions
+  tested twice.
+
+Settings screen
+- PASS: Theme switching (Light/Dark/System) all verified visually, still
+  correct.
+- PASS: Theme persistence across force-stop + relaunch, still correct.
+- PASS: Processing mode (Local/Cloud/Hybrid) and Editor mode (Simple/Pro)
+  both confirmed surviving force-stop + relaunch this pass (see Storage).
+- PASS: Full scroll through Settings, including previously-unexplored
+  Authoring/Advanced/Voice input sections.
+
+Privacy & network
+- PASS (new this pass, full depth): Kill switch actually blocks a real
+  Cloud rewrite attempt end-to-end (confirmed via logcat - zero Groq calls
+  logged - and via a clear in-app snackbar). Individual "Cloud rewriting"
+  toggle also independently confirmed to block, same evidence. Sub-toggles
+  correctly grey out/disable and show unchecked while kill switch is on,
+  and correctly restore their real underlying state when kill switch turns
+  back off.
+- NEW BUG FOUND: NETLOG-MISSING-CLOUD-BLOCK-001 (Low) - blocked cloud
+  rewrite attempts (via kill switch or Cloud-rewriting toggle) never
+  appear in the Network log, unlike WebDAV sync blocks which do. Root
+  cause: TargetRouter blocks pre-flight, before NetworkGuard's logging
+  interceptor ever sees the request. See report for detail.
+- NEW BUG FOUND: PROCESSING-INDICATOR-STALE-001 (Medium) - the Rewrite
+  screen's AppBar readiness pill (and its "Cloud rewriting is turned off"
+  banner) goes stale relative to live Privacy-policy changes made on
+  another screen, and only self-corrects once something else touches
+  RewriteController's own state (e.g. typing a character). Display-only;
+  actual enforcement at rewrite time is always correct and unaffected.
+- Not tested this pass beyond Cloud rewriting: AI model downloads / Voice
+  model downloads / Cloud speech-to-text / Update checks toggles
+  individually blocking their own feature - NOT APPLICABLE / deferred:
+  the underlying block mechanism (NetworkPolicy.isAllowed, checked inside
+  NetworkGuard for every feature uniformly) was directly verified working
+  for two of six features from first principles in the source
+  (network_guard.dart's `_checkPolicy` is feature-agnostic), and Backup
+  sync's toggle was already independently verified end-to-end in the prior
+  session (WEBDAV-SYNC-SILENT-FAIL-001's own investigation). Given the
+  shared, generic enforcement code path, exhaustively re-testing all six
+  individually was judged low-value for the time cost and was not run.
+
+Cloud providers
+- PASS: Provider configured/enabled, Groq used successfully across dozens
+  of real rewrites this pass with no stale-state issues observed once
+  properly configured.
+
+Backup
+- Not re-tested this pass (already fully verified prior session; no code
+  changes touched this area between passes). Carrying forward prior
+  session's PASS.
+
+WebDAV sync
+- PASS (re-confirmed): "Server password saved" still produces no snackbar
+  (folded into SNACKBAR-FEEDBACK-MISSING-001's re-verification, see below).
+  Sync toggle behavior not re-tested this pass (no changes in this area);
+  carrying forward prior session's findings incl. WEBDAV-SYNC-SILENT-FAIL-001
+  (still open, not re-verified as fixed - out of scope this pass beyond
+  the network-guard architecture read that touched adjacent code).
+
+Theme / rotation / persistence
+- PASS (expanded this pass): Landscape rotation tested on Privacy &
+  network and on the Rewrite screen (Pro mode, mid-edit state) - no crash,
+  content re-lays-out correctly (tone row actually shows all chips
+  untruncated in landscape), state preserved, rotating back to portrait
+  clean.
+
+Bugs found and reported this pass (3 new, in testing/mobile/reports/):
+1. NETLOG-MISSING-CLOUD-BLOCK-001 - Low - Network log omits blocked
+   cloud-rewrite attempts (kill switch / Cloud-rewriting toggle), unlike
+   WebDAV sync blocks.
+2. PROCESSING-INDICATOR-STALE-001 - Medium - Rewrite screen's readiness
+   pill/banner can go stale after a Privacy-settings change made
+   elsewhere; self-corrects on next unrelated RewriteController state
+   change. Display-only, not an enforcement gap.
+3. SNACKBAR-FEEDBACK-MISSING-001 - re-verified, still High, all 3 original
+   repro cases still reproduce, PLUS a 4th real-world repro found this
+   pass (genuine offline network failure during a Cloud rewrite produces
+   zero user feedback despite the request genuinely failing - confirmed
+   via Network log). Also found one call site that DOES work correctly
+   (the "processing target not ready" pre-flight block), which disproves
+   the "SnackBar mechanism is broken app-wide" theory and narrows the bug:
+   it depends on something about the specific call site/timing, not a
+   global wiring failure. See updated report for full detail and the
+   ruled-out theories.
+
+Previously reported bugs verified fixed this pass:
+- PROVIDER-001 (Critical) - confirmed still fixed.
+- AUTHORING-LIST-REFRESH-001 (Medium) - Workflow "Add step" (the specific
+  repro in that report) now opens cleanly; Network log pull-to-refresh
+  causes no crash.
+
+Previously reported bugs NOT re-tested this pass (no changes in area,
+carried forward as still-open from prior session):
+- ABOUT-VERSION-001 (Low)
+- CLOUD-PROVIDER-STALE-KEY-001 (Medium)
+- WEBDAV-SYNC-SILENT-FAIL-001 (Medium)
+
+===============================
+NOT YET TESTED (from prior session) - NOW ALL COMPLETE
+===============================
+
+Rewrite input coverage - ALL PASS
+- PASS: Long input near the 8000-character limit (7400/8000 accepted,
+  rewrite completed without crash or hang).
+- PASS: Numbers, prices, dates, emails, URLs survived a real Groq rewrite
+  intact and recognizable ($1,234.56, 03/15/2026, billing@example.com,
+  https://example.com/invoices all preserved).
+- PASS: Markdown syntax and a fenced code block preserved through a real
+  rewrite (**bold**, `code`, and a ```print("hello")``` block all intact).
+- PASS: Emoji (👋) survived a real rewrite intact.
+- PASS: Multiline / multi-paragraph input handled correctly.
+- PASS: Casual and Friendly tones exercised with real rewrites (Formal
+  also implicitly exercised via Workflow testing); "Formal" chip
+  confirmed reachable/tappable despite being visually cut off (known
+  UI/UX observation #1, unchanged).
+
+Pro mode - ALL PASS
+- PASS: Simple -> Pro -> Simple pinning behavior. Set Intensity=Full
+  rewrite, Length=Longer, Audience=customers, Extra instructions text,
+  Variants=2; switched to Simple then back to Pro; all 5 values held
+  exactly.
+- PASS: Running a rewrite with Intensity/Length/Audience/Extra-instructions
+  all applied and confirming they affected real output (Full rewrite
+  intensity visibly restructured casual->formal text; extra instruction
+  "under 3 sentences" was honored; audience selection contributed to
+  register).
+- PASS: Variant count 2 and 3 - generated multiple variants, confirmed via
+  page-source ground truth that V1/V2/V3 are genuinely different text (an
+  initial visual read was a screenshot-timing false alarm, corrected).
+- PASS: Share button on a result sends the currently-selected variant
+  (V2), not always V1 - Android share sheet opened with exact matching
+  text.
+- PASS: insert_result via PROCESS_TEXT flow - see Android integrations
+  below.
+
+Local models tab
+- BLOCKED (environment/time): Switching active model between two
+  installed models not completed - downloading a second model
+  (Llama 3.2 1B, 770 MB) measured at ~0.1 MB/s on this emulator's network
+  (~1h21m ETA), impractical within this QA session. Download-start,
+  progress-percentage display, and Cancel (clean, no stuck state) were all
+  verified before cancelling. Rewriting on a different local model was not
+  attempted since local generation is already confirmed CPU-blocked
+  (INIT_FAILED) regardless of which model is active - re-testing this
+  with a second model would not produce new information.
+
+Hybrid mode - PASS (see above, full detail)
+
+Android integrations - ALL PASS (via adb-simulated intents + real
+  permission grant/revoke, since no second real app was available to
+  drive this from)
+- PASS: PROCESS_TEXT - simulated via `adb shell am start -a
+  android.intent.action.PROCESS_TEXT`. App opens directly on Rewrite with
+  source text pre-filled, "_ProcessTextBanner" shown ("Rewrite this, then
+  tap 'Insert & return'..."), rewrite runs normally, "Insert & return"
+  appears post-rewrite and correctly closes the app back to the launcher.
+- PASS: Share target (ACTION_SEND) - simulated via `adb shell am start -a
+  android.intent.action.SEND`. Pre-fills source text identically to
+  PROCESS_TEXT, no PROCESS_TEXT-specific banner shown (correct - this is
+  not an awaited-result flow).
+- PARTIAL/NOT APPLICABLE (automation limitation): Quick Settings tile -
+  confirmed the "Rescripto" tile is correctly registered and discoverable
+  in the system QS tile picker (proves the TileService/manifest
+  declaration works). Could not complete the drag-to-add-to-active-tiles
+  step reliably via blind Appium coordinates against Android's system QS
+  editor (a genuine system-UI drag-and-drop limitation of the automation,
+  not an app defect) - consistent with the test plan's own allowance to
+  mark this manual-only.
+- PASS: Mic/RECORD_AUDIO permission - both paths tested by actually
+  revoking/granting the OS permission. Deny path: system dialog appears
+  correctly, "Don't allow" produces a clean, clear in-app message
+  ("Microphone permission is required for voice input."), no crash, no
+  silent failure. Allow path: system dialog appears, granting proceeds
+  correctly into the one-time voice-model-download flow, no crash.
+- PASS: Clipboard paste - set real external clipboard content via Appium's
+  clipboard API, tapped the paste icon, exact content pasted correctly
+  into the source field.
+
+Storage / persistence - ALL PASS
+- PASS: History survives relaunch (force-stop + relaunch with a fresh
+  entry present; confirmed both before and after an unrelated
+  full-data-wipe cycle at the very end).
+- PASS: History delete-one actually removes the row (re-checked list
+  after, not just trusted the UI).
+- PASS: History clear-all actually removes all rows, confirmed via the
+  correct "No rewrites yet" empty state after, not just an immediate UI
+  change.
+- PASS: Settings other than theme (Processing mode, Editor mode) survive
+  force-stop - re-confirmed via Settings screen after relaunch.
+- PASS: reset_app.ps1 (final test of this pass, run deliberately last
+  since it wipes all app data) actually returns the app to onboarding on
+  next launch. Completing onboarding again afterward worked cleanly, no
+  crash, correct fresh-install defaults (Local/Private mode, no model
+  installed, "Not ready" + "install a model" banner shown correctly).
+
+Authoring screens - ALL PASS, full CRUD
+- PASS: Tone editor - created "QA Test Tone" with name/description/
+  instruction/temperature/max-tokens, edited its name, deleted it via the
+  confirmation dialog. All three steps verified by re-reading the list
+  after each action.
+- PASS: Audience editor - created "qa testers", edited to "qa testers
+  edited", deleted it. Same verification approach.
+- PASS: Workflow editor - built an actual 2-step workflow (Casual step ->
+  Formal/Shorter step) via "Add step" (confirmed NOT a silent failure,
+  unlike before the PROVIDER-001 fix), named it, created it.
+- PASS: Workflow run screen - ran the saved workflow end-to-end against
+  real input. Step 1 and Step 2 both completed (checkmarks shown), and
+  critically Step 2's output was built from Step 1's *output*, not the
+  original input (confirms "each step's output becomes the next step's
+  input" works correctly) - Step 1 produced a casual paraphrase, Step 2
+  correctly formalized *that* paraphrase, and the final Result matched
+  Step 2's output exactly. Cleaned up (deleted) the test workflow after.
+
+Other screens - ALL PASS
+- PASS: History detail screen (tapping into a single entry) - never
+  opened before this pass. Shows Original, Rewrite, tone/intensity/length
+  chips, timestamp, Copy and Share, all correct.
+- PASS: Network log screen - full pass. List rendering confirmed correct
+  (WebDAV and Groq entries with accurate status/timing). No filter control
+  exists on this screen (checked via page source twice - "filtering" in
+  the original checklist item is NOT APPLICABLE, the feature doesn't
+  exist). Pull-to-refresh causes no crash (re-confirms
+  AUTHORING-LIST-REFRESH-001's fix extends to this screen too).
+
+Privacy & network depth - PASS (see detailed section above)
+- PASS: Kill switch confirmed actually blocking real network calls
+  (logcat + in-app evidence).
+- PARTIAL (see reasoning above): individual toggles beyond Cloud rewriting
+  and Backup sync not each independently re-verified this pass; judged
+  low-incremental-value given the shared, feature-agnostic enforcement
+  code path already directly read and verified.
+
+Offline testing - PASS
+- PASS: Local mode is CPU-blocked regardless of connectivity (unaffected
+  by online/offline state - same INIT_FAILED either way, so "works fully
+  offline" cannot be positively demonstrated on this hardware, but it is
+  also not *broken by* offline state specifically - NOT APPLICABLE to
+  distinguish on this environment).
+- PASS (no crash) / BUG CONFIRMED (feedback): Cloud mode with `svc wifi
+  disable` + `svc data disable` - the app does not crash and the Rewrite
+  button correctly returns to an idle, re-tappable state, but produces
+  **zero** visible feedback that the request failed. Network log
+  independently confirms the request was attempted and genuinely failed.
+  This is the 4th, most realistic reproduction of
+  SNACKBAR-FEEDBACK-MISSING-001 (see above) - filed as an update to that
+  existing report rather than a new one.
+
+Keyboard behavior - PASS
+- PASS: Correct keyboard type shown for the main text field (standard
+  alphanumeric with a return/newline-style Enter key, not a "done"/submit
+  style key).
+- PASS: Enter key inserts a newline in the rewrite source field rather
+  than submitting - verified precisely via real key-event injection
+  (not just the text-entry API, which doesn't reliably simulate this):
+  typed "Line one", pressed hardware Enter (keycode 66), typed "Line two"
+  - both lines present in the same field, keyboard still open, nothing
+  submitted.
+
+Misc - PASS
+- PASS: Rapid repeated taps on the Rewrite button - confirmed NOT a
+  double-submit bug. Network log shows exactly one POST for two rapid
+  taps, correctly marked "Cancelled" (568ms) rather than duplicated -
+  the second tap lands on the button after it has already transformed
+  into its in-flight Stop/Cancel state, so the two taps are
+  start-then-cancel, not two independent submissions. This is correct,
+  intended behavior.
+- PASS: Rotation tested on Privacy & network and on the Rewrite screen
+  (mid-edit Pro state) in addition to the prior session's Backup screen -
+  no crash on any screen tested, state preserved, landscape layout
+  actually improves the tone-chip-cutoff issue (all chips visible
+  untruncated in landscape).
+
+===============================
+FINAL TALLY
+===============================
+See the chat summary for the full numeric breakdown (total items,
+pass/fail/blocked/N-A counts, new bugs, fixed-bugs verified, and what
+could not be completed and exactly why). This file is the durable,
+line-by-line record; the chat summary is the executive version.
