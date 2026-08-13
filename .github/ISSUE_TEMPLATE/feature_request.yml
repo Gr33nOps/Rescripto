@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an idea or improvement for Rescripto.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do that Rescripto doesn't support today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you'd like to see happen. Rough is fine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other ways to solve this you've thought about, and why they don't fit as well.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      description: >
+        Rescripto's default promise is that Local mode never touches the
+        network for rewriting. If this request would change what leaves the
+        device in any mode, please confirm you've thought about that.
+      options:
+        - label: This doesn't change what leaves the device, or I've described the tradeoff above.
