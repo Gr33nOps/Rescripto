@@ -150,14 +150,13 @@ class AppProviders extends StatelessWidget {
           create: (_) => SpeechService(),
           dispose: (_, service) => service.dispose(),
         ),
-        Provider<ModelManager>(
+        ChangeNotifierProvider<ModelManager>(
           create: (ctx) => ModelManager(
             dio: ctx.read<NetworkGuard>().dioFor(
               NetworkFeature.modelDownload,
               purpose: 'Download AI model',
             ),
           ),
-          dispose: (_, manager) => manager.dispose(),
         ),
         ChangeNotifierProvider<SettingsController>(
           create: (ctx) => SettingsController(ctx.read<SettingsService>()),
@@ -189,6 +188,7 @@ class AppProviders extends StatelessWidget {
             configStore: ctx.read<ConfigStore>(),
             router: ctx.read<TargetRouter>(),
             activeRequests: ctx.read<ActiveRequestRegistry>(),
+            networkLog: ctx.read<NetworkLog>(),
           ),
         ),
         ChangeNotifierProvider<WorkflowRunner>(

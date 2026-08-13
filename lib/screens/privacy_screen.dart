@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_messenger.dart';
 import '../core/app_routes.dart';
 import '../services/network/network_feature.dart';
 import '../services/network/network_policy.dart';
@@ -31,20 +32,23 @@ class PrivacyScreen extends StatelessWidget {
           children: [
             Card(
               color: scheme.errorContainer,
-              child: SwitchListTile(
-                secondary: Icon(Icons.power_settings_new, color: scheme.onErrorContainer),
-                title: Text(
-                  'Network kill switch',
-                  style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w700),
+              child: Semantics(
+                identifier: 'privacy_kill_switch',
+                child: SwitchListTile(
+                  secondary: Icon(Icons.power_settings_new, color: scheme.onErrorContainer),
+                  title: Text(
+                    'Network kill switch',
+                    style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(
+                    'Blocks every network request this app makes, overriding '
+                    'every setting below. Model downloads, cloud rewriting, '
+                    'everything.',
+                    style: TextStyle(color: scheme.onErrorContainer),
+                  ),
+                  value: policy.killSwitch,
+                  onChanged: policy.setKillSwitch,
                 ),
-                subtitle: Text(
-                  'Blocks every network request this app makes, overriding '
-                  'every setting below. Model downloads, cloud rewriting, '
-                  'everything.',
-                  style: TextStyle(color: scheme.onErrorContainer),
-                ),
-                value: policy.killSwitch,
-                onChanged: policy.setKillSwitch,
               ),
             ),
             const SizedBox(height: 20),
@@ -61,26 +65,32 @@ class PrivacyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.receipt_long_outlined),
-                title: const Text('Network log'),
-                subtitle: const Text('Every request this app has made or blocked, host and path only'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).pushNamed(AppRoutes.networkLog),
+              child: Semantics(
+                identifier: 'privacy_network_log_tile',
+                child: ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: const Text('Network log'),
+                  subtitle: const Text('Every request this app has made or blocked, host and path only'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.networkLog),
+                ),
               ),
             ),
             const SizedBox(height: 20),
             const SectionTitle('Emergency'),
             Card(
-              child: ListTile(
-                leading: Icon(Icons.warning_amber_outlined, color: scheme.error),
-                title: const Text('Panic: wipe & lock down'),
-                subtitle: const Text(
-                  'Removes every saved API key, disables every cloud '
-                  'provider, cancels anything in flight, and turns on the '
-                  'kill switch.',
+              child: Semantics(
+                identifier: 'privacy_panic_button',
+                child: ListTile(
+                  leading: Icon(Icons.warning_amber_outlined, color: scheme.error),
+                  title: const Text('Panic: wipe & lock down'),
+                  subtitle: const Text(
+                    'Removes every saved API key, disables every cloud '
+                    'provider, cancels anything in flight, and turns on the '
+                    'kill switch.',
+                  ),
+                  onTap: () => _confirmPanic(context),
                 ),
-                onTap: () => _confirmPanic(context),
               ),
             ),
           ],
@@ -108,13 +118,16 @@ class PrivacyScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          FilledButton.tonal(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.errorContainer,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onErrorContainer,
+          Semantics(
+            identifier: 'privacy_panic_confirm',
+            child: FilledButton.tonal(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(dialogContext).colorScheme.errorContainer,
+                foregroundColor: Theme.of(dialogContext).colorScheme.onErrorContainer,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Wipe & lock down'),
             ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Wipe & lock down'),
           ),
         ],
       ),
@@ -124,14 +137,10 @@ class PrivacyScreen extends StatelessWidget {
     final report = await context.read<PanicService>().wipeCredentials();
     if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Done. Kill switch on, ${report.providersDisabled} provider(s) '
-          'disabled, ${report.requestsCancelled} request(s) cancelled, '
-          '${report.credentialsWiped} key(s) deleted.',
-        ),
-      ),
+    showAppSnackBar(
+      'Done. Kill switch on, ${report.providersDisabled} provider(s) '
+      'disabled, ${report.requestsCancelled} request(s) cancelled, '
+      '${report.credentialsWiped} key(s) deleted.',
     );
   }
 }
@@ -165,14 +174,17 @@ class _FeatureSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      title: Text(_titles[feature]!),
-      subtitle: Text('Sends: ${_descriptions[feature]}'),
-      isThreeLine: true,
-      value: policy.isAllowed(feature),
-      onChanged: policy.killSwitch
-          ? null
-          : (value) => policy.setFeatureEnabled(feature, value),
+    return Semantics(
+      identifier: 'privacy_feature_switch_${feature.name}',
+      child: SwitchListTile(
+        title: Text(_titles[feature]!),
+        subtitle: Text('Sends: ${_descriptions[feature]}'),
+        isThreeLine: true,
+        value: policy.isAllowed(feature),
+        onChanged: policy.killSwitch
+            ? null
+            : (value) => policy.setFeatureEnabled(feature, value),
+      ),
     );
   }
 }

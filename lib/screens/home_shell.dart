@@ -68,26 +68,38 @@ class _HomeShellState extends State<HomeShell> {
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tab.index,
           onDestinationSelected: (i) => _goToTab(AppTab.values[i]),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.auto_fix_high_outlined),
-              selectedIcon: Icon(Icons.auto_fix_high),
-              label: 'Rewrite',
+          destinations: [
+            Semantics(
+              identifier: 'nav_rewrite',
+              child: const NavigationDestination(
+                icon: Icon(Icons.auto_fix_high_outlined),
+                selectedIcon: Icon(Icons.auto_fix_high),
+                label: 'Rewrite',
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.history_outlined),
-              selectedIcon: Icon(Icons.history),
-              label: 'History',
+            Semantics(
+              identifier: 'nav_history',
+              child: const NavigationDestination(
+                icon: Icon(Icons.history_outlined),
+                selectedIcon: Icon(Icons.history),
+                label: 'History',
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.download_outlined),
-              selectedIcon: Icon(Icons.download_done_outlined),
-              label: 'Models',
+            Semantics(
+              identifier: 'nav_models',
+              child: const NavigationDestination(
+                icon: Icon(Icons.download_outlined),
+                selectedIcon: Icon(Icons.download_done_outlined),
+                label: 'Models',
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
-              label: 'Settings',
+            Semantics(
+              identifier: 'nav_settings',
+              child: const NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: 'Settings',
+              ),
             ),
           ],
         ),

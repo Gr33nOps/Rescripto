@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/app_messenger.dart';
+
 /// Shared building blocks for settings-style screens.
 ///
 /// Promoted out of `settings_screen.dart` (a pure move, no behaviour
@@ -25,9 +27,7 @@ class LinkTile extends StatelessWidget {
       if (!context.mounted) return;
     }
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Couldn’t open that link. Try again.')),
-      );
+      showAppSnackBar('Couldn’t open that link. Try again.');
     }
   }
 

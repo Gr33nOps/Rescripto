@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_messenger.dart';
 import '../../engine/engine_target.dart';
 import '../../models/rewrite_request.dart';
 import '../../models/workflow_definition.dart';
@@ -49,27 +50,36 @@ class _WorkflowEditorScreenState extends State<WorkflowEditorScreen> {
         title: Text(isNew ? 'New workflow' : 'Edit workflow'),
         actions: [
           if (!isNew)
-            IconButton(
-              tooltip: 'Delete',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _confirmDelete(context, existing),
+            Semantics(
+              identifier: 'workflow_editor_delete',
+              child: IconButton(
+                tooltip: 'Delete',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _confirmDelete(context, existing),
+              ),
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addStep(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add step'),
+      floatingActionButton: Semantics(
+        identifier: 'workflow_editor_add_step',
+        child: FloatingActionButton.extended(
+          onPressed: () => _addStep(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Add step'),
+        ),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Workflow name',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'workflow_editor_name',
+              child: TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Workflow name',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -109,16 +119,19 @@ class _WorkflowEditorScreenState extends State<WorkflowEditorScreen> {
                 ],
               ),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _saving ? null : () => _save(context),
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(isNew ? 'Create workflow' : 'Save'),
+            Semantics(
+              identifier: 'workflow_editor_save',
+              child: FilledButton.icon(
+                onPressed: _saving ? null : () => _save(context),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(isNew ? 'Create workflow' : 'Save'),
+              ),
             ),
           ],
         ),
@@ -165,15 +178,11 @@ class _WorkflowEditorScreenState extends State<WorkflowEditorScreen> {
   Future<void> _save(BuildContext context) async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Give this workflow a name first.')));
+      showAppSnackBar('Give this workflow a name first.');
       return;
     }
     if (_steps.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Add at least one step first.')));
+      showAppSnackBar('Add at least one step first.');
       return;
     }
 
@@ -207,9 +216,12 @@ class _WorkflowEditorScreenState extends State<WorkflowEditorScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+          Semantics(
+            identifier: 'workflow_editor_delete_confirm',
+            child: FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Delete'),
+            ),
           ),
         ],
       ),
@@ -239,19 +251,25 @@ class _StepTile extends StatelessWidget {
     final tone = context.watch<ConfigStore>().toneById(step.toneId);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        child: ListTile(
-          leading: CircleAvatar(child: Text('${index + 1}')),
-          title: Text(tone.name),
-          subtitle: Text('${step.intensity.label} · ${step.length.label}'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(icon: const Icon(Icons.delete_outline), onPressed: onDelete),
-              const Icon(Icons.drag_handle),
-            ],
+      child: Semantics(
+        identifier: 'workflow_editor_step_${step.id}',
+        child: Card(
+          child: ListTile(
+            leading: CircleAvatar(child: Text('${index + 1}')),
+            title: Text(tone.name),
+            subtitle: Text('${step.intensity.label} · ${step.length.label}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  identifier: 'workflow_editor_step_delete_${step.id}',
+                  child: IconButton(icon: const Icon(Icons.delete_outline), onPressed: onDelete),
+                ),
+                const Icon(Icons.drag_handle),
+              ],
+            ),
+            onTap: onTap,
           ),
-          onTap: onTap,
         ),
       ),
     );
@@ -319,40 +337,49 @@ class _StepEditorSheetState extends State<_StepEditorSheet> {
               runSpacing: 8,
               children: [
                 for (final audience in audiences)
-                  FilterChip(
-                    label: Text(audience.label),
-                    selected: _audience.contains(audience.id),
-                    onSelected: (_) => setState(() {
-                      if (_audience.contains(audience.id)) {
-                        _audience.remove(audience.id);
-                      } else {
-                        _audience.add(audience.id);
-                      }
-                    }),
+                  Semantics(
+                    identifier: 'workflow_editor_step_audience_${audience.id}',
+                    child: FilterChip(
+                      label: Text(audience.label),
+                      selected: _audience.contains(audience.id),
+                      onSelected: (_) => setState(() {
+                        if (_audience.contains(audience.id)) {
+                          _audience.remove(audience.id);
+                        } else {
+                          _audience.add(audience.id);
+                        }
+                      }),
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 20),
-            TextField(
-              controller: _instructionController,
-              decoration: const InputDecoration(
-                labelText: 'Extra instructions (optional)',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'workflow_editor_step_instruction',
+              child: TextField(
+                controller: _instructionController,
+                decoration: const InputDecoration(
+                  labelText: 'Extra instructions (optional)',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => Navigator.pop(
-                context,
-                widget.initial.copyWith(
-                  toneId: _toneId,
-                  intensity: _intensity,
-                  length: _length,
-                  audience: _audience,
-                  customInstruction: _instructionController.text.trim(),
+            Semantics(
+              identifier: 'workflow_editor_step_done',
+              child: FilledButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                  widget.initial.copyWith(
+                    toneId: _toneId,
+                    intensity: _intensity,
+                    length: _length,
+                    audience: _audience,
+                    customInstruction: _instructionController.text.trim(),
+                  ),
                 ),
+                child: const Text('Done'),
               ),
-              child: const Text('Done'),
             ),
           ],
         ),

@@ -17,12 +17,15 @@ class WorkflowListScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Workflows')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const WorkflowEditorScreen()),
+      floatingActionButton: Semantics(
+        identifier: 'workflow_list_add',
+        child: FloatingActionButton.extended(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const WorkflowEditorScreen()),
+          ),
+          icon: const Icon(Icons.add),
+          label: const Text('New workflow'),
         ),
-        icon: const Icon(Icons.add),
-        label: const Text('New workflow'),
       ),
       body: SafeArea(
         child: ListView(
@@ -82,20 +85,26 @@ class _WorkflowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.route_outlined),
-        title: Text(workflow.name),
-        subtitle: Text('${workflow.steps.length} step${workflow.steps.length == 1 ? '' : 's'}'),
-        trailing: IconButton(
-          tooltip: 'Edit',
-          icon: const Icon(Icons.edit_outlined),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => WorkflowEditorScreen(existing: workflow)),
+    return Semantics(
+      identifier: 'workflow_list_item_${workflow.id}',
+      child: Card(
+        child: ListTile(
+          leading: const Icon(Icons.route_outlined),
+          title: Text(workflow.name),
+          subtitle: Text('${workflow.steps.length} step${workflow.steps.length == 1 ? '' : 's'}'),
+          trailing: Semantics(
+            identifier: 'workflow_list_edit_${workflow.id}',
+            child: IconButton(
+              tooltip: 'Edit',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => WorkflowEditorScreen(existing: workflow)),
+              ),
+            ),
           ),
-        ),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => WorkflowRunScreen(workflow: workflow)),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => WorkflowRunScreen(workflow: workflow)),
+          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_messenger.dart';
 import '../../models/audience_tag.dart';
 import '../../services/config_store.dart';
 
@@ -41,10 +42,13 @@ class _AudienceEditorScreenState extends State<AudienceEditorScreen> {
         title: Text(isNew ? 'New audience' : 'Edit audience'),
         actions: [
           if (!isNew)
-            IconButton(
-              tooltip: existing.isBuiltin ? 'Remove' : 'Delete',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _confirmDelete(context, existing),
+            Semantics(
+              identifier: 'audience_editor_delete',
+              child: IconButton(
+                tooltip: existing.isBuiltin ? 'Remove' : 'Delete',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _confirmDelete(context, existing),
+              ),
             ),
         ],
       ),
@@ -77,34 +81,43 @@ class _AudienceEditorScreenState extends State<AudienceEditorScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            TextField(
-              controller: _labelController,
-              autofocus: isNew,
-              decoration: const InputDecoration(
-                labelText: 'Label',
-                hintText: 'e.g. coworkers, a teacher, customers',
-                helperText: 'Interpolated directly: "Audience: written for <label>."',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'audience_editor_label',
+              child: TextField(
+                controller: _labelController,
+                autofocus: isNew,
+                decoration: const InputDecoration(
+                  labelText: 'Label',
+                  hintText: 'e.g. coworkers, a teacher, customers',
+                  helperText: 'Interpolated directly: "Audience: written for <label>."',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _saving ? null : () => _save(context),
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(isNew ? 'Create audience' : 'Save'),
+            Semantics(
+              identifier: 'audience_editor_save',
+              child: FilledButton.icon(
+                onPressed: _saving ? null : () => _save(context),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(isNew ? 'Create audience' : 'Save'),
+              ),
             ),
             if (!isNew && existing.isBuiltin) ...[
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _resetToDefault(context, existing.id),
-                icon: const Icon(Icons.restore_outlined),
-                label: const Text('Reset to default'),
+              Semantics(
+                identifier: 'audience_editor_reset',
+                child: OutlinedButton.icon(
+                  onPressed: () => _resetToDefault(context, existing.id),
+                  icon: const Icon(Icons.restore_outlined),
+                  label: const Text('Reset to default'),
+                ),
               ),
             ],
           ],
@@ -116,9 +129,7 @@ class _AudienceEditorScreenState extends State<AudienceEditorScreen> {
   Future<void> _save(BuildContext context) async {
     final label = _labelController.text.trim();
     if (label.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Give this audience a label first.')));
+      showAppSnackBar('Give this audience a label first.');
       return;
     }
 
@@ -161,9 +172,12 @@ class _AudienceEditorScreenState extends State<AudienceEditorScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(existing.isBuiltin ? 'Remove' : 'Delete'),
+          Semantics(
+            identifier: 'audience_editor_delete_confirm',
+            child: FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(existing.isBuiltin ? 'Remove' : 'Delete'),
+            ),
           ),
         ],
       ),

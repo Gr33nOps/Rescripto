@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_messenger.dart';
 import '../core/icon_catalog.dart';
 import '../models/history_entry.dart';
 import '../services/config_store.dart';
@@ -62,23 +63,29 @@ class HistoryDetailScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _copy(context, entry.rewritten),
-                    icon: const Icon(Icons.copy_outlined),
-                    label: const Text('Copy'),
+                  child: Semantics(
+                    identifier: 'history_detail_copy',
+                    child: OutlinedButton.icon(
+                      onPressed: () => _copy(context, entry.rewritten),
+                      icon: const Icon(Icons.copy_outlined),
+                      label: const Text('Copy'),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => SharePlus.instance.share(
-                      ShareParams(
-                        text: entry.rewritten,
-                        subject: 'Rewritten with Rescripto',
+                  child: Semantics(
+                    identifier: 'history_detail_share',
+                    child: FilledButton.icon(
+                      onPressed: () => SharePlus.instance.share(
+                        ShareParams(
+                          text: entry.rewritten,
+                          subject: 'Rewritten with Rescripto',
+                        ),
                       ),
+                      icon: const Icon(Icons.share_outlined),
+                      label: const Text('Share'),
                     ),
-                    icon: const Icon(Icons.share_outlined),
-                    label: const Text('Share'),
                   ),
                 ),
               ],
@@ -133,8 +140,6 @@ class HistoryDetailScreen extends StatelessWidget {
   Future<void> _copy(BuildContext context, String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
+    showAppSnackBar('Copied to clipboard');
   }
 }

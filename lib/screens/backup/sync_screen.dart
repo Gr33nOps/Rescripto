@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_messenger.dart';
 import '../../services/backup/backup_exception.dart';
 import '../../services/backup/backup_scheduler.dart';
 import '../../services/backup/backup_service.dart';
 import '../../services/backup/restore_options.dart';
 import '../../services/credentials/credential_store.dart';
+import '../../services/network/network_exceptions.dart';
 import '../../services/sync/sync_service.dart';
 import '../../services/sync/webdav_exception.dart';
 import '../../state/settings_controller.dart';
@@ -67,38 +69,50 @@ class _SyncScreenState extends State<SyncScreen> {
               ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _urlController,
-              decoration: const InputDecoration(
-                labelText: 'Server URL',
-                hintText: 'https://cloud.example.com/remote.php/dav/files/me',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'sync_server_url_input',
+              child: TextField(
+                controller: _urlController,
+                decoration: const InputDecoration(
+                  labelText: 'Server URL',
+                  hintText: 'https://cloud.example.com/remote.php/dav/files/me',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.url,
               ),
-              keyboardType: TextInputType.url,
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: 'Username',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'sync_username_input',
+              child: TextField(
+                controller: _usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _busy ? null : () => _setPassword(context),
-                    icon: const Icon(Icons.password_outlined),
-                    label: const Text('Set server password'),
+                  child: Semantics(
+                    identifier: 'sync_set_password_button',
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : () => _setPassword(context),
+                      icon: const Icon(Icons.password_outlined),
+                      label: const Text('Set server password'),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _busy ? null : () => _saveServerConfig(context),
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('Save'),
+                Semantics(
+                  identifier: 'sync_save_server_config_button',
+                  child: FilledButton.icon(
+                    onPressed: _busy ? null : () => _saveServerConfig(context),
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('Save'),
+                  ),
                 ),
               ],
             ),
@@ -107,37 +121,55 @@ class _SyncScreenState extends State<SyncScreen> {
             const SizedBox(height: 16),
             Text('What to sync', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
-            _SyncToggle(
-              label: 'Settings',
-              value: settingsController.syncIncludeSettings,
-              onChanged: settingsController.setSyncIncludeSettings,
+            Semantics(
+              identifier: 'sync_toggle_settings',
+              child: _SyncToggle(
+                label: 'Settings',
+                value: settingsController.syncIncludeSettings,
+                onChanged: settingsController.setSyncIncludeSettings,
+              ),
             ),
-            _SyncToggle(
-              label: 'Tones & audiences',
-              value: settingsController.syncIncludePresets,
-              onChanged: settingsController.setSyncIncludePresets,
+            Semantics(
+              identifier: 'sync_toggle_presets',
+              child: _SyncToggle(
+                label: 'Tones & audiences',
+                value: settingsController.syncIncludePresets,
+                onChanged: settingsController.setSyncIncludePresets,
+              ),
             ),
-            _SyncToggle(
-              label: 'Workflows',
-              value: settingsController.syncIncludeWorkflows,
-              onChanged: settingsController.setSyncIncludeWorkflows,
+            Semantics(
+              identifier: 'sync_toggle_workflows',
+              child: _SyncToggle(
+                label: 'Workflows',
+                value: settingsController.syncIncludeWorkflows,
+                onChanged: settingsController.setSyncIncludeWorkflows,
+              ),
             ),
-            _SyncToggle(
-              label: 'Cloud provider setup',
-              value: settingsController.syncIncludeProviderConfigs,
-              onChanged: settingsController.setSyncIncludeProviderConfigs,
+            Semantics(
+              identifier: 'sync_toggle_provider_configs',
+              child: _SyncToggle(
+                label: 'Cloud provider setup',
+                value: settingsController.syncIncludeProviderConfigs,
+                onChanged: settingsController.setSyncIncludeProviderConfigs,
+              ),
             ),
-            _SyncToggle(
-              label: 'Rewrite history',
-              value: settingsController.syncIncludeHistory,
-              onChanged: settingsController.setSyncIncludeHistory,
-              subtitle: 'Off by default — the most sensitive section.',
+            Semantics(
+              identifier: 'sync_toggle_history',
+              child: _SyncToggle(
+                label: 'Rewrite history',
+                value: settingsController.syncIncludeHistory,
+                onChanged: settingsController.setSyncIncludeHistory,
+                subtitle: 'Off by default — the most sensitive section.',
+              ),
             ),
-            _SyncToggle(
-              label: 'Cloud provider keys',
-              value: settingsController.syncIncludeCredentials,
-              onChanged: settingsController.setSyncIncludeCredentials,
-              subtitle: 'Sends your API keys to the server, encrypted.',
+            Semantics(
+              identifier: 'sync_toggle_credentials',
+              child: _SyncToggle(
+                label: 'Cloud provider keys',
+                value: settingsController.syncIncludeCredentials,
+                onChanged: settingsController.setSyncIncludeCredentials,
+                subtitle: 'Sends your API keys to the server, encrypted.',
+              ),
             ),
             const SizedBox(height: 24),
             const Divider(),
@@ -163,9 +195,12 @@ class _SyncScreenState extends State<SyncScreen> {
                             style: TextStyle(color: scheme.onTertiaryContainer),
                           ),
                           const SizedBox(height: 8),
-                          FilledButton(
-                            onPressed: _busy ? null : () => _pull(context),
-                            child: const Text('Review and apply'),
+                          Semantics(
+                            identifier: 'sync_review_apply_button',
+                            child: FilledButton(
+                              onPressed: _busy ? null : () => _pull(context),
+                              child: const Text('Review and apply'),
+                            ),
                           ),
                         ],
                       ),
@@ -175,16 +210,19 @@ class _SyncScreenState extends State<SyncScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            FilledButton.icon(
-              onPressed: (!configured || _busy) ? null : () => _push(context),
-              icon: _busy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.cloud_upload_outlined),
-              label: Text(_busy ? 'Working…' : 'Sync now'),
+            Semantics(
+              identifier: 'sync_button',
+              child: FilledButton.icon(
+                onPressed: (!configured || _busy) ? null : () => _push(context),
+                icon: _busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.cloud_upload_outlined),
+                label: Text(_busy ? 'Working…' : 'Sync now'),
+              ),
             ),
             if (settingsController.lastSyncPushAt != null) ...[
               const SizedBox(height: 8),
@@ -206,9 +244,7 @@ class _SyncScreenState extends State<SyncScreen> {
     await controller.setWebdavUrl(_urlController.text.trim());
     await controller.setWebdavUsername(_usernameController.text.trim());
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Server settings saved.')));
+    showAppSnackBar('Server settings saved.');
     _checkForRemoteChanges(context);
   }
 
@@ -224,9 +260,7 @@ class _SyncScreenState extends State<SyncScreen> {
     if (password == null || !context.mounted) return;
     await context.read<CredentialStore>().write(SyncService.passwordRef, password);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Server password saved.')));
+    showAppSnackBar('Server password saved.');
   }
 
   Future<void> _checkForRemoteChanges(BuildContext context) async {
@@ -263,11 +297,14 @@ class _SyncScreenState extends State<SyncScreen> {
   }
 
   Future<void> _push(BuildContext context) async {
-    final passphrase = await _requirePassphrase(context);
-    if (passphrase == null || !context.mounted) return;
-
+    // Busy from the first tap, not just once the network call starts: the
+    // passphrase lookup ahead of it is itself an async gap with no other
+    // visible feedback, which read as an ignored tap during QA.
     setState(() => _busy = true);
     try {
+      final passphrase = await _requirePassphrase(context);
+      if (passphrase == null || !context.mounted) return;
+
       final settings = context.read<SettingsController>();
       await context.read<SyncService>().push(
         passphrase,
@@ -282,23 +319,26 @@ class _SyncScreenState extends State<SyncScreen> {
       if (!context.mounted) return;
       settings.refreshFromService();
       setState(() => _remoteNewerThan = null);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Synced.')));
+      showAppSnackBar('Synced.');
     } on WebDavException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_describe(e))));
+      showAppSnackBar(_describe(e));
+    } on NetworkBlockedByPolicyException {
+      if (!context.mounted) return;
+      showAppSnackBar('Backup sync is turned off in Privacy settings.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _pull(BuildContext context) async {
-    final passphrase = await _requirePassphrase(context);
-    if (passphrase == null || !context.mounted) return;
-
+    // See _push's comment: busy from the first tap, before the passphrase
+    // lookup's own async gap.
     setState(() => _busy = true);
     try {
+      final passphrase = await _requirePassphrase(context);
+      if (passphrase == null || !context.mounted) return;
+
       final service = context.read<BackupService>();
       final bundle = await context.read<SyncService>().pull(passphrase);
       if (!context.mounted) return;
@@ -318,9 +358,12 @@ class _SyncScreenState extends State<SyncScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Apply'),
+            Semantics(
+              identifier: 'sync_apply_confirm',
+              child: FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Apply'),
+              ),
             ),
           ],
         ),
@@ -334,17 +377,16 @@ class _SyncScreenState extends State<SyncScreen> {
       if (!context.mounted) return;
       context.read<SettingsController>().refreshFromService();
       setState(() => _remoteNewerThan = null);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Applied the server\'s copy.')));
+      showAppSnackBar('Applied the server\'s copy.');
     } on WebDavException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_describe(e))));
+      showAppSnackBar(_describe(e));
     } on BackupException {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wrong passphrase, or the remote file is corrupted.')),
-      );
+      showAppSnackBar('Wrong passphrase, or the remote file is corrupted.');
+    } on NetworkBlockedByPolicyException {
+      if (!context.mounted) return;
+      showAppSnackBar('Backup sync is turned off in Privacy settings.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -410,6 +452,10 @@ class _SinglePasswordDialogState extends State<_SinglePasswordDialog> {
     super.dispose();
   }
 
+  void _clearError() {
+    if (_error != null) setState(() => _error = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -419,17 +465,25 @@ class _SinglePasswordDialogState extends State<_SinglePasswordDialog> {
         children: [
           Text(widget.helperText, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
-          TextField(
-            controller: _controller,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+          Semantics(
+            identifier: 'sync_password_dialog_input',
+            child: TextField(
+              controller: _controller,
+              obscureText: true,
+              onChanged: (_) => _clearError(),
+              decoration: const InputDecoration(labelText: 'Password'),
+            ),
           ),
           if (widget.confirm) ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: _confirmController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm'),
+            Semantics(
+              identifier: 'sync_password_dialog_confirm',
+              child: TextField(
+                controller: _confirmController,
+                obscureText: true,
+                onChanged: (_) => _clearError(),
+                decoration: const InputDecoration(labelText: 'Confirm'),
+              ),
             ),
           ],
           if (_error != null) ...[
@@ -443,20 +497,23 @@ class _SinglePasswordDialogState extends State<_SinglePasswordDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: () {
-            final value = _controller.text;
-            if (value.length < 8) {
-              setState(() => _error = 'Use at least 8 characters.');
-              return;
-            }
-            if (widget.confirm && value != _confirmController.text) {
-              setState(() => _error = 'Doesn\'t match.');
-              return;
-            }
-            Navigator.pop(context, value);
-          },
-          child: const Text('Save'),
+        Semantics(
+          identifier: 'sync_password_dialog_save',
+          child: FilledButton(
+            onPressed: () {
+              final value = _controller.text;
+              if (value.length < 8) {
+                setState(() => _error = 'Use at least 8 characters.');
+                return;
+              }
+              if (widget.confirm && value != _confirmController.text) {
+                setState(() => _error = 'Doesn\'t match.');
+                return;
+              }
+              Navigator.pop(context, value);
+            },
+            child: const Text('Save'),
+          ),
         ),
       ],
     );

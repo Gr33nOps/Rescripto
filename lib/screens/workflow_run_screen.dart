@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_messenger.dart';
 import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
@@ -45,10 +46,13 @@ class _WorkflowRunScreenState extends State<WorkflowRunScreen> {
         title: Text(workflow.name),
         actions: [
           if (runner.isRunning)
-            IconButton(
-              tooltip: 'Stop',
-              onPressed: runner.isCancelling ? null : runner.cancel,
-              icon: const Icon(Icons.stop_circle_outlined),
+            Semantics(
+              identifier: 'workflow_run_cancel',
+              child: IconButton(
+                tooltip: 'Stop',
+                onPressed: runner.isCancelling ? null : runner.cancel,
+                icon: const Icon(Icons.stop_circle_outlined),
+              ),
             ),
         ],
       ),
@@ -56,30 +60,36 @@ class _WorkflowRunScreenState extends State<WorkflowRunScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            TextField(
-              controller: _textController,
-              enabled: !runner.isRunning,
-              minLines: 4,
-              maxLines: 10,
-              decoration: const InputDecoration(
-                labelText: 'Text to run through this workflow',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+            Semantics(
+              identifier: 'workflow_run_input',
+              child: TextField(
+                controller: _textController,
+                enabled: !runner.isRunning,
+                minLines: 4,
+                maxLines: 10,
+                decoration: const InputDecoration(
+                  labelText: 'Text to run through this workflow',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
               ),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: runner.isRunning ? null : () => _run(context),
-                icon: runner.isRunning
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.play_arrow_outlined),
-                label: Text(runner.isRunning ? 'Running…' : 'Run workflow'),
+              child: Semantics(
+                identifier: 'workflow_run_button',
+                child: FilledButton.icon(
+                  onPressed: runner.isRunning ? null : () => _run(context),
+                  icon: runner.isRunning
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.play_arrow_outlined),
+                  label: Text(runner.isRunning ? 'Running…' : 'Run workflow'),
+                ),
               ),
             ),
             if (runner.isRunning || runner.currentStepIndex >= 0) ...[
@@ -110,9 +120,7 @@ class _WorkflowRunScreenState extends State<WorkflowRunScreen> {
   Future<void> _run(BuildContext context) async {
     final text = _textController.text.trim();
     if (text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter some text first.')));
+      showAppSnackBar('Enter some text first.');
       return;
     }
     setState(() {
@@ -126,12 +134,10 @@ class _WorkflowRunScreenState extends State<WorkflowRunScreen> {
       if (mounted) setState(() => _finalOutput = result);
     } on EngineException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(describeEngineError(e))));
+      showAppSnackBar(describeEngineError(e));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      showAppSnackBar('$e');
     }
   }
 }

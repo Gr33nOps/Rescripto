@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../screens/advanced_engine_screen.dart';
 import '../screens/authoring/audience_list_screen.dart';
 import '../screens/authoring/tone_list_screen.dart';
 import '../screens/authoring/workflow_list_screen.dart';
@@ -28,6 +29,7 @@ abstract final class AppRoutes {
   static const workflows = '/workflows';
   static const backup = '/backup';
   static const sync = '/sync';
+  static const advanced = '/advanced';
 
   static Map<String, WidgetBuilder> get routes => {
     privacy: (_) => const PrivacyScreen(),
@@ -38,5 +40,6 @@ abstract final class AppRoutes {
     workflows: (_) => const WorkflowListScreen(),
     backup: (_) => const BackupScreen(),
     sync: (_) => const SyncScreen(),
+    advanced: (_) => const AdvancedEngineScreen(),
   };
 }

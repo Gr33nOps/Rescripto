@@ -26,10 +26,13 @@ class ProvidersScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Cloud providers')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _pickPreset(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add provider'),
+      floatingActionButton: Semantics(
+        identifier: 'provider_add_button',
+        child: FloatingActionButton.extended(
+          onPressed: () => _pickPreset(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Add provider'),
+        ),
       ),
       body: SafeArea(
         child: ListView(
@@ -92,11 +95,14 @@ class ProvidersScreen extends StatelessWidget {
         shrinkWrap: true,
         children: [
           for (final preset in ProviderPresetCatalog.all)
-            ListTile(
-              leading: const Icon(Icons.cloud_outlined),
-              title: Text(preset.displayName),
-              subtitle: Text(preset.editableBaseUrl ? 'Custom base URL' : preset.baseUrl),
-              onTap: () => Navigator.pop(sheetContext, preset),
+            Semantics(
+              identifier: 'provider_preset_${preset.id}',
+              child: ListTile(
+                leading: const Icon(Icons.cloud_outlined),
+                title: Text(preset.displayName),
+                subtitle: Text(preset.editableBaseUrl ? 'Custom base URL' : preset.baseUrl),
+                onTap: () => Navigator.pop(sheetContext, preset),
+              ),
             ),
         ],
       ),
@@ -140,12 +146,15 @@ class _ActiveCloudModelCard extends StatelessWidget {
     };
 
     return Card(
-      child: ListTile(
-        leading: Icon(Icons.auto_awesome_outlined, color: scheme.primary),
-        title: const Text('Used for cloud rewriting'),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: registry.enabledConfigs.isEmpty ? null : () => _pick(context),
+      child: Semantics(
+        identifier: 'provider_active_model_card',
+        child: ListTile(
+          leading: Icon(Icons.auto_awesome_outlined, color: scheme.primary),
+          title: const Text('Used for cloud rewriting'),
+          subtitle: Text(subtitle),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: registry.enabledConfigs.isEmpty ? null : () => _pick(context),
+        ),
       ),
     );
   }
@@ -189,12 +198,15 @@ class _ActiveCloudModelCard extends StatelessWidget {
                 )
               else
                 for (final model in config.allModels)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.memory_outlined),
-                    title: Text(model.displayName),
-                    onTap: () => Navigator.pop(sheetContext, (config.id, model.modelRef)),
+                  Semantics(
+                    identifier: 'provider_model_option_${model.modelRef}',
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.memory_outlined),
+                      title: Text(model.displayName),
+                      onTap: () => Navigator.pop(sheetContext, (config.id, model.modelRef)),
+                    ),
                   ),
             ],
           ],
@@ -222,29 +234,35 @@ class _ProviderTile extends StatelessWidget {
     final credentialStore = context.read<CredentialStore>();
 
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.cloud_outlined),
-        title: Text(config.displayName),
-        subtitle: FutureBuilder<bool>(
-          future: credentialStore.has(config.credential),
-          builder: (context, snapshot) {
-            final hasKey = snapshot.data;
-            final keyLabel = hasKey == null
-                ? 'Checking key…'
-                : hasKey
-                ? '•••• configured'
-                : config.preset.requiresKey
-                ? 'No key'
-                : 'No key needed';
-            return Text('${config.preset.displayName} · $keyLabel');
-          },
-        ),
-        trailing: Switch(
-          value: config.enabled,
-          onChanged: (v) => registry.setEnabled(config.id, v),
-        ),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ProviderEditScreen(existing: config)),
+      child: Semantics(
+        identifier: 'provider_tile_${config.id}',
+        child: ListTile(
+          leading: const Icon(Icons.cloud_outlined),
+          title: Text(config.displayName),
+          subtitle: FutureBuilder<bool>(
+            future: credentialStore.has(config.credential),
+            builder: (context, snapshot) {
+              final hasKey = snapshot.data;
+              final keyLabel = hasKey == null
+                  ? 'Checking key…'
+                  : hasKey
+                  ? '•••• configured'
+                  : config.preset.requiresKey
+                  ? 'No key'
+                  : 'No key needed';
+              return Text('${config.preset.displayName} · $keyLabel');
+            },
+          ),
+          trailing: Semantics(
+            identifier: 'provider_enable_switch_${config.id}',
+            child: Switch(
+              value: config.enabled,
+              onChanged: (v) => registry.setEnabled(config.id, v),
+            ),
+          ),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => ProviderEditScreen(existing: config)),
+          ),
         ),
       ),
     );

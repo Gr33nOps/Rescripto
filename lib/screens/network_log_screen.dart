@@ -36,7 +36,9 @@ class _NetworkLogScreenState extends State<NetworkLogScreen> {
 
   Future<void> _refresh() async {
     final future = context.read<NetworkLog>().recent(limit: 200);
-    setState(() => _entries = future);
+    setState(() {
+      _entries = future;
+    });
     await future;
   }
 

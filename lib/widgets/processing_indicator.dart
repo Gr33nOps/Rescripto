@@ -1,23 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_messenger.dart';
+import '../services/network/network_policy.dart';
 import '../services/routing/target_router.dart';
 import '../state/rewrite_controller.dart';
 
 /// AppBar chip showing where the next rewrite would run, and why.
 ///
-/// Reads `RewriteController.routing`, recomputed per keystroke and already
-/// backed by a `notifyListeners()` — free to watch here. In Hybrid mode the
-/// label always names the actual side ("Hybrid · On-device" / "Hybrid ·
-/// Cloud"), never a bare "Hybrid" — a badge that doesn't say which way it's
-/// leaning is exactly the failure mode this exists to avoid. Tapping shows
-/// the full one-sentence reason, since a tooltip alone isn't discoverable
-/// with touch.
+/// Reads `RewriteController.routing`, recomputed fresh on every build (it's
+/// a plain getter, not cached) from whatever `TargetRouter` currently sees.
+/// Rebuilding on `RewriteController`'s own `notifyListeners()` alone isn't
+/// enough, though: `routing` also depends on `NetworkPolicy` (the kill
+/// switch, per-feature toggles), which is a separate `ChangeNotifier` that
+/// `RewriteController` doesn't forward. Without watching it directly here,
+/// this chip could keep showing a stale "Not ready"/"Cloud" state after a
+/// Privacy-settings change made on another screen, until something
+/// unrelated happened to touch `RewriteController`'s own state (typing a
+/// character, changing tone, etc.) and trigger a rebuild anyway. Watching
+/// both keeps the chip live off either source of change.
+///
+/// In Hybrid mode the label always names the actual side ("Hybrid ·
+/// On-device" / "Hybrid · Cloud"), never a bare "Hybrid" — a badge that
+/// doesn't say which way it's leaning is exactly the failure mode this
+/// exists to avoid. Tapping shows the full one-sentence reason, since a
+/// tooltip alone isn't discoverable with touch.
 class ProcessingIndicator extends StatelessWidget {
   const ProcessingIndicator({super.key});
 
   @override
   Widget build(BuildContext context) {
+    context.watch<NetworkPolicy>();
     final decision = context.watch<RewriteController>().routing;
     final scheme = Theme.of(context).colorScheme;
     final blocked = decision.isBlocked;
@@ -33,7 +46,7 @@ class ProcessingIndicator extends StatelessWidget {
       side: BorderSide.none,
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      onPressed: () => _showReason(context, decision),
+      onPressed: () => _showReason(decision),
     );
   }
 
@@ -52,9 +65,8 @@ class ProcessingIndicator extends StatelessWidget {
     return 'Hybrid · $side';
   }
 
-  void _showReason(BuildContext context, RoutingDecision decision) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(decision.reason)));
+  void _showReason(RoutingDecision decision) {
+    scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    showAppSnackBar(decision.reason);
   }
 }

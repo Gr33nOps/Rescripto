@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_messenger.dart';
 import '../core/app_routes.dart';
 import '../core/app_tab.dart';
 import '../engine/engine_capabilities.dart';
@@ -11,6 +12,7 @@ import '../engine/engine_stage.dart';
 import '../engine/engine_target.dart';
 import '../models/ui_mode.dart';
 import '../services/config_store.dart';
+import '../services/network/network_policy.dart';
 import '../services/providers/provider_registry.dart';
 import '../services/routing/target_router.dart';
 import '../services/share_intent_bridge.dart';
@@ -48,6 +50,13 @@ class _RewriteScreenState extends State<RewriteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // `RewriteController.routing` depends on `NetworkPolicy` (kill switch,
+    // per-feature toggles) as well as the controller's own state — watching
+    // it here too keeps `_TargetNotReadyBanner` live when a Privacy setting
+    // changes on another screen, instead of showing a stale blocked/ready
+    // state until something unrelated triggers a rebuild. See
+    // `ProcessingIndicator`'s own doc for the same reasoning.
+    context.watch<NetworkPolicy>();
     final controller = context.watch<RewriteController>();
     final models = context.watch<ModelsController>();
     final settings = context.watch<SettingsController>();
@@ -72,20 +81,26 @@ class _RewriteScreenState extends State<RewriteScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: isPro ? 'Switch to Simple mode' : 'Switch to Pro mode',
-            onPressed: () => _toggleUiMode(context, isPro: isPro),
-            icon: Icon(isPro ? Icons.tune : Icons.tune_outlined),
+          Semantics(
+            identifier: 'ui_mode_toggle',
+            child: IconButton(
+              tooltip: isPro ? 'Switch to Simple mode' : 'Switch to Pro mode',
+              onPressed: () => _toggleUiMode(context, isPro: isPro),
+              icon: Icon(isPro ? Icons.tune : Icons.tune_outlined),
+            ),
           ),
           const Padding(
             padding: EdgeInsets.only(right: 8),
             child: ProcessingIndicator(),
           ),
           if (controller.isRunning)
-            IconButton(
-              tooltip: 'Stop',
-              onPressed: controller.isCancelling ? null : controller.stop,
-              icon: const Icon(Icons.stop_circle_outlined),
+            Semantics(
+              identifier: 'cancel_generation',
+              child: IconButton(
+                tooltip: 'Stop',
+                onPressed: controller.isCancelling ? null : controller.stop,
+                icon: const Icon(Icons.stop_circle_outlined),
+              ),
             ),
         ],
       ),
@@ -138,15 +153,18 @@ class _RewriteScreenState extends State<RewriteScreen> {
               const SizedBox(height: 20),
               Text('Variants', style: _sectionStyle(context)),
               const SizedBox(height: 8),
-              SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 1, label: Text('1')),
-                  ButtonSegment(value: 2, label: Text('2')),
-                  ButtonSegment(value: 3, label: Text('3')),
-                ],
-                selected: {controller.variantCount},
-                onSelectionChanged: (s) => controller.setVariantCount(s.first),
-                showSelectedIcon: false,
+              Semantics(
+                identifier: 'variant_count_selector',
+                child: SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 1, label: Text('1')),
+                    ButtonSegment(value: 2, label: Text('2')),
+                    ButtonSegment(value: 3, label: Text('3')),
+                  ],
+                  selected: {controller.variantCount},
+                  onSelectionChanged: (s) => controller.setVariantCount(s.first),
+                  showSelectedIcon: false,
+                ),
               ),
             ],
             const SizedBox(height: 24),
@@ -175,18 +193,24 @@ class _RewriteScreenState extends State<RewriteScreen> {
                 },
               ),
               const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => _rewrite(controller),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Rewrite again'),
+              Semantics(
+                identifier: 'rewrite_again_button',
+                child: OutlinedButton.icon(
+                  onPressed: () => _rewrite(controller),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Rewrite again'),
+                ),
               ),
               if (shareIntent.awaitingProcessTextResult) ...[
                 const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed: () =>
-                      shareIntent.finishProcessText(_selectedText(controller)),
-                  icon: const Icon(Icons.keyboard_return_outlined),
-                  label: const Text('Insert & return'),
+                Semantics(
+                  identifier: 'insert_result',
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        shareIntent.finishProcessText(_selectedText(controller)),
+                    icon: const Icon(Icons.keyboard_return_outlined),
+                    label: const Text('Insert & return'),
+                  ),
                 ),
               ],
             ],
@@ -232,9 +256,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
       await controller.rewrite();
     } on EmptySourceError {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nothing to rewrite yet.')),
-      );
+      showAppSnackBar('Nothing to rewrite yet.');
     } on ModelNotInstalledException {
       if (!mounted) return;
       TabNavigator.of(context).goToTab(AppTab.models);
@@ -245,9 +267,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
         await _offerFallback(controller, fallback);
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(describeEngineError(e))));
+      showAppSnackBar(describeEngineError(e));
     }
   }
 
@@ -303,9 +323,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
       await controller.retryWithFallback();
     } on EngineException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(describeEngineError(e))));
+      showAppSnackBar(describeEngineError(e));
     }
   }
 }
@@ -343,32 +361,41 @@ class _SourceInputState extends State<_SourceInput> {
     final controller = context.watch<RewriteController>();
     _syncFromState();
 
-    return TextField(
-      controller: _text,
-      onChanged: controller.setSource,
-      minLines: 5,
-      maxLines: 12,
-      maxLength: 8000,
-      textInputAction: TextInputAction.newline,
-      decoration: InputDecoration(
-        labelText: 'Text to rewrite',
-        hintText: 'Type or paste your rough text here…',
-        alignLabelWithHint: true,
-        suffixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Paste',
-              onPressed: () => _paste(controller),
-              icon: const Icon(Icons.content_paste_go_outlined),
-            ),
-            if (controller.sourceText.isNotEmpty)
-              IconButton(
-                tooltip: 'Clear',
-                onPressed: () => controller.setSource(''),
-                icon: const Icon(Icons.close),
+    return Semantics(
+      identifier: 'rewrite_input',
+      child: TextField(
+        controller: _text,
+        onChanged: controller.setSource,
+        minLines: 5,
+        maxLines: 12,
+        maxLength: 8000,
+        textInputAction: TextInputAction.newline,
+        decoration: InputDecoration(
+          labelText: 'Text to rewrite',
+          hintText: 'Type or paste your rough text here…',
+          alignLabelWithHint: true,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                identifier: 'rewrite_input_paste',
+                child: IconButton(
+                  tooltip: 'Paste',
+                  onPressed: () => _paste(controller),
+                  icon: const Icon(Icons.content_paste_go_outlined),
+                ),
               ),
-          ],
+              if (controller.sourceText.isNotEmpty)
+                Semantics(
+                  identifier: 'rewrite_input_clear',
+                  child: IconButton(
+                    tooltip: 'Clear',
+                    onPressed: () => controller.setSource(''),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -412,13 +439,16 @@ class _InstructionInputState extends State<_InstructionInput> {
         selection: TextSelection.collapsed(offset: widget.value.length),
       );
     }
-    return TextField(
-      controller: _text,
-      onChanged: widget.onChanged,
-      decoration: const InputDecoration(
-        labelText: 'Extra instructions',
-        hintText: 'e.g. Make it sound more optimistic',
-        prefixIcon: Icon(Icons.edit_note_outlined),
+    return Semantics(
+      identifier: 'rewrite_instruction_input',
+      child: TextField(
+        controller: _text,
+        onChanged: widget.onChanged,
+        decoration: const InputDecoration(
+          labelText: 'Extra instructions',
+          hintText: 'e.g. Make it sound more optimistic',
+          prefixIcon: Icon(Icons.edit_note_outlined),
+        ),
       ),
     );
   }
@@ -437,18 +467,25 @@ class _AudienceSelector extends StatelessWidget {
     final audiences = context.watch<ConfigStore>().audiences;
     return SizedBox(
       width: double.infinity,
-      child: Wrap(
-        alignment: WrapAlignment.start,
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final audience in audiences)
-            FilterChip(
-              label: Text(audience.label),
-              selected: selected.contains(audience.id),
-              onSelected: (_) => onToggle(audience.id),
-            ),
-        ],
+      child: Semantics(
+        container: true,
+        identifier: 'audience_selector',
+        child: Wrap(
+          alignment: WrapAlignment.start,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final audience in audiences)
+              Semantics(
+                identifier: 'audience_option_${audience.id}',
+                child: FilterChip(
+                  label: Text(audience.label),
+                  selected: selected.contains(audience.id),
+                  onSelected: (_) => onToggle(audience.id),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -471,17 +508,20 @@ class _RewriteButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: cancelling ? null : (running ? onStop : onRewrite),
-        icon: running
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.auto_fix_high),
-        label: Text(
-          cancelling ? 'Stopping…' : (running ? 'Stop rewrite' : 'Rewrite'),
+      child: Semantics(
+        identifier: 'rewrite_button',
+        child: FilledButton.icon(
+          onPressed: cancelling ? null : (running ? onStop : onRewrite),
+          icon: running
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.auto_fix_high),
+          label: Text(
+            cancelling ? 'Stopping…' : (running ? 'Stop rewrite' : 'Rewrite'),
+          ),
         ),
       ),
     );

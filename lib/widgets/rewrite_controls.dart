@@ -26,18 +26,25 @@ class RewriteControls extends StatelessWidget {
         const SizedBox(height: 6),
         SizedBox(
           width: double.infinity,
-          child: Wrap(
-            alignment: WrapAlignment.start,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final value in RewriteIntensity.values)
-                ChoiceChip(
-                  label: Text(value.label),
-                  selected: intensity == value,
-                  onSelected: (_) => onIntensityChanged(value),
-                ),
-            ],
+          child: Semantics(
+            container: true,
+            identifier: 'strength_selector',
+            child: Wrap(
+              alignment: WrapAlignment.start,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final value in RewriteIntensity.values)
+                  Semantics(
+                    identifier: 'strength_option_${value.name}',
+                    child: ChoiceChip(
+                      label: Text(value.label),
+                      selected: intensity == value,
+                      onSelected: (_) => onIntensityChanged(value),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 18),
@@ -45,18 +52,25 @@ class RewriteControls extends StatelessWidget {
         const SizedBox(height: 6),
         SizedBox(
           width: double.infinity,
-          child: Wrap(
-            alignment: WrapAlignment.start,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final value in RewriteLength.values)
-                ChoiceChip(
-                  label: Text(value.label),
-                  selected: length == value,
-                  onSelected: (_) => onLengthChanged(value),
-                ),
-            ],
+          child: Semantics(
+            container: true,
+            identifier: 'length_selector',
+            child: Wrap(
+              alignment: WrapAlignment.start,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final value in RewriteLength.values)
+                  Semantics(
+                    identifier: 'length_option_${value.name}',
+                    child: ChoiceChip(
+                      label: Text(value.label),
+                      selected: length == value,
+                      onSelected: (_) => onLengthChanged(value),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],

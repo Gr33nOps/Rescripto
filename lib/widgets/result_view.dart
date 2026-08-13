@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_messenger.dart';
 import '../models/rewrite_result.dart';
 
 /// Displays the rewrite result with original/rewritten toggle,
@@ -96,32 +97,56 @@ class _ResultViewState extends State<ResultView> {
               runSpacing: 8,
               children: [
                 if (outputs.length > 1)
-                  SegmentedButton<int>(
+                  Semantics(
+                    identifier: 'variant_selector',
+                    child: SegmentedButton<int>(
+                      segments: [
+                        for (var i = 0; i < outputs.length; i++)
+                          ButtonSegment(
+                            value: i,
+                            label: Semantics(
+                              identifier: 'variant_${i + 1}',
+                              child: Text('V${i + 1}'),
+                            ),
+                          ),
+                      ],
+                      selected: {selectedIndex},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (s) {
+                        setState(() => _variantIndex = s.first);
+                        _notifySelection(s.first);
+                      },
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                Semantics(
+                  identifier: 'result_view_toggle',
+                  child: SegmentedButton<bool>(
                     segments: [
-                      for (var i = 0; i < outputs.length; i++)
-                        ButtonSegment(value: i, label: Text('V${i + 1}')),
+                      ButtonSegment(
+                        value: true,
+                        label: Semantics(
+                          identifier: 'show_original',
+                          child: const Text('Original'),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: false,
+                        label: Semantics(
+                          identifier: 'show_rewrite',
+                          child: const Text('Rewrite'),
+                        ),
+                      ),
                     ],
-                    selected: {selectedIndex},
+                    selected: {_showOriginal},
                     showSelectedIcon: false,
-                    onSelectionChanged: (s) {
-                      setState(() => _variantIndex = s.first);
-                      _notifySelection(s.first);
-                    },
+                    onSelectionChanged: (s) =>
+                        setState(() => _showOriginal = s.first),
                     style: const ButtonStyle(
                       visualDensity: VisualDensity.compact,
                     ),
-                  ),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('Original')),
-                    ButtonSegment(value: false, label: Text('Rewrite')),
-                  ],
-                  selected: {_showOriginal},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (s) =>
-                      setState(() => _showOriginal = s.first),
-                  style: const ButtonStyle(
-                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ],
@@ -168,6 +193,7 @@ class _ResultViewState extends State<ResultView> {
                 ],
                 Semantics(
                   label: 'Copy displayed text',
+                  identifier: 'copy_result',
                   child: IconButton(
                     tooltip: 'Copy',
                     onPressed: () => _copy(text),
@@ -176,6 +202,7 @@ class _ResultViewState extends State<ResultView> {
                 ),
                 Semantics(
                   label: 'Share displayed text',
+                  identifier: 'share_result',
                   child: IconButton(
                     tooltip: 'Share',
                     onPressed: () => _share(text),
@@ -193,9 +220,7 @@ class _ResultViewState extends State<ResultView> {
   Future<void> _copy(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
+    showAppSnackBar('Copied to clipboard');
   }
 
   Future<void> _share(String text) async {

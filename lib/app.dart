@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/app_messenger.dart';
 import 'core/app_routes.dart';
 import 'core/app_theme.dart';
 import 'screens/home_shell.dart';
@@ -61,6 +62,7 @@ class _RescriptoMaterialApp extends StatelessWidget {
     return MaterialApp(
       title: 'Rescripto',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: settings.themeModeValue,

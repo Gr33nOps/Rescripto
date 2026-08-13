@@ -24,7 +24,9 @@ class _AudienceListScreenState extends State<AudienceListScreen> {
   }
 
   void _refreshHidden() {
-    setState(() => _hidden = context.read<ConfigStore>().hiddenAudiences());
+    setState(() {
+      _hidden = context.read<ConfigStore>().hiddenAudiences();
+    });
   }
 
   @override
@@ -34,10 +36,13 @@ class _AudienceListScreenState extends State<AudienceListScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Audiences')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(context, null),
-        icon: const Icon(Icons.add),
-        label: const Text('New audience'),
+      floatingActionButton: Semantics(
+        identifier: 'audience_list_add',
+        child: FloatingActionButton.extended(
+          onPressed: () => _openEditor(context, null),
+          icon: const Icon(Icons.add),
+          label: const Text('New audience'),
+        ),
       ),
       body: SafeArea(
         child: ListView(
@@ -53,12 +58,15 @@ class _AudienceListScreenState extends State<AudienceListScreen> {
                   Padding(
                     key: ValueKey(audience.id),
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.groups_outlined),
-                        title: Text(audience.label),
-                        trailing: const Icon(Icons.drag_handle),
-                        onTap: () => _openEditor(context, audience),
+                    child: Semantics(
+                      identifier: 'audience_list_item_${audience.id}',
+                      child: Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.groups_outlined),
+                          title: Text(audience.label),
+                          trailing: const Icon(Icons.drag_handle),
+                          onTap: () => _openEditor(context, audience),
+                        ),
                       ),
                     ),
                   ),
@@ -113,12 +121,15 @@ class _HiddenAudiencesSection extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.groups_outlined),
                 title: Text(audience.label),
-                trailing: TextButton(
-                  onPressed: () async {
-                    await context.read<ConfigStore>().resetAudienceToDefault(audience.id);
-                    onRestored();
-                  },
-                  child: const Text('Restore'),
+                trailing: Semantics(
+                  identifier: 'audience_list_restore_${audience.id}',
+                  child: TextButton(
+                    onPressed: () async {
+                      await context.read<ConfigStore>().resetAudienceToDefault(audience.id);
+                      onRestored();
+                    },
+                    child: const Text('Restore'),
+                  ),
                 ),
               ),
           ],

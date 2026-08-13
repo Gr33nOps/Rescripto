@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_messenger.dart';
 import '../../core/app_routes.dart';
 import '../../models/backup_bundle.dart';
 import '../../services/backup/backup_exception.dart';
@@ -65,12 +66,15 @@ class _BackupScreenState extends State<BackupScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.cloud_sync_outlined),
-                title: const Text('WebDAV sync'),
-                subtitle: const Text('Keep this device and a self-hosted server in sync'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).pushNamed(AppRoutes.sync),
+              child: Semantics(
+                identifier: 'backup_sync_tile',
+                child: ListTile(
+                  leading: const Icon(Icons.cloud_sync_outlined),
+                  title: const Text('WebDAV sync'),
+                  subtitle: const Text('Keep this device and a self-hosted server in sync'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.sync),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -85,40 +89,52 @@ class _BackupScreenState extends State<BackupScreen> {
               ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _passphraseController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Passphrase',
-                helperText: 'You will need this again to restore the backup.',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'backup_passphrase_input',
+              child: TextField(
+                controller: _passphraseController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Passphrase',
+                  helperText: 'You will need this again to restore the backup.',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _confirmController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirm passphrase',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'backup_confirm_passphrase_input',
+              child: TextField(
+                controller: _confirmController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm passphrase',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 8),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _includeHistory,
-              onChanged: (v) => setState(() => _includeHistory = v ?? false),
-              title: const Text('Include rewrite history'),
-              subtitle: const Text('Off by default — the most sensitive section.'),
+            Semantics(
+              identifier: 'backup_include_history',
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _includeHistory,
+                onChanged: (v) => setState(() => _includeHistory = v ?? false),
+                title: const Text('Include rewrite history'),
+                subtitle: const Text('Off by default — the most sensitive section.'),
+              ),
             ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _includeCredentials,
-              onChanged: (v) => setState(() => _includeCredentials = v ?? false),
-              title: const Text('Include cloud provider keys'),
-              subtitle: const Text(
-                'Stores your API keys in the file, protected only by the '
-                'passphrase above. Leave off unless you specifically need it.',
+            Semantics(
+              identifier: 'backup_include_credentials',
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _includeCredentials,
+                onChanged: (v) => setState(() => _includeCredentials = v ?? false),
+                title: const Text('Include cloud provider keys'),
+                subtitle: const Text(
+                  'Stores your API keys in the file, protected only by the '
+                  'passphrase above. Leave off unless you specifically need it.',
+                ),
               ),
             ),
             if (_includeCredentials) ...[
@@ -145,16 +161,19 @@ class _BackupScreenState extends State<BackupScreen> {
               ),
             ],
             const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: _exporting ? null : () => _export(context),
-              icon: _exporting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.upload_outlined),
-              label: Text(_exporting ? 'Exporting…' : 'Export backup'),
+            Semantics(
+              identifier: 'backup_button',
+              child: FilledButton.icon(
+                onPressed: _exporting ? null : () => _export(context),
+                icon: _exporting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_outlined),
+                label: Text(_exporting ? 'Exporting…' : 'Export backup'),
+              ),
             ),
             const SizedBox(height: 32),
             const Divider(),
@@ -173,32 +192,41 @@ class _BackupScreenState extends State<BackupScreen> {
               ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _pickFile,
-              icon: const Icon(Icons.folder_open_outlined),
-              label: Text(_pickedFileName ?? 'Choose backup file'),
+            Semantics(
+              identifier: 'backup_choose_file',
+              child: OutlinedButton.icon(
+                onPressed: _pickFile,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: Text(_pickedFileName ?? 'Choose backup file'),
+              ),
             ),
             if (_pickedBytes != null) ...[
               const SizedBox(height: 12),
-              TextField(
-                controller: _importPassphraseController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Passphrase',
-                  border: OutlineInputBorder(),
+              Semantics(
+                identifier: 'backup_import_passphrase_input',
+                child: TextField(
+                  controller: _importPassphraseController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Passphrase',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _previewing ? null : () => _previewImport(context),
-                icon: _previewing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.search_outlined),
-                label: Text(_previewing ? 'Decrypting…' : 'Preview'),
+              Semantics(
+                identifier: 'backup_preview_button',
+                child: OutlinedButton.icon(
+                  onPressed: _previewing ? null : () => _previewImport(context),
+                  icon: _previewing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.search_outlined),
+                  label: Text(_previewing ? 'Decrypting…' : 'Preview'),
+                ),
               ),
             ],
             if (_preview != null) ...[
@@ -222,16 +250,19 @@ class _BackupScreenState extends State<BackupScreen> {
                 onHistoryStrategyChanged: (v) => setState(() => _historyStrategy = v),
               ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: _restoring ? null : () => _confirmRestore(context),
-                icon: _restoring
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.download_outlined),
-                label: Text(_restoring ? 'Restoring…' : 'Restore'),
+              Semantics(
+                identifier: 'backup_restore_button',
+                child: FilledButton.icon(
+                  onPressed: _restoring ? null : () => _confirmRestore(context),
+                  icon: _restoring
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_outlined),
+                  label: Text(_restoring ? 'Restoring…' : 'Restore'),
+                ),
               ),
             ],
           ],
@@ -243,15 +274,11 @@ class _BackupScreenState extends State<BackupScreen> {
   Future<void> _export(BuildContext context) async {
     final passphrase = _passphraseController.text;
     if (passphrase.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Use a passphrase of at least 8 characters.')),
-      );
+      showAppSnackBar('Use a passphrase of at least 8 characters.');
       return;
     }
     if (passphrase != _confirmController.text) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Passphrases don\'t match.')));
+      showAppSnackBar('Passphrases don\'t match.');
       return;
     }
 
@@ -310,21 +337,13 @@ class _BackupScreenState extends State<BackupScreen> {
       });
     } on BackupWrongPassphraseException {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wrong passphrase, or the file is corrupted.')),
-      );
+      showAppSnackBar('Wrong passphrase, or the file is corrupted.');
     } on BackupNewerFormatException {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This backup was made by a newer version of Rescripto. Update the app first.'),
-        ),
-      );
+      showAppSnackBar('This backup was made by a newer version of Rescripto. Update the app first.');
     } on BackupException {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('This file isn\'t a valid backup.')));
+      showAppSnackBar('This file isn\'t a valid backup.');
     } finally {
       if (mounted) setState(() => _previewing = false);
     }
@@ -350,9 +369,12 @@ class _BackupScreenState extends State<BackupScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Restore'),
+          Semantics(
+            identifier: 'backup_restore_confirm',
+            child: FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Restore'),
+            ),
           ),
         ],
       ),
@@ -376,9 +398,7 @@ class _BackupScreenState extends State<BackupScreen> {
       );
       if (!context.mounted) return;
       context.read<SettingsController>().refreshFromService();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Backup restored.')));
+      showAppSnackBar('Backup restored.');
       setState(() {
         _pickedBytes = null;
         _pickedFileName = null;
@@ -388,11 +408,7 @@ class _BackupScreenState extends State<BackupScreen> {
       });
     } on BackupOlderSchemaException {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This backup was made by a newer version of Rescripto. Update the app first.'),
-        ),
-      );
+      showAppSnackBar('This backup was made by a newer version of Rescripto. Update the app first.');
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -472,73 +488,100 @@ class _RestorePreviewCard extends StatelessWidget {
             ],
             const SizedBox(height: 12),
             if (preview.hasSettings)
-              CheckboxListTile(
+              Semantics(
+                identifier: 'backup_restore_settings',
+                child: CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: restoreSettings,
+                  onChanged: (v) => onRestoreSettingsChanged(v ?? false),
+                  title: const Text('Settings'),
+                ),
+              ),
+            Semantics(
+              identifier: 'backup_restore_tones',
+              child: CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                value: restoreSettings,
-                onChanged: (v) => onRestoreSettingsChanged(v ?? false),
-                title: const Text('Settings'),
+                value: restoreTones,
+                onChanged: (v) => onRestoreTonesChanged(v ?? false),
+                title: Text('Tones (${preview.toneCount})'),
               ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              value: restoreTones,
-              onChanged: (v) => onRestoreTonesChanged(v ?? false),
-              title: Text('Tones (${preview.toneCount})'),
             ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              value: restoreAudiences,
-              onChanged: (v) => onRestoreAudiencesChanged(v ?? false),
-              title: Text('Audiences (${preview.audienceCount})'),
+            Semantics(
+              identifier: 'backup_restore_audiences',
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: restoreAudiences,
+                onChanged: (v) => onRestoreAudiencesChanged(v ?? false),
+                title: Text('Audiences (${preview.audienceCount})'),
+              ),
             ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              value: restoreWorkflows,
-              onChanged: (v) => onRestoreWorkflowsChanged(v ?? false),
-              title: Text('Workflows (${preview.workflowCount})'),
+            Semantics(
+              identifier: 'backup_restore_workflows',
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: restoreWorkflows,
+                onChanged: (v) => onRestoreWorkflowsChanged(v ?? false),
+                title: Text('Workflows (${preview.workflowCount})'),
+              ),
             ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              value: restoreProviderConfigs,
-              onChanged: (v) => onRestoreProviderConfigsChanged(v ?? false),
-              title: Text('Cloud provider setup (${preview.providerConfigCount})'),
+            Semantics(
+              identifier: 'backup_restore_provider_configs',
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: restoreProviderConfigs,
+                onChanged: (v) => onRestoreProviderConfigsChanged(v ?? false),
+                title: Text('Cloud provider setup (${preview.providerConfigCount})'),
+              ),
             ),
             if (preview.containsSecrets)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                value: restoreCredentials,
-                onChanged: (v) => onRestoreCredentialsChanged(v ?? false),
-                title: Text('Cloud provider keys (${preview.credentialCount})'),
+              Semantics(
+                identifier: 'backup_restore_credentials',
+                child: CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: restoreCredentials,
+                  onChanged: (v) => onRestoreCredentialsChanged(v ?? false),
+                  title: Text('Cloud provider keys (${preview.credentialCount})'),
+                ),
               ),
             const SizedBox(height: 8),
             Text('Rewrite history (${preview.historyCount})', style: Theme.of(context).textTheme.bodyMedium),
             RadioGroup<HistoryRestoreStrategy>(
               groupValue: historyStrategy,
               onChanged: (v) => onHistoryStrategyChanged(v ?? HistoryRestoreStrategy.skip),
-              child: const Column(
+              child: Column(
                 children: [
-                  RadioListTile<HistoryRestoreStrategy>(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: HistoryRestoreStrategy.skip,
-                    title: Text('Skip'),
+                  Semantics(
+                    identifier: 'backup_history_skip',
+                    child: const RadioListTile<HistoryRestoreStrategy>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: HistoryRestoreStrategy.skip,
+                      title: Text('Skip'),
+                    ),
                   ),
-                  RadioListTile<HistoryRestoreStrategy>(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: HistoryRestoreStrategy.append,
-                    title: Text('Add to current history'),
+                  Semantics(
+                    identifier: 'backup_history_append',
+                    child: const RadioListTile<HistoryRestoreStrategy>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: HistoryRestoreStrategy.append,
+                      title: Text('Add to current history'),
+                    ),
                   ),
-                  RadioListTile<HistoryRestoreStrategy>(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: HistoryRestoreStrategy.replace,
-                    title: Text('Replace current history'),
+                  Semantics(
+                    identifier: 'backup_history_replace',
+                    child: const RadioListTile<HistoryRestoreStrategy>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: HistoryRestoreStrategy.replace,
+                      title: Text('Replace current history'),
+                    ),
                   ),
                 ],
               ),
@@ -581,35 +624,47 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: settingsController.scheduledBackupsEnabled,
-          onChanged: _busy ? null : (v) => _toggle(context, v),
-          title: const Text('Automatic local backups'),
-          subtitle: Text(
-            lastBackup == null ? 'No backup yet' : 'Last backup: ${lastBackup.toLocal()}',
+        Semantics(
+          identifier: 'backup_scheduled_switch',
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: settingsController.scheduledBackupsEnabled,
+            onChanged: _busy ? null : (v) => _toggle(context, v),
+            title: const Text('Automatic local backups'),
+            subtitle: Text(
+              lastBackup == null ? 'No backup yet' : 'Last backup: ${lastBackup.toLocal()}',
+            ),
           ),
         ),
         if (settingsController.scheduledBackupsEnabled) ...[
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            value: settingsController.scheduledBackupIncludeHistory,
-            onChanged: (v) => settingsController.setScheduledBackupIncludeHistory(v ?? false),
-            title: const Text('Include rewrite history'),
+          Semantics(
+            identifier: 'backup_scheduled_include_history',
+            child: CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: settingsController.scheduledBackupIncludeHistory,
+              onChanged: (v) => settingsController.setScheduledBackupIncludeHistory(v ?? false),
+              title: const Text('Include rewrite history'),
+            ),
           ),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            value: settingsController.scheduledBackupIncludeCredentials,
-            onChanged: (v) => settingsController.setScheduledBackupIncludeCredentials(v ?? false),
-            title: const Text('Include cloud provider keys'),
+          Semantics(
+            identifier: 'backup_scheduled_include_credentials',
+            child: CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: settingsController.scheduledBackupIncludeCredentials,
+              onChanged: (v) => settingsController.setScheduledBackupIncludeCredentials(v ?? false),
+              title: const Text('Include cloud provider keys'),
+            ),
           ),
           const SizedBox(height: 4),
-          OutlinedButton.icon(
-            onPressed: _busy ? null : () => _changePassphrase(context),
-            icon: const Icon(Icons.password_outlined),
-            label: const Text('Change backup passphrase'),
+          Semantics(
+            identifier: 'backup_change_passphrase',
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : () => _changePassphrase(context),
+              icon: const Icon(Icons.password_outlined),
+              label: const Text('Change backup passphrase'),
+            ),
           ),
         ],
       ],
@@ -643,9 +698,7 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
     try {
       await context.read<BackupScheduler>().setPassphrase(passphrase);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Backup passphrase updated.')));
+      showAppSnackBar('Backup passphrase updated.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -690,16 +743,22 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _passphraseController,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Passphrase'),
+          Semantics(
+            identifier: 'backup_passphrase_dialog_input',
+            child: TextField(
+              controller: _passphraseController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Passphrase'),
+            ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _confirmController,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Confirm passphrase'),
+          Semantics(
+            identifier: 'backup_passphrase_dialog_confirm',
+            child: TextField(
+              controller: _confirmController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirm passphrase'),
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
@@ -712,20 +771,23 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: () {
-            final passphrase = _passphraseController.text;
-            if (passphrase.length < 8) {
-              setState(() => _error = 'Use at least 8 characters.');
-              return;
-            }
-            if (passphrase != _confirmController.text) {
-              setState(() => _error = 'Passphrases don\'t match.');
-              return;
-            }
-            Navigator.pop(context, passphrase);
-          },
-          child: const Text('Save'),
+        Semantics(
+          identifier: 'backup_passphrase_dialog_save',
+          child: FilledButton(
+            onPressed: () {
+              final passphrase = _passphraseController.text;
+              if (passphrase.length < 8) {
+                setState(() => _error = 'Use at least 8 characters.');
+                return;
+              }
+              if (passphrase != _confirmController.text) {
+                setState(() => _error = 'Passphrases don\'t match.');
+                return;
+              }
+              Navigator.pop(context, passphrase);
+            },
+            child: const Text('Save'),
+          ),
         ),
       ],
     );

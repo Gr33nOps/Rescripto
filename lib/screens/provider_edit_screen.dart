@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_messenger.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
 import '../models/provider_config.dart';
@@ -85,10 +86,13 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         title: Text(isNew ? 'Add ${_preset.displayName}' : 'Edit ${_existing.displayName}'),
         actions: [
           if (!isNew)
-            IconButton(
-              tooltip: 'Delete provider',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: _confirmDelete,
+            Semantics(
+              identifier: 'provider_edit_delete',
+              child: IconButton(
+                tooltip: 'Delete provider',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: _confirmDelete,
+              ),
             ),
         ],
       ),
@@ -96,41 +100,53 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Display name',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'provider_edit_name',
+              child: TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Display name',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             if (_preset.editableBaseUrl)
-              TextField(
-                controller: _baseUrlController,
-                decoration: const InputDecoration(
-                  labelText: 'Base URL',
-                  hintText: 'http://localhost:11434/v1',
-                  border: OutlineInputBorder(),
+              Semantics(
+                identifier: 'provider_edit_base_url',
+                child: TextField(
+                  controller: _baseUrlController,
+                  decoration: const InputDecoration(
+                    labelText: 'Base URL',
+                    hintText: 'http://localhost:11434/v1',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.url,
                 ),
-                keyboardType: TextInputType.url,
               )
             else
               _ReadOnlyField(label: 'Base URL', value: _preset.baseUrl),
             const SizedBox(height: 16),
-            TextField(
-              controller: _keyController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: _preset.requiresKey ? 'API key' : 'API key (optional)',
-                hintText: _hasStoredKey ? '•••• configured · type to replace' : 'Paste your API key',
-                border: const OutlineInputBorder(),
-                suffixIcon: _hasStoredKey
-                    ? IconButton(
-                        tooltip: 'Remove saved key',
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: _removeKey,
-                      )
-                    : null,
+            Semantics(
+              identifier: 'provider_edit_api_key',
+              child: TextField(
+                controller: _keyController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: _preset.requiresKey ? 'API key' : 'API key (optional)',
+                  hintText: _hasStoredKey ? '•••• configured · type to replace' : 'Paste your API key',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: _hasStoredKey
+                      ? Semantics(
+                          identifier: 'provider_edit_remove_key',
+                          child: IconButton(
+                            tooltip: 'Remove saved key',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: _removeKey,
+                          ),
+                        )
+                      : null,
+                ),
               ),
             ),
             if (_preset.docsUrl != null) ...[
@@ -141,29 +157,35 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(isNew ? 'Add provider' : 'Save'),
-            ),
-            const SizedBox(height: 12),
-            if (!isNew) ...[
-              OutlinedButton.icon(
-                onPressed: _testing ? null : _testConnection,
-                icon: _testing
+            Semantics(
+              identifier: 'provider_edit_save',
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.wifi_tethering_outlined),
-                label: const Text('Test connection'),
+                    : const Icon(Icons.save_outlined),
+                label: Text(isNew ? 'Add provider' : 'Save'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (!isNew) ...[
+              Semantics(
+                identifier: 'provider_edit_test_connection',
+                child: OutlinedButton.icon(
+                  onPressed: _testing ? null : _testConnection,
+                  icon: _testing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.wifi_tethering_outlined),
+                  label: const Text('Test connection'),
+                ),
               ),
               if (_testResult != null) ...[
                 const SizedBox(height: 8),
@@ -219,20 +241,23 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       );
       config.baseUrl; // validates scheme/shape early, throws ArgumentError
 
-      await registry.save(config);
-
+      // Write the credential before saving the config: registry.save()
+      // notifies listeners, which can rebuild the still-mounted provider
+      // list underneath this screen and re-query CredentialStore.has()
+      // immediately. Saving the config first raced that rebuild against
+      // the Keystore write and could show a stale "No key" tile.
       final typedKey = _keyController.text.trim();
       if (typedKey.isNotEmpty) {
         await credentialStore.write(credential, typedKey);
       }
 
+      await registry.save(config);
+
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t save: $e')));
+      showAppSnackBar('Couldn’t save: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -288,9 +313,12 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+          Semantics(
+            identifier: 'provider_edit_delete_confirm',
+            child: FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Delete'),
+            ),
           ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_messenger.dart';
 import '../../core/icon_catalog.dart';
 import '../../engine/generation_options.dart';
 import '../../models/tone_preset.dart';
@@ -68,10 +69,13 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
         title: Text(isNew ? 'New tone' : 'Edit tone'),
         actions: [
           if (!isNew)
-            IconButton(
-              tooltip: existing.isBuiltin ? 'Remove' : 'Delete',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _confirmDelete(context, existing),
+            Semantics(
+              identifier: 'tone_editor_delete',
+              child: IconButton(
+                tooltip: existing.isBuiltin ? 'Remove' : 'Delete',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _confirmDelete(context, existing),
+              ),
             ),
         ],
       ),
@@ -105,32 +109,41 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'tone_editor_name',
+              child: TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Short description',
-                hintText: 'Shown under the name in the tone list',
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'tone_editor_description',
+              child: TextField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Short description',
+                  hintText: 'Shown under the name in the tone list',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _instructionController,
-              minLines: 3,
-              maxLines: 6,
-              decoration: const InputDecoration(
-                labelText: 'Instruction',
-                hintText: 'How should the model rewrite text in this tone?',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+            Semantics(
+              identifier: 'tone_editor_instruction',
+              child: TextField(
+                controller: _instructionController,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Instruction',
+                  hintText: 'How should the model rewrite text in this tone?',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -138,13 +151,16 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Slider(
-                    value: _temperature,
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    label: _temperature.toStringAsFixed(2),
-                    onChanged: (v) => setState(() => _temperature = v),
+                  child: Semantics(
+                    identifier: 'tone_editor_temperature',
+                    child: Slider(
+                      value: _temperature,
+                      min: 0,
+                      max: 1,
+                      divisions: 20,
+                      label: _temperature.toStringAsFixed(2),
+                      onChanged: (v) => setState(() => _temperature = v),
+                    ),
                   ),
                 ),
                 SizedBox(
@@ -171,43 +187,55 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 12),
-              _GenerationSlider(
-                label: 'Top-P',
-                value: _topP,
-                min: 0,
-                max: 1,
-                divisions: 20,
-                display: _topP.toStringAsFixed(2),
-                onChanged: (v) => setState(() => _topP = v),
+              Semantics(
+                identifier: 'tone_editor_top_p',
+                child: _GenerationSlider(
+                  label: 'Top-P',
+                  value: _topP,
+                  min: 0,
+                  max: 1,
+                  divisions: 20,
+                  display: _topP.toStringAsFixed(2),
+                  onChanged: (v) => setState(() => _topP = v),
+                ),
               ),
-              _GenerationSlider(
-                label: 'Top-K',
-                value: _topK.toDouble(),
-                min: 1,
-                max: 100,
-                divisions: 99,
-                display: '$_topK',
-                enabled: fieldSupport.topK,
-                onChanged: (v) => setState(() => _topK = v.round()),
+              Semantics(
+                identifier: 'tone_editor_top_k',
+                child: _GenerationSlider(
+                  label: 'Top-K',
+                  value: _topK.toDouble(),
+                  min: 1,
+                  max: 100,
+                  divisions: 99,
+                  display: '$_topK',
+                  enabled: fieldSupport.topK,
+                  onChanged: (v) => setState(() => _topK = v.round()),
+                ),
               ),
-              _GenerationSlider(
-                label: 'Repeat penalty',
-                value: _repeatPenalty,
-                min: 1,
-                max: 2,
-                divisions: 20,
-                display: _repeatPenalty.toStringAsFixed(2),
-                enabled: fieldSupport.repeatPenalty,
-                onChanged: (v) => setState(() => _repeatPenalty = v),
+              Semantics(
+                identifier: 'tone_editor_repeat_penalty',
+                child: _GenerationSlider(
+                  label: 'Repeat penalty',
+                  value: _repeatPenalty,
+                  min: 1,
+                  max: 2,
+                  divisions: 20,
+                  display: _repeatPenalty.toStringAsFixed(2),
+                  enabled: fieldSupport.repeatPenalty,
+                  onChanged: (v) => setState(() => _repeatPenalty = v),
+                ),
               ),
-              _GenerationSlider(
-                label: 'Max output tokens',
-                value: _maxOutputTokens.toDouble(),
-                min: 128,
-                max: 4096,
-                divisions: 31,
-                display: '$_maxOutputTokens',
-                onChanged: (v) => setState(() => _maxOutputTokens = v.round()),
+              Semantics(
+                identifier: 'tone_editor_max_tokens',
+                child: _GenerationSlider(
+                  label: 'Max output tokens',
+                  value: _maxOutputTokens.toDouble(),
+                  min: 128,
+                  max: 4096,
+                  divisions: 31,
+                  display: '$_maxOutputTokens',
+                  onChanged: (v) => setState(() => _maxOutputTokens = v.round()),
+                ),
               ),
               const SizedBox(height: 12),
               Text('Stop sequences', style: Theme.of(context).textTheme.bodyMedium),
@@ -217,9 +245,12 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                 runSpacing: 8,
                 children: [
                   for (final sequence in _stopSequences)
-                    InputChip(
-                      label: Text(sequence),
-                      onDeleted: () => setState(() => _stopSequences.remove(sequence)),
+                    Semantics(
+                      identifier: 'tone_editor_stop_sequence_$sequence',
+                      child: InputChip(
+                        label: Text(sequence),
+                        onDeleted: () => setState(() => _stopSequences.remove(sequence)),
+                      ),
                     ),
                 ],
               ),
@@ -227,20 +258,26 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _stopSequenceController,
-                      decoration: const InputDecoration(
-                        hintText: 'Add a stop sequence',
-                        border: OutlineInputBorder(),
-                        isDense: true,
+                    child: Semantics(
+                      identifier: 'tone_editor_stop_sequence_input',
+                      child: TextField(
+                        controller: _stopSequenceController,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a stop sequence',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _addStopSequence(),
                       ),
-                      onSubmitted: (_) => _addStopSequence(),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton.filledTonal(
-                    onPressed: _addStopSequence,
-                    icon: const Icon(Icons.add),
+                  Semantics(
+                    identifier: 'tone_editor_add_stop_sequence',
+                    child: IconButton.filledTonal(
+                      onPressed: _addStopSequence,
+                      icon: const Icon(Icons.add),
+                    ),
                   ),
                 ],
               ),
@@ -261,23 +298,29 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
               onSelected: (token) => setState(() => _iconToken = token),
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _saving ? null : () => _save(context),
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(isNew ? 'Create tone' : 'Save'),
+            Semantics(
+              identifier: 'tone_editor_save',
+              child: FilledButton.icon(
+                onPressed: _saving ? null : () => _save(context),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(isNew ? 'Create tone' : 'Save'),
+              ),
             ),
             if (!isNew && existing.isBuiltin) ...[
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _resetToDefault(context, existing.id),
-                icon: const Icon(Icons.restore_outlined),
-                label: const Text('Reset to default'),
+              Semantics(
+                identifier: 'tone_editor_reset',
+                child: OutlinedButton.icon(
+                  onPressed: () => _resetToDefault(context, existing.id),
+                  icon: const Icon(Icons.restore_outlined),
+                  label: const Text('Reset to default'),
+                ),
               ),
             ],
           ],
@@ -289,16 +332,12 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
   Future<void> _save(BuildContext context) async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Give this tone a name first.')));
+      showAppSnackBar('Give this tone a name first.');
       return;
     }
     final instruction = _instructionController.text.trim();
     if (instruction.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An instruction is required — it\'s what the model reads.')),
-      );
+      showAppSnackBar('An instruction is required — it\'s what the model reads.');
       return;
     }
 
@@ -348,9 +387,12 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(existing.isBuiltin ? 'Remove' : 'Delete'),
+          Semantics(
+            identifier: 'tone_editor_delete_confirm',
+            child: FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(existing.isBuiltin ? 'Remove' : 'Delete'),
+            ),
           ),
         ],
       ),
@@ -447,15 +489,18 @@ class _IconPicker extends StatelessWidget {
       runSpacing: 8,
       children: [
         for (final token in IconCatalog.tokens)
-          InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () => onSelected(token),
-            child: CircleAvatar(
-              radius: 22,
-              backgroundColor: token == selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
-              child: Icon(
-                IconCatalog.resolve(token),
-                color: token == selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+          Semantics(
+            identifier: 'tone_editor_icon_$token',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () => onSelected(token),
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: token == selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                child: Icon(
+                  IconCatalog.resolve(token),
+                  color: token == selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),

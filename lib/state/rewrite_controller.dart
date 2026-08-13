@@ -11,10 +11,13 @@ import '../engine/engine_target.dart';
 import '../engine/generation_handle.dart';
 import '../engine/generation_options.dart';
 import '../models/history_entry.dart';
+import '../models/network_log_entry.dart';
 import '../models/rewrite_output.dart';
 import '../models/rewrite_request.dart';
 import '../models/rewrite_result.dart';
 import '../services/config_store.dart';
+import '../services/network/network_feature.dart';
+import '../services/network/network_log.dart';
 import '../services/prompt_builder.dart';
 import '../services/refusal_detector.dart';
 import '../services/routing/target_router.dart';
@@ -36,6 +39,7 @@ class RewriteController extends ChangeNotifier {
     required this._configStore,
     required this._router,
     required this._activeRequests,
+    required this._networkLog,
   });
 
   final EngineRegistry _registry;
@@ -43,6 +47,7 @@ class RewriteController extends ChangeNotifier {
   final ConfigStore _configStore;
   final TargetRouter _router;
   final ActiveRequestRegistry _activeRequests;
+  final NetworkLog _networkLog;
 
   // Editor state.
   String _sourceText = '';
@@ -232,6 +237,28 @@ class RewriteController extends ChangeNotifier {
     final decision = routing;
     final target = decision.target;
     if (target == null) {
+      if (decision.blocker == RoutingBlocker.cloudDisabledByPolicy) {
+        // The only blocker that's actually a network-policy refusal rather
+        // than a configuration gap (no model installed / no provider set
+        // up) — log it the same way NetworkGuard logs every other refused
+        // request, since this one never reaches NetworkGuard at all:
+        // TargetRouter turns it away before RewriteController ever calls
+        // into CloudRewriteEngine. Without this, the Network log's own
+        // "every request this app has made or blocked" claim was false for
+        // exactly this case.
+        final provider = _router.effectiveCloudProvider;
+        if (provider != null) {
+          await _networkLog.record(
+            feature: NetworkFeature.cloudRewrite,
+            method: 'POST',
+            host: provider.baseUrl.host,
+            path: provider.baseUrl.path,
+            outcome: _router.networkPolicy.killSwitch
+                ? NetworkOutcome.blockedByKillSwitch
+                : NetworkOutcome.blockedByPolicy,
+          );
+        }
+      }
       final error = EngineNotAvailableException(decision.reason);
       _lastError = describeEngineError(error);
       notifyListeners();

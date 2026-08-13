@@ -25,7 +25,9 @@ class _ToneListScreenState extends State<ToneListScreen> {
   }
 
   void _refreshHidden() {
-    setState(() => _hidden = context.read<ConfigStore>().hiddenTones());
+    setState(() {
+      _hidden = context.read<ConfigStore>().hiddenTones();
+    });
   }
 
   @override
@@ -35,10 +37,13 @@ class _ToneListScreenState extends State<ToneListScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tones')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(context, null),
-        icon: const Icon(Icons.add),
-        label: const Text('New tone'),
+      floatingActionButton: Semantics(
+        identifier: 'tone_list_add',
+        child: FloatingActionButton.extended(
+          onPressed: () => _openEditor(context, null),
+          icon: const Icon(Icons.add),
+          label: const Text('New tone'),
+        ),
       ),
       body: SafeArea(
         child: ListView(
@@ -53,17 +58,20 @@ class _ToneListScreenState extends State<ToneListScreen> {
                   Padding(
                     key: ValueKey(tone.id),
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Card(
-                      child: ListTile(
-                        leading: Icon(IconCatalog.resolve(tone.iconToken)),
-                        title: Text(tone.name),
-                        subtitle: Text(
-                          tone.description.isEmpty ? tone.instruction : tone.description,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    child: Semantics(
+                      identifier: 'tone_list_item_${tone.id}',
+                      child: Card(
+                        child: ListTile(
+                          leading: Icon(IconCatalog.resolve(tone.iconToken)),
+                          title: Text(tone.name),
+                          subtitle: Text(
+                            tone.description.isEmpty ? tone.instruction : tone.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.drag_handle),
+                          onTap: () => _openEditor(context, tone),
                         ),
-                        trailing: const Icon(Icons.drag_handle),
-                        onTap: () => _openEditor(context, tone),
                       ),
                     ),
                   ),
@@ -120,12 +128,15 @@ class _HiddenTonesSection extends StatelessWidget {
               ListTile(
                 leading: Icon(IconCatalog.resolve(tone.iconToken)),
                 title: Text(tone.name),
-                trailing: TextButton(
-                  onPressed: () async {
-                    await context.read<ConfigStore>().resetToneToDefault(tone.id);
-                    onRestored();
-                  },
-                  child: const Text('Restore'),
+                trailing: Semantics(
+                  identifier: 'tone_list_restore_${tone.id}',
+                  child: TextButton(
+                    onPressed: () async {
+                      await context.read<ConfigStore>().resetToneToDefault(tone.id);
+                      onRestored();
+                    },
+                    child: const Text('Restore'),
+                  ),
                 ),
               ),
           ],

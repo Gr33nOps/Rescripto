@@ -18,6 +18,7 @@ import 'package:rescripto/services/credentials/credential_ref.dart';
 import 'package:rescripto/services/credentials/credential_store.dart';
 import 'package:rescripto/services/db/app_database.dart';
 import 'package:rescripto/services/network/network_feature.dart';
+import 'package:rescripto/services/network/network_log.dart';
 import 'package:rescripto/services/network/network_policy.dart';
 import 'package:rescripto/services/providers/provider_registry.dart';
 import 'package:rescripto/services/providers/provider_store.dart';
@@ -90,6 +91,7 @@ void main() {
         isLocalModelInstalled: () => localInstalled,
       ),
       activeRequests: activeRequests,
+      networkLog: NetworkLog(database),
     );
     controller.setSource('please rewrite this');
   });
@@ -183,6 +185,7 @@ void main() {
           isLocalModelInstalled: () => true,
         ),
         activeRequests: ActiveRequestRegistry(),
+        networkLog: NetworkLog(database),
       );
       orphanController.setSource('text');
 
@@ -205,6 +208,7 @@ void main() {
           isLocalModelInstalled: () => true,
         ),
         activeRequests: ActiveRequestRegistry(),
+        networkLog: NetworkLog(database),
       );
       expect(
         orphanController.capabilities,

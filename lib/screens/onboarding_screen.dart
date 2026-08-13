@@ -85,33 +85,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               },
               child: Column(
                 children: [
-                  _ModeCard(
-                    value: _Choice.local,
-                    icon: Icons.lock_outline,
-                    title: 'Private & Offline',
-                    description:
-                        'Everything happens on this device. No accounts, no '
-                        'cloud — nothing you write ever leaves your phone.',
-                    recommended: true,
+                  Semantics(
+                    identifier: 'onboarding_mode_local',
+                    child: _ModeCard(
+                      value: _Choice.local,
+                      icon: Icons.lock_outline,
+                      title: 'Private & Offline',
+                      description:
+                          'Everything happens on this device. No accounts, no '
+                          'cloud — nothing you write ever leaves your phone.',
+                      recommended: true,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _ModeCard(
-                    value: _Choice.cloud,
-                    icon: Icons.cloud_outlined,
-                    title: 'Easy Cloud',
-                    description:
-                        'Rewrite using a cloud AI provider you set up with '
-                        'your own API key — no model download, often faster.',
+                  Semantics(
+                    identifier: 'onboarding_mode_cloud',
+                    child: _ModeCard(
+                      value: _Choice.cloud,
+                      icon: Icons.cloud_outlined,
+                      title: 'Easy Cloud',
+                      description:
+                          'Rewrite using a cloud AI provider you set up with '
+                          'your own API key — no model download, often faster.',
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _ModeCard(
-                    value: _Choice.hybrid,
-                    icon: Icons.swap_horiz_outlined,
-                    title: 'Hybrid',
-                    description:
-                        'Prefer this device; for very long text, or if '
-                        'on-device rewriting fails, Rescripto asks before '
-                        'sending anything to the cloud.',
+                  Semantics(
+                    identifier: 'onboarding_mode_hybrid',
+                    child: _ModeCard(
+                      value: _Choice.hybrid,
+                      icon: Icons.swap_horiz_outlined,
+                      title: 'Hybrid',
+                      description:
+                          'Prefer this device; for very long text, or if '
+                          'on-device rewriting fails, Rescripto asks before '
+                          'sending anything to the cloud.',
+                    ),
                   ),
                 ],
               ),
@@ -120,33 +129,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 16),
               Card(
                 color: scheme.tertiaryContainer,
-                child: CheckboxListTile(
-                  value: _cloudConsentGiven,
-                  onChanged: (v) => setState(() => _cloudConsentGiven = v ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: Text(
-                    'Allow cloud rewriting',
-                    style: TextStyle(color: scheme.onTertiaryContainer, fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(
-                    'The text you rewrite will be sent to whichever cloud '
-                    'provider you configure. You can turn this off anytime '
-                    'in Privacy settings.',
-                    style: TextStyle(color: scheme.onTertiaryContainer),
+                child: Semantics(
+                  identifier: 'onboarding_cloud_consent',
+                  child: CheckboxListTile(
+                    value: _cloudConsentGiven,
+                    onChanged: (v) => setState(() => _cloudConsentGiven = v ?? false),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(
+                      'Allow cloud rewriting',
+                      style: TextStyle(color: scheme.onTertiaryContainer, fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      'The text you rewrite will be sent to whichever cloud '
+                      'provider you configure. You can turn this off anytime '
+                      'in Privacy settings.',
+                      style: TextStyle(color: scheme.onTertiaryContainer),
+                    ),
                   ),
                 ),
               ),
             ],
             const SizedBox(height: 24),
-            FilledButton(
-              onPressed: (_canContinue && !_finishing) ? _finish : null,
-              child: _finishing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Get started'),
+            Semantics(
+              identifier: 'onboarding_get_started',
+              child: FilledButton(
+                onPressed: (_canContinue && !_finishing) ? _finish : null,
+                child: _finishing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Get started'),
+              ),
             ),
           ],
         ),
@@ -206,16 +221,17 @@ class _ModeCard extends StatelessWidget {
                         ),
                         if (recommended)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
-                              color: scheme.tertiaryContainer,
+                              color: scheme.primary,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               'Recommended',
                               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: scheme.onTertiaryContainer,
-                                fontWeight: FontWeight.w700,
+                                color: scheme.onPrimary,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
                               ),
                             ),
                           ),

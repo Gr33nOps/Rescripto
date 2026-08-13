@@ -21,10 +21,13 @@ class HistoryScreen extends StatelessWidget {
         title: const Text('History'),
         actions: [
           if (controller.entries.isNotEmpty)
-            IconButton(
-              tooltip: 'Clear all',
-              onPressed: () => _confirmClear(context),
-              icon: const Icon(Icons.delete_sweep_outlined),
+            Semantics(
+              identifier: 'history_clear_all',
+              child: IconButton(
+                tooltip: 'Clear all',
+                onPressed: () => _confirmClear(context),
+                icon: const Icon(Icons.delete_sweep_outlined),
+              ),
             ),
         ],
       ),
@@ -56,9 +59,12 @@ class HistoryScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete all'),
+          Semantics(
+            identifier: 'history_clear_confirm',
+            child: FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete all'),
+            ),
           ),
         ],
       ),
@@ -150,7 +156,9 @@ class _HistoryCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final date = DateFormat('MMM d, HH:mm').format(entry.createdAt);
 
-    return Card(
+    return Semantics(
+      identifier: 'history_item_${entry.id}',
+      child: Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () => Navigator.of(context).push(
@@ -196,35 +204,59 @@ class _HistoryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Delete',
-                    onPressed: () =>
-                        context.read<HistoryController>().delete(entry.id),
-                    icon: const Icon(Icons.delete_outline, size: 20),
+                  Semantics(
+                    identifier: 'history_item_delete_${entry.id}',
+                    child: IconButton(
+                      tooltip: 'Delete',
+                      onPressed: () =>
+                          context.read<HistoryController>().delete(entry.id),
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              _snippet(entry.original, scheme, faded: true),
+              _snippet(context, 'Original', entry.original, scheme, faded: true),
               const SizedBox(height: 6),
-              _snippet(entry.rewritten, scheme),
+              _snippet(context, 'Rewrite', entry.rewritten, scheme),
             ],
           ),
         ),
       ),
+      ),
     );
   }
 
-  Widget _snippet(String text, ColorScheme scheme, {bool faded = false}) {
-    return Text(
-      text,
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        height: 1.4,
-        color: faded ? scheme.onSurfaceVariant : scheme.onSurface,
-        fontSize: 13,
-      ),
+  Widget _snippet(
+    BuildContext context,
+    String label,
+    String text,
+    ColorScheme scheme, {
+    bool faded = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          text,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            height: 1.4,
+            color: faded ? scheme.onSurfaceVariant : scheme.onSurface,
+            fontSize: 13,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -279,9 +311,12 @@ class _HistoryError extends StatelessWidget {
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton.tonal(
-              onPressed: onRetry,
-              child: const Text('Try again'),
+            Semantics(
+              identifier: 'history_retry',
+              child: FilledButton.tonal(
+                onPressed: onRetry,
+                child: const Text('Try again'),
+              ),
             ),
           ],
         ),

@@ -11,7 +11,7 @@ import '../state/speech_controller.dart';
 /// recording. If the platform has no on-device speech support yet, it
 /// explains that clearly.
 class MicButton extends StatefulWidget {
-  const MicButton({super.key, this.size = 84, this.onResult, this.onError});
+  const MicButton({super.key, this.size = 56, this.onResult, this.onError});
 
   final double size;
 
@@ -79,6 +79,7 @@ class _MicButtonState extends State<MicButton>
                   Semantics(
                     button: true,
                     enabled: canTap,
+                    identifier: 'speech_button',
                     label: isRecording
                         ? 'Stop recording and transcribe'
                         : 'Start voice dictation',

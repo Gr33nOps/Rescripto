@@ -32,22 +32,31 @@ class SettingsScreen extends StatelessWidget {
                 groupValue: settings.themeMode,
                 onChanged: (v) =>
                     settings.setThemeMode(v ?? settings.themeMode),
-                child: const Column(
+                child: Column(
                   children: [
-                    RadioTile(
-                      icon: Icons.brightness_auto_outlined,
-                      label: 'Follow system',
-                      value: 'system',
+                    Semantics(
+                      identifier: 'theme_radio_system',
+                      child: const RadioTile(
+                        icon: Icons.brightness_auto_outlined,
+                        label: 'Follow system',
+                        value: 'system',
+                      ),
                     ),
-                    RadioTile(
-                      icon: Icons.light_mode_outlined,
-                      label: 'Light',
-                      value: 'light',
+                    Semantics(
+                      identifier: 'theme_radio_light',
+                      child: const RadioTile(
+                        icon: Icons.light_mode_outlined,
+                        label: 'Light',
+                        value: 'light',
+                      ),
                     ),
-                    RadioTile(
-                      icon: Icons.dark_mode_outlined,
-                      label: 'Dark',
-                      value: 'dark',
+                    Semantics(
+                      identifier: 'theme_radio_dark',
+                      child: const RadioTile(
+                        icon: Icons.dark_mode_outlined,
+                        label: 'Dark',
+                        value: 'dark',
+                      ),
                     ),
                   ],
                 ),
@@ -61,23 +70,32 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: (mode) => settings.setProcessingMode(mode ?? settings.processingMode),
                 child: Column(
                   children: [
-                    _ModeRadioTile(
-                      icon: Icons.lock_outline,
-                      label: 'Local',
-                      subtitle: 'Always on-device. Never sends text anywhere.',
-                      value: ProcessingMode.local,
+                    Semantics(
+                      identifier: 'processing_mode_local',
+                      child: _ModeRadioTile(
+                        icon: Icons.lock_outline,
+                        label: 'Local',
+                        subtitle: 'Always on-device. Never sends text anywhere.',
+                        value: ProcessingMode.local,
+                      ),
                     ),
-                    _ModeRadioTile(
-                      icon: Icons.cloud_outlined,
-                      label: 'Cloud',
-                      subtitle: 'Always uses your configured cloud provider.',
-                      value: ProcessingMode.cloud,
+                    Semantics(
+                      identifier: 'processing_mode_cloud',
+                      child: _ModeRadioTile(
+                        icon: Icons.cloud_outlined,
+                        label: 'Cloud',
+                        subtitle: 'Always uses your configured cloud provider.',
+                        value: ProcessingMode.cloud,
+                      ),
                     ),
-                    _ModeRadioTile(
-                      icon: Icons.swap_horiz_outlined,
-                      label: 'Hybrid',
-                      subtitle: 'Prefers on-device; asks before falling back to cloud.',
-                      value: ProcessingMode.hybrid,
+                    Semantics(
+                      identifier: 'processing_mode_hybrid',
+                      child: _ModeRadioTile(
+                        icon: Icons.swap_horiz_outlined,
+                        label: 'Hybrid',
+                        subtitle: 'Prefers on-device; asks before falling back to cloud.',
+                        value: ProcessingMode.hybrid,
+                      ),
                     ),
                   ],
                 ),
@@ -89,19 +107,25 @@ class SettingsScreen extends StatelessWidget {
               child: RadioGroup<UiMode>(
                 groupValue: settings.uiMode,
                 onChanged: (mode) => _setUiMode(context, mode ?? settings.uiMode),
-                child: const Column(
+                child: Column(
                   children: [
-                    _ModeRadioTile(
-                      icon: Icons.tune_outlined,
-                      label: 'Simple',
-                      subtitle: 'Tone and rewrite only.',
-                      value: UiMode.simple,
+                    Semantics(
+                      identifier: 'ui_mode_radio_simple',
+                      child: _ModeRadioTile(
+                        icon: Icons.tune_outlined,
+                        label: 'Simple',
+                        subtitle: 'Tone and rewrite only.',
+                        value: UiMode.simple,
+                      ),
                     ),
-                    _ModeRadioTile(
-                      icon: Icons.tune,
-                      label: 'Pro',
-                      subtitle: 'Intensity, length, audience, instructions, and variants.',
-                      value: UiMode.pro,
+                    Semantics(
+                      identifier: 'ui_mode_radio_pro',
+                      child: _ModeRadioTile(
+                        icon: Icons.tune,
+                        label: 'Pro',
+                        subtitle: 'Intensity, length, audience, instructions, and variants.',
+                        value: UiMode.pro,
+                      ),
                     ),
                   ],
                 ),
@@ -112,73 +136,53 @@ class SettingsScreen extends StatelessWidget {
             Card(
               child: Column(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.style_outlined),
-                    title: const Text('Tones'),
-                    subtitle: const Text('Edit, reorder, add, or remove tone presets'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.tones),
+                  Semantics(
+                    identifier: 'settings_tones_tile',
+                    child: ListTile(
+                      leading: const Icon(Icons.style_outlined),
+                      title: const Text('Tones'),
+                      subtitle: const Text('Edit, reorder, add, or remove tone presets'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.tones),
+                    ),
                   ),
                   const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.groups_outlined),
-                    title: const Text('Audiences'),
-                    subtitle: const Text('Edit, reorder, add, or remove audience tags'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.audiences),
+                  Semantics(
+                    identifier: 'settings_audiences_tile',
+                    child: ListTile(
+                      leading: const Icon(Icons.groups_outlined),
+                      title: const Text('Audiences'),
+                      subtitle: const Text('Edit, reorder, add, or remove audience tags'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.audiences),
+                    ),
                   ),
                   const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.route_outlined),
-                    title: const Text('Workflows'),
-                    subtitle: const Text('Chain multiple rewrite steps together'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.workflows),
+                  Semantics(
+                    identifier: 'settings_workflows_tile',
+                    child: ListTile(
+                      leading: const Icon(Icons.route_outlined),
+                      title: const Text('Workflows'),
+                      subtitle: const Text('Chain multiple rewrite steps together'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.workflows),
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const SectionTitle('AI engine'),
+            const SectionTitle('Advanced'),
             Card(
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    secondary: const Icon(Icons.speed_outlined),
-                    title: const Text('GPU acceleration'),
-                    subtitle: const Text(
-                      'Experimental. The first rewrite after opening the app '
-                      'takes several extra minutes while your GPU driver '
-                      'builds its shaders, and many phones are faster on CPU. '
-                      'Leave off unless you have measured a gain.',
-                    ),
-                    isThreeLine: true,
-                    value: settings.useGpu,
-                    onChanged: settings.setUseGpu,
-                  ),
-                  const Divider(height: 1),
-                  SliderTile(
-                    icon: Icons.memory_outlined,
-                    label: 'CPU threads',
-                    value: settings.threads.toDouble(),
-                    min: 1,
-                    max: 8,
-                    divisions: 7,
-                    display: '${settings.threads}',
-                    onChanged: (v) => settings.setThreads(v.round()),
-                  ),
-                  const Divider(height: 1),
-                  SliderTile(
-                    icon: Icons.view_agenda_outlined,
-                    label: 'Context size',
-                    value: settings.contextSize.toDouble(),
-                    min: 2048,
-                    max: 8192,
-                    divisions: 3,
-                    display: '${settings.contextSize} tokens',
-                    onChanged: (v) => settings.setContextSize(v.round()),
-                  ),
-                ],
+              child: Semantics(
+                identifier: 'settings_advanced_tile',
+                child: ListTile(
+                  leading: const Icon(Icons.tune_outlined),
+                  title: const Text('AI engine'),
+                  subtitle: const Text('GPU acceleration, CPU threads, context size'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.advanced),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -203,11 +207,14 @@ class SettingsScreen extends StatelessWidget {
                         'large',
                       ),
                     ])
-                      RadioTile(
-                        icon: Icons.record_voice_over_outlined,
-                        label: m.$1,
-                        subtitle: m.$2,
-                        value: m.$3,
+                      Semantics(
+                        identifier: 'whisper_model_radio_${m.$3}',
+                        child: RadioTile(
+                          icon: Icons.record_voice_over_outlined,
+                          label: m.$1,
+                          subtitle: m.$2,
+                          value: m.$3,
+                        ),
                       ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -228,20 +235,26 @@ class SettingsScreen extends StatelessWidget {
             Card(
               child: Column(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.privacy_tip_outlined),
-                    title: const Text('Privacy & network'),
-                    subtitle: const Text('Kill switch, per-feature network access, network log'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.privacy),
+                  Semantics(
+                    identifier: 'settings_privacy_tile',
+                    child: ListTile(
+                      leading: const Icon(Icons.privacy_tip_outlined),
+                      title: const Text('Privacy & network'),
+                      subtitle: const Text('Kill switch, per-feature network access, network log'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.privacy),
+                    ),
                   ),
                   const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.cloud_outlined),
-                    title: const Text('Cloud providers'),
-                    subtitle: const Text('API keys for OpenAI, Anthropic, Gemini, and more'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.providers),
+                  Semantics(
+                    identifier: 'settings_providers_tile',
+                    child: ListTile(
+                      leading: const Icon(Icons.cloud_outlined),
+                      title: const Text('Cloud providers'),
+                      subtitle: const Text('API keys for OpenAI, Anthropic, Gemini, and more'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.providers),
+                    ),
                   ),
                 ],
               ),
@@ -249,12 +262,15 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 20),
             const SectionTitle('Backup'),
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.backup_outlined),
-                title: const Text('Backup'),
-                subtitle: const Text('Export an encrypted copy of your tones, workflows, and settings'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).pushNamed(AppRoutes.backup),
+              child: Semantics(
+                identifier: 'settings_backup_tile',
+                child: ListTile(
+                  leading: const Icon(Icons.backup_outlined),
+                  title: const Text('Backup'),
+                  subtitle: const Text('Export an encrypted copy of your tones, workflows, and settings'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.backup),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -361,23 +377,29 @@ class _SpeechEngineCard extends StatelessWidget {
             onChanged: (v) => settings.setSpeechEngine(v ?? SpeechEngineResolver.localId),
             child: Column(
               children: [
-                const RadioListTile<String>(
-                  value: SpeechEngineResolver.localId,
-                  secondary: Icon(Icons.phone_android_outlined),
-                  title: Text('On-device'),
-                  subtitle: Text('Private. Downloads a voice model once.'),
+                Semantics(
+                  identifier: 'speech_engine_local',
+                  child: const RadioListTile<String>(
+                    value: SpeechEngineResolver.localId,
+                    secondary: Icon(Icons.phone_android_outlined),
+                    title: Text('On-device'),
+                    subtitle: Text('Private. Downloads a voice model once.'),
+                  ),
                 ),
-                RadioListTile<String>(
-                  value: SpeechEngineResolver.cloudId,
-                  enabled: cloudAvailable,
-                  secondary: const Icon(Icons.cloud_outlined),
-                  title: const Text('Cloud'),
-                  subtitle: Text(
-                    cloudAvailable
-                        ? 'Faster on older phones. Your recording is uploaded '
-                              'to your configured provider.'
-                        : 'Needs a provider that supports transcription '
-                              '(OpenAI or Groq) enabled in Cloud providers.',
+                Semantics(
+                  identifier: 'speech_engine_cloud',
+                  child: RadioListTile<String>(
+                    value: SpeechEngineResolver.cloudId,
+                    enabled: cloudAvailable,
+                    secondary: const Icon(Icons.cloud_outlined),
+                    title: const Text('Cloud'),
+                    subtitle: Text(
+                      cloudAvailable
+                          ? 'Faster on older phones. Your recording is uploaded '
+                                'to your configured provider.'
+                          : 'Needs a provider that supports transcription '
+                                '(OpenAI or Groq) enabled in Cloud providers.',
+                    ),
                   ),
                 ),
               ],

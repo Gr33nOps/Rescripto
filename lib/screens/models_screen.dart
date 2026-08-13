@@ -140,7 +140,10 @@ class _ModelTile extends StatelessWidget {
     final downloading = prog != null && prog.isRunning;
     final failed = prog?.status == DownloadStatus.failed;
 
-    return Card(
+    return Semantics(
+      container: true,
+      identifier: 'model_tile_${model.id}',
+      child: Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -176,19 +179,20 @@ class _ModelTile extends StatelessWidget {
                           if (model.isDefault) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
+                                horizontal: 7,
+                                vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: scheme.tertiaryContainer,
+                                color: scheme.primary,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 'Recommended',
                                 style: Theme.of(context).textTheme.labelSmall
                                     ?.copyWith(
-                                      color: scheme.onTertiaryContainer,
-                                      fontWeight: FontWeight.w700,
+                                      color: scheme.onPrimary,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.2,
                                     ),
                               ),
                             ),
@@ -219,10 +223,13 @@ class _ModelTile extends StatelessWidget {
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  onPressed: downloadBlocked ? null : onDownload,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry download'),
+                child: Semantics(
+                  identifier: 'model_retry_${model.id}',
+                  child: FilledButton.tonalIcon(
+                    onPressed: downloadBlocked ? null : onDownload,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry download'),
+                  ),
                 ),
               ),
             ] else if (installed) ...[
@@ -234,36 +241,46 @@ class _ModelTile extends StatelessWidget {
                       label: Text('Active'),
                     )
                   else
-                    OutlinedButton(
-                      onPressed: onSelect,
-                      child: const Text('Use this model'),
+                    Semantics(
+                      identifier: 'model_select_${model.id}',
+                      child: OutlinedButton(
+                        onPressed: onSelect,
+                        child: const Text('Use this model'),
+                      ),
                     ),
                   const Spacer(),
-                  IconButton(
-                    tooltip: deleteBlocked
-                        ? 'Stop the current rewrite before deleting models'
-                        : 'Delete from device',
-                    onPressed: deleteBlocked ? null : onDelete,
-                    icon: const Icon(Icons.delete_outline),
+                  Semantics(
+                    identifier: 'model_delete_${model.id}',
+                    child: IconButton(
+                      tooltip: deleteBlocked
+                          ? 'Stop the current rewrite before deleting models'
+                          : 'Delete from device',
+                      onPressed: deleteBlocked ? null : onDelete,
+                      icon: const Icon(Icons.delete_outline),
+                    ),
                   ),
                 ],
               ),
             ] else ...[
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  onPressed: downloadBlocked ? null : onDownload,
-                  icon: const Icon(Icons.download_outlined),
-                  label: Text(
-                    downloadBlocked
-                        ? 'Finish current download first'
-                        : 'Download · ${_mb(model.sizeMb)}',
+                child: Semantics(
+                  identifier: 'model_download_${model.id}',
+                  child: FilledButton.tonalIcon(
+                    onPressed: downloadBlocked ? null : onDownload,
+                    icon: const Icon(Icons.download_outlined),
+                    label: Text(
+                      downloadBlocked
+                          ? 'Finish current download first'
+                          : 'Download · ${_mb(model.sizeMb)}',
+                    ),
                   ),
                 ),
               ),
             ],
           ],
         ),
+      ),
       ),
     );
   }
@@ -336,16 +353,19 @@ class _DownloadProgress extends StatelessWidget {
             ),
             if (!verifying) ...[
               Text('$pct%', style: Theme.of(context).textTheme.bodySmall),
-              IconButton(
-                tooltip: 'Cancel',
-                visualDensity: VisualDensity.compact,
-                onPressed: () =>
-                    context.read<ModelsController>().cancelDownload(
-                      ModelCatalog.models.firstWhere(
-                        (m) => m.id == progress.modelId,
+              Semantics(
+                identifier: 'model_cancel_${progress.modelId}',
+                child: IconButton(
+                  tooltip: 'Cancel',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () =>
+                      context.read<ModelsController>().cancelDownload(
+                        ModelCatalog.models.firstWhere(
+                          (m) => m.id == progress.modelId,
+                        ),
                       ),
-                    ),
-                icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close),
+                ),
               ),
             ],
           ],
