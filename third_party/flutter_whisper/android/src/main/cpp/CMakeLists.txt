@@ -43,4 +43,4 @@ target_include_directories(whisper_jni PRIVATE
     ${WHISPER_CPP}/include
     ${WHISPER_CPP}/examples)
 # Link to whisper (which transitively links ggml).
-target_link_libraries(whisper_jni PRIVATE whisper)
+target_link_libraries(whisper_jni PRIVATE whisper log)

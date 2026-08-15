@@ -57,5 +57,10 @@ class LocalEngineHost {
 
   Future<void> requestStop() => _service.stopGeneration();
 
+  /// Frees the in-memory rewrite model before another large native engine,
+  /// such as Whisper, is initialized. Downloaded model files are untouched.
+  Future<void> releaseLoadedModel() =>
+      withEngine((service) => service.unloadModel());
+
   Future<void> dispose() => withEngine((service) => service.dispose());
 }

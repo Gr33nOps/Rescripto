@@ -5,6 +5,17 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.4] - 2026-08-15
+
+### Fixed
+
+- Fixed the release-only voice crash caused by Android's code optimizer
+  renaming the Whisper progress callback used by native code.
+- Voice startup now frees the loaded rewrite model first, keeping native
+  memory use lower on phones such as the Galaxy A06.
+- Whisper now starts on its compatible CPU path and returns initialization
+  failures to the app instead of allowing a native exception to close it.
+
 ## [1.2.3] - 2026-08-15
 
 ### Fixed
@@ -101,6 +112,7 @@ app architecture) predates this changelog. See `git log` or the
 the full record.
 
 [1.1.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.2
+[1.2.4]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.3
 [1.2.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.2
 [1.2.1]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.1

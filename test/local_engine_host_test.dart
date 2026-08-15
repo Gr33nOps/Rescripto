@@ -69,5 +69,23 @@ void main() {
       await task;
       expect(host.isBusy, isFalse);
     });
+
+    test('releaseLoadedModel unloads native memory without deleting files', () async {
+      final service = _TrackingLocalLlmService();
+      final trackingHost = LocalEngineHost(service);
+
+      await trackingHost.releaseLoadedModel();
+
+      expect(service.unloadCalls, 1);
+    });
   });
+}
+
+class _TrackingLocalLlmService extends LocalLlmService {
+  int unloadCalls = 0;
+
+  @override
+  Future<void> unloadModel() async {
+    unloadCalls++;
+  }
 }

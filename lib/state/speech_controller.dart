@@ -6,6 +6,7 @@ import 'package:flutter_whisper/flutter_whisper.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../models/speech_result.dart';
+import '../engine/local/local_engine_host.dart';
 import '../services/network/network_exceptions.dart';
 import '../services/settings_service.dart';
 import '../services/speech_service.dart';
@@ -56,8 +57,12 @@ SpeechAvailability speechAvailabilityForError(Object error) {
 /// Local/Cloud setting was stored, backed up, restorable — and read by
 /// nothing, so choosing Cloud transcribed on-device anyway.
 class SpeechController extends ChangeNotifier {
-  SpeechController(this._service, this._settings, this._resolver)
-    : _availability = _service.isSupported
+  SpeechController(
+    this._service,
+    this._settings,
+    this._resolver,
+    this._localEngineHost,
+  ) : _availability = _service.isSupported
           ? SpeechAvailability.available
           : SpeechAvailability.unsupported;
 
@@ -66,6 +71,7 @@ class SpeechController extends ChangeNotifier {
   final SpeechService _service;
   final SettingsService _settings;
   final SpeechEngineResolver _resolver;
+  final LocalEngineHost _localEngineHost;
 
   /// The engine for the session in flight. Resolved once at [start] so a
   /// setting changed mid-recording can't strand `stopAndTranscribe` on a
@@ -122,6 +128,19 @@ class SpeechController extends ChangeNotifier {
       if (operationId != _operationId) return;
       final engine = _resolver.resolve();
       _engine = engine;
+
+      // llama.cpp and whisper.cpp each keep a large model plus working
+      // buffers in native memory. Holding both at once can make Android kill
+      // the process on otherwise supported phones before either library can
+      // return an out-of-memory error. A local voice session does not need
+      // the rewrite model, so release it before Whisper allocates anything.
+      // The downloaded GGUF file is untouched and is loaded again on the
+      // next rewrite.
+      if (engine.capabilities.needsLocalModel) {
+        await _localEngineHost.releaseLoadedModel();
+      }
+      if (operationId != _operationId) return;
+
       _phase = SpeechPhase.initializing;
       _progress = 0;
       _downloadSize = SpeechService.downloadSizeFor(_settings.whisperModel);
@@ -154,6 +173,15 @@ class SpeechController extends ChangeNotifier {
       _progress = 0;
       notifyListeners();
     } catch (e) {
+      final failedEngine = _engine;
+      _engine = null;
+      if (failedEngine != null) {
+        try {
+          await failedEngine.dispose();
+        } catch (_) {
+          // Keep the original startup error. Cleanup is best-effort here.
+        }
+      }
       _availability = speechAvailabilityForError(e);
       _lastError = e is UnsupportedError
           ? (e.message ?? 'Voice input is not supported on this platform.')
@@ -191,6 +219,13 @@ class SpeechController extends ChangeNotifier {
       return const SpeechResult(text: '', language: '');
     } finally {
       if (operationId == _operationId) {
+        _engine = null;
+        try {
+          await engine.dispose();
+        } catch (_) {
+          // Transcription has already completed or produced its real error.
+          // A cleanup failure must not replace that result.
+        }
         _phase = SpeechPhase.idle;
         _progress = 0;
         notifyListeners();
@@ -312,6 +347,15 @@ class SpeechController extends ChangeNotifier {
       // why the engine, not this controller, is the right place to know
       // which underlying call applies.
       await engine.cancel();
+    }
+    _engine = null;
+    if (engine != null) {
+      try {
+        await engine.dispose();
+      } catch (_) {
+        // Cancellation still succeeds even if native cleanup reports an
+        // error. The next session creates a fresh engine.
+      }
     }
     _phase = SpeechPhase.idle;
     _progress = 0;

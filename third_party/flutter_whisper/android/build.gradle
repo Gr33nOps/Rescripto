@@ -48,6 +48,10 @@ android {
 
     defaultConfig {
         minSdk = 24
+        // onNativeProgress is invoked only through JNI. Without a consumer
+        // rule, R8 cannot see that call and renames the method in release
+        // builds, which makes GetMethodID fail and terminates the app.
+        consumerProguardFiles "consumer-rules.pro"
         ndk {
             // The app only ships arm64-v8a; building armeabi-v7a produced a
             // library that was packaged and then stripped back out again.

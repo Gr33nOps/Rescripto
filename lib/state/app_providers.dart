@@ -241,6 +241,7 @@ class AppProviders extends StatelessWidget {
             ctx.read<SpeechService>(),
             ctx.read<SettingsService>(),
             ctx.read<SpeechEngineResolver>(),
+            ctx.read<LocalEngineHost>(),
           ),
         ),
         // One instance for the app's lifetime — it starts listening for the

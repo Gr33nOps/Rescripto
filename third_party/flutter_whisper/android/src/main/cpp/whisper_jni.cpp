@@ -13,7 +13,10 @@
 // Progress: whisper_full_progress_callback fires Kotlin
 // WhisperContext.onNativeProgress(int percent) on the calling thread.
 #include <jni.h>
+#include <android/log.h>
 #include <atomic>
+#include <exception>
+#include <new>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -31,6 +34,8 @@
 #define MA_NO_NODE_GRAPH
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
+
+#define WHISPER_JNI_TAG "RescriptoWhisper"
 
 // ---- JNI callback registry (single active context — see ponytail) ----
 static JavaVM* g_vm = nullptr;
@@ -228,11 +233,60 @@ Java_io_github_govindtank_flutter_1whisper_WhisperContext_nativeInit(
     env->GetJavaVM(&g_vm);
     jclass cls = env->GetObjectClass(thiz);
     g_onProgress = env->GetMethodID(cls, "onNativeProgress", "(I)V");
+    if (g_onProgress == nullptr || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        g_onProgress = nullptr;
+        return 0;
+    }
     if (g_target) env->DeleteGlobalRef(g_target);
     g_target = env->NewGlobalRef(thiz);
+    if (g_target == nullptr) {
+        g_onProgress = nullptr;
+        return 0;
+    }
 
     struct whisper_context_params cparams = whisper_context_default_params();
-    whisper_context* ctx = whisper_init_from_file_with_params(model.c_str(), cparams);
+    // This Android plugin is deliberately built with the CPU backend only.
+    // whisper.cpp defaults both of these to true, which needlessly probes a
+    // GPU path and selects the flash-attention graph even though no GPU
+    // backend is packaged. Keep initialization on the guaranteed ARMv8-A
+    // CPU path used by the build.
+    cparams.use_gpu = false;
+    cparams.flash_attn = false;
+    whisper_context* ctx = nullptr;
+    __android_log_print(
+        ANDROID_LOG_INFO,
+        WHISPER_JNI_TAG,
+        "Starting CPU-only Whisper context initialization");
+    try {
+        ctx = whisper_init_from_file_with_params(model.c_str(), cparams);
+    } catch (const std::bad_alloc&) {
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            WHISPER_JNI_TAG,
+            "Whisper context initialization ran out of memory");
+    } catch (const std::exception& error) {
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            WHISPER_JNI_TAG,
+            "Whisper context initialization failed: %s",
+            error.what());
+    } catch (...) {
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            WHISPER_JNI_TAG,
+            "Whisper context initialization failed with an unknown native exception");
+    }
+    if (ctx == nullptr) {
+        env->DeleteGlobalRef(g_target);
+        g_target = nullptr;
+        g_onProgress = nullptr;
+    } else {
+        __android_log_print(
+            ANDROID_LOG_INFO,
+            WHISPER_JNI_TAG,
+            "Whisper context initialization completed");
+    }
     return reinterpret_cast<jlong>(ctx);
 }
 
