@@ -219,7 +219,7 @@ static std::string transcribe_json(
 
 // ---- JNI exports ----
 extern "C" JNIEXPORT jlong JNICALL
-Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeInit(
+Java_io_github_govindtank_flutter_1whisper_WhisperContext_nativeInit(
     JNIEnv* env, jobject thiz, jstring jmodel) {
     const char* cpath = env->GetStringUTFChars(jmodel, nullptr);
     std::string model(cpath);
@@ -237,7 +237,7 @@ Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeInit(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeTranscribe(
+Java_io_github_govindtank_flutter_1whisper_WhisperContext_nativeTranscribe(
     JNIEnv* env,
     jobject /*thiz*/,
     jlong handle,
@@ -275,13 +275,13 @@ Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeTranscribe(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeCancel(
+Java_io_github_govindtank_flutter_1whisper_WhisperContext_nativeCancel(
     JNIEnv* /*env*/, jobject /*thiz*/, jlong /*handle*/) {
     g_abort = true;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_io_github_govindtank_flutter_whisper_WhisperContext_nativeFree(
+Java_io_github_govindtank_flutter_1whisper_WhisperContext_nativeFree(
     JNIEnv* env, jobject /*thiz*/, jlong handle) {
     whisper_context* ctx = reinterpret_cast<whisper_context*>(handle);
     if (ctx) whisper_free(ctx);

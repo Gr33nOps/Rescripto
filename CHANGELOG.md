@@ -5,6 +5,15 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.3] - 2026-08-15
+
+### Fixed
+
+- Fixed the Whisper JNI method names used when opening a downloaded voice
+  model. This resolves the voice initialization failure after the native
+  library preflight succeeds.
+- Added a regression check for the JNI package-name encoding.
+
 ## [1.2.2] - 2026-08-15
 
 ### Fixed
@@ -92,6 +101,7 @@ app architecture) predates this changelog. See `git log` or the
 the full record.
 
 [1.1.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.2
+[1.2.3]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.3
 [1.2.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.2
 [1.2.1]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.1
 [1.2.0]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.0
