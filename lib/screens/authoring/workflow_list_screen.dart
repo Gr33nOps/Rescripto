@@ -57,12 +57,24 @@ class WorkflowListScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
-                  child: Text(
-                    'No workflows yet.\nTap "New workflow" to build one.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                  child: Column(
+                    children: [
+                      Icon(Icons.route_outlined, size: 48, color: scheme.outline),
+                      const SizedBox(height: 12),
+                      Text('No workflows yet', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Chain multiple rewrites together, such as Professional → Concise → Proofread.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WorkflowEditorScreen())),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Create workflow'),
+                      ),
+                    ],
                   ),
                 ),
               )

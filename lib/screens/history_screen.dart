@@ -9,9 +9,14 @@ import '../state/history_controller.dart';
 import 'history_detail_screen.dart';
 
 /// Local rewrite history.
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<HistoryController>();
@@ -20,6 +25,15 @@ class HistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('History'),
         actions: [
+          if (controller.entries.isNotEmpty)
+            IconButton(
+              tooltip: 'Search history',
+              icon: const Icon(Icons.search),
+              onPressed: () => showSearch<void>(
+                context: context,
+                delegate: _HistorySearchDelegate(controller.entries),
+              ),
+            ),
           if (controller.entries.isNotEmpty)
             Semantics(
               identifier: 'history_clear_all',
@@ -41,7 +55,7 @@ class HistoryScreen extends StatelessWidget {
               )
             : controller.isEmpty
             ? _EmptyHistory()
-            : _HistoryList(controller: controller),
+                : _HistoryList(controller: controller, query: ''),
       ),
     );
   }
@@ -75,14 +89,59 @@ class HistoryScreen extends StatelessWidget {
   }
 }
 
+class _HistorySearchDelegate extends SearchDelegate<void> {
+  _HistorySearchDelegate(this.entries);
+
+  final List<HistoryEntry> entries;
+
+  @override
+  List<Widget>? buildActions(BuildContext context) => [
+        if (query.isNotEmpty)
+          IconButton(onPressed: () => query = '', icon: const Icon(Icons.clear)),
+      ];
+
+  @override
+  Widget? buildLeading(BuildContext context) => IconButton(
+        onPressed: () => close(context, null),
+        icon: const Icon(Icons.arrow_back),
+      );
+
+  @override
+  Widget buildResults(BuildContext context) => _results(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _results(context);
+
+  Widget _results(BuildContext context) {
+    final q = query.trim().toLowerCase();
+    final matches = entries.where((entry) {
+      return q.isEmpty || entry.original.toLowerCase().contains(q) || entry.rewritten.toLowerCase().contains(q);
+    }).toList();
+    if (matches.isEmpty) {
+      return const Center(child: Text('No matching rewrites'));
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: matches.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) => _HistoryCard(entry: matches[index]),
+    );
+  }
+}
+
 class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.controller});
+  const _HistoryList({required this.controller, required this.query});
 
   final HistoryController controller;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
     final errorOffset = controller.error == null ? 0 : 1;
+    final normalizedQuery = query.trim().toLowerCase();
+    final entries = normalizedQuery.isEmpty
+        ? controller.entries
+        : controller.entries.where((entry) => entry.original.toLowerCase().contains(normalizedQuery) || entry.rewritten.toLowerCase().contains(normalizedQuery)).toList();
     // Hide the pager while an error is showing: the error card shifts every
     // row down by one, which would rebuild the sentinel and retry the very
     // query that just failed, in a loop. Recovery goes through Retry instead.
@@ -91,8 +150,8 @@ class _HistoryList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: controller.refresh,
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        itemCount: errorOffset + controller.entries.length + (showPager ? 1 : 0),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 104),
+        itemCount: errorOffset + entries.length + (showPager && normalizedQuery.isEmpty ? 1 : 0),
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           if (errorOffset == 1 && index == 0) {
@@ -102,10 +161,10 @@ class _HistoryList extends StatelessWidget {
             );
           }
           final entryIndex = index - errorOffset;
-          if (entryIndex >= controller.entries.length) {
+          if (entryIndex >= entries.length) {
             return const _PagerTile();
           }
-          return _HistoryCard(entry: controller.entries[entryIndex]);
+          return _HistoryCard(entry: entries[entryIndex]);
         },
       ),
     );
@@ -208,8 +267,7 @@ class _HistoryCard extends StatelessWidget {
                     identifier: 'history_item_delete_${entry.id}',
                     child: IconButton(
                       tooltip: 'Delete',
-                      onPressed: () =>
-                          context.read<HistoryController>().delete(entry.id),
+                      onPressed: () => _confirmDelete(context, entry),
                       icon: const Icon(Icons.delete_outline, size: 20),
                     ),
                   ),
@@ -225,6 +283,29 @@ class _HistoryCard extends StatelessWidget {
       ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, HistoryEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this rewrite?'),
+        content: const Text('This saved rewrite will be removed from this device.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await context.read<HistoryController>().delete(entry.id);
+    }
   }
 
   Widget _snippet(

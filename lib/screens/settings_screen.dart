@@ -188,8 +188,9 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 20),
             const SectionTitle('Voice input'),
             const _SpeechEngineCard(),
-            const SizedBox(height: 12),
-            Card(
+            if (settings.speechEngine != SpeechEngineResolver.cloudId) ...[
+              const SizedBox(height: 12),
+              Card(
               child: RadioGroup<String>(
                 groupValue: settings.whisperModel,
                 onChanged: (v) =>
@@ -229,7 +230,8 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
+              ),
+            ],
             const SizedBox(height: 20),
             const SectionTitle('Privacy & cloud'),
             Card(
@@ -298,15 +300,8 @@ class SettingsScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       settings.processingMode == ProcessingMode.local
-                          ? 'No accounts, ads, or tracking. Your text, recordings, '
-                                'and rewrite history stay on this device. AI and '
-                                'voice model files are downloaded from Hugging Face '
-                                'only when you choose to use them.'
-                          : 'No accounts, ads, or tracking. Your text, recordings, '
-                                'and rewrite history stay on this device unless you '
-                                'choose to send a rewrite to a cloud provider you\'ve '
-                                'configured. AI and voice model files are downloaded '
-                                'from Hugging Face only when you choose to use them.',
+                          ? '✓ No accounts\n✓ No ads or tracking\n✓ Local processing available\n\nYour text, recordings, and history stay on this device.'
+                          : '✓ No accounts\n✓ No ads or tracking\n✓ You choose when cloud processing is used\n\nCloud requests are sent only to providers you configure.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),

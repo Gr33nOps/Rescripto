@@ -72,6 +72,17 @@ class Whisper {
     _downloadDir ??=
         downloadDirectory ?? (await getApplicationSupportDirectory()).path;
 
+    // Test that the bundled JNI library can be loaded before spending time
+    // and storage downloading a model the device cannot use.
+    _engine ??= _createEngine();
+    final support = await _engine!.checkSupport();
+    if (!support.supported) {
+      throw WhisperError(
+        support.message ?? 'On-device voice input is unavailable on this device.',
+        WhisperErrorCode.nativeUnavailable,
+      );
+    }
+
     // Get model file path (downloads if not cached, resumes if partial).
     final modelPath = await _ensureModel(
       model,
@@ -79,9 +90,6 @@ class Whisper {
       config: downloadConfig,
       httpClient: httpClient,
     );
-
-    // Create platform engine
-    _engine = _createEngine();
 
     try {
       await _engine!.initialize(modelPath: modelPath, options: options);

@@ -31,6 +31,7 @@ class _BackupScreenState extends State<BackupScreen> {
   bool _includeHistory = false;
   bool _includeCredentials = false;
   bool _exporting = false;
+  bool _passphraseVisible = false;
 
   Uint8List? _pickedBytes;
   String? _pickedFileName;
@@ -63,7 +64,7 @@ class _BackupScreenState extends State<BackupScreen> {
       appBar: AppBar(title: const Text('Backup')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
           children: [
             Card(
               child: Semantics(
@@ -93,11 +94,16 @@ class _BackupScreenState extends State<BackupScreen> {
               identifier: 'backup_passphrase_input',
               child: TextField(
                 controller: _passphraseController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: !_passphraseVisible,
+                decoration: InputDecoration(
                   labelText: 'Passphrase',
-                  helperText: 'You will need this again to restore the backup.',
-                  border: OutlineInputBorder(),
+                  helperText: 'You will need this again to restore the backup. Forgotten passphrases cannot be recovered.',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    tooltip: _passphraseVisible ? 'Hide passphrase' : 'Show passphrase',
+                    onPressed: () => setState(() => _passphraseVisible = !_passphraseVisible),
+                    icon: Icon(_passphraseVisible ? Icons.visibility_off : Icons.visibility),
+                  ),
                 ),
               ),
             ),
@@ -113,7 +119,9 @@ class _BackupScreenState extends State<BackupScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            Text('Sensitive data', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 4),
             Semantics(
               identifier: 'backup_include_history',
               child: CheckboxListTile(

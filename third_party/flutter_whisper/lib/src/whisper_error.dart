@@ -20,6 +20,7 @@ enum WhisperErrorCode {
   transcriptionFailed,
   invalidOptions,
   modelLoadFailed,
+  nativeUnavailable,
   engineNotInitialized,
   sessionFailed,
   cancelled,

@@ -55,13 +55,11 @@ android {
         }
         externalNativeBuild {
             cmake {
-                // Whisper used to build with no optimisation flags and no ARM
-                // baseline, so transcription ran on scalar fallbacks — the same
-                // problem flutter_llama had. -O3 plus dotprod is what makes
-                // dictation finish in seconds instead of minutes.
+                // Keep optimisation while retaining the ARMv8-A baseline.
+                // Devices without dot-product support must still be able to
+                // load the on-device voice library.
                 cppFlags "-std=c++17 -fexceptions -frtti -O3"
                 arguments "-DANDROID_STL=c++_shared",
-                          "-DANDROID_PLATFORM=android-28",
                           "-DCMAKE_BUILD_TYPE=Release"
             }
         }

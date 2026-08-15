@@ -76,6 +76,7 @@ class _WorkflowEditorScreenState extends State<WorkflowEditorScreen> {
               identifier: 'workflow_editor_name',
               child: TextField(
                 controller: _nameController,
+                onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
                   labelText: 'Workflow name',
                   border: OutlineInputBorder(),
@@ -93,9 +94,13 @@ class _WorkflowEditorScreenState extends State<WorkflowEditorScreen> {
             ),
             const SizedBox(height: 8),
             if (_steps.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: Text('No steps yet. Tap "Add step" to start.')),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: OutlinedButton.icon(
+                  onPressed: () => _addStep(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add first step'),
+                ),
               )
             else
               ReorderableListView(
@@ -122,7 +127,9 @@ class _WorkflowEditorScreenState extends State<WorkflowEditorScreen> {
             Semantics(
               identifier: 'workflow_editor_save',
               child: FilledButton.icon(
-                onPressed: _saving ? null : () => _save(context),
+                onPressed: _saving || _nameController.text.trim().isEmpty || _steps.isEmpty
+                    ? null
+                    : () => _save(context),
                 icon: _saving
                     ? const SizedBox(
                         width: 16,

@@ -206,6 +206,8 @@ class SpeechController extends ChangeNotifier {
         case WhisperErrorCode.initializationFailed:
           return 'The voice model is on this device but couldn’t be opened. '
               'Free some memory, or pick a smaller voice model in Settings.';
+        case WhisperErrorCode.nativeUnavailable:
+          return error.message;
         case WhisperErrorCode.permissionDenied:
           return 'Microphone permission is required for voice input.';
         case WhisperErrorCode.audioRecordingFailed:
@@ -223,7 +225,9 @@ class SpeechController extends ChangeNotifier {
     if (error is PlatformException) {
       switch (error.code) {
         case 'NATIVE_NOT_BUILT':
-          return 'Voice input isn’t supported on this device’s processor.';
+        case 'NATIVE_LOAD_FAILED':
+          return 'On-device voice support could not load on this phone. '
+              'Update the app and make sure the phone is 64-bit ARM.';
         case 'MODEL_NOT_FOUND':
           return 'The voice model file is missing. Tap the mic to download it '
               'again.';
