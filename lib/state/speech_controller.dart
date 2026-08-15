@@ -21,6 +21,33 @@ enum SpeechPhase {
   transcribing,
 }
 
+/// Device-level voice availability. This is intentionally typed: UI state
+/// must never be inferred from words such as "support" in an error message.
+enum SpeechAvailability { available, retryableFailure, unsupported }
+
+@visibleForTesting
+SpeechAvailability speechAvailabilityForError(Object error) {
+  if (error is UnsupportedError) return SpeechAvailability.unsupported;
+  if (error is WhisperError &&
+      error.code == WhisperErrorCode.nativeUnavailable) {
+    return error.nativeCode == 'ABI_UNSUPPORTED'
+        ? SpeechAvailability.unsupported
+        : SpeechAvailability.retryableFailure;
+  }
+  if (error is PlatformException) {
+    if (error.code == 'ABI_UNSUPPORTED') {
+      return SpeechAvailability.unsupported;
+    }
+    if (error.code == 'NATIVE_NOT_BUILT' ||
+        error.code == 'NATIVE_LOAD_FAILED' ||
+        error.code == 'NATIVE_CHECK_FAILED' ||
+        error.code == 'JNI_SMOKE_TEST_FAILED') {
+      return SpeechAvailability.retryableFailure;
+    }
+  }
+  return SpeechAvailability.available;
+}
+
 /// Voice input flow: push-to-talk / continuous dictation.
 ///
 /// Runs whichever [SpeechEngine] `SpeechEngineResolver` picks for the
@@ -29,7 +56,10 @@ enum SpeechPhase {
 /// Local/Cloud setting was stored, backed up, restorable — and read by
 /// nothing, so choosing Cloud transcribed on-device anyway.
 class SpeechController extends ChangeNotifier {
-  SpeechController(this._service, this._settings, this._resolver);
+  SpeechController(this._service, this._settings, this._resolver)
+    : _availability = _service.isSupported
+          ? SpeechAvailability.available
+          : SpeechAvailability.unsupported;
 
   /// Retained only for [isSupported] — the platform check. Every actual
   /// recording/transcription call now goes through [_resolver]'s engine.
@@ -48,6 +78,7 @@ class SpeechController extends ChangeNotifier {
   double _progress = 0;
   String _downloadSize = '';
   int _operationId = 0;
+  SpeechAvailability _availability;
 
   SpeechPhase get phase => _phase;
   String get partialText => _partialText;
@@ -59,6 +90,7 @@ class SpeechController extends ChangeNotifier {
   bool get isBusy => _phase != SpeechPhase.idle;
   bool get isRecording => _phase == SpeechPhase.recording;
   bool get isSupported => _service.isSupported;
+  SpeechAvailability get availability => _availability;
 
   /// Starts a push-to-talk session; returns the final transcript.
   /// UI calls [start] then [stopAndTranscribe] to end dictation.
@@ -66,11 +98,13 @@ class SpeechController extends ChangeNotifier {
     _lastError = '';
     if (_phase != SpeechPhase.idle) return;
     if (!isSupported) {
+      _availability = SpeechAvailability.unsupported;
       _lastError =
           'On-device voice input is currently available on Android only.';
       notifyListeners();
       return;
     }
+    _availability = SpeechAvailability.available;
     final operationId = ++_operationId;
 
     try {
@@ -115,10 +149,12 @@ class SpeechController extends ChangeNotifier {
         return;
       }
       _phase = SpeechPhase.recording;
+      _availability = SpeechAvailability.available;
       _partialText = '';
       _progress = 0;
       notifyListeners();
     } catch (e) {
+      _availability = speechAvailabilityForError(e);
       _lastError = e is UnsupportedError
           ? (e.message ?? 'Voice input is not supported on this platform.')
           : _friendlySpeechError(e, starting: true);
@@ -226,8 +262,13 @@ class SpeechController extends ChangeNotifier {
       switch (error.code) {
         case 'NATIVE_NOT_BUILT':
         case 'NATIVE_LOAD_FAILED':
-          return 'On-device voice support could not load on this phone. '
-              'Update the app and make sure the phone is 64-bit ARM.';
+        case 'NATIVE_CHECK_FAILED':
+        case 'JNI_SMOKE_TEST_FAILED':
+          return error.message ??
+              'The on-device voice library could not load. Tap Retry.';
+        case 'ABI_UNSUPPORTED':
+          return error.message ??
+              'On-device voice requires a 64-bit ARM Android system.';
         case 'MODEL_NOT_FOUND':
           return 'The voice model file is missing. Tap the mic to download it '
               'again.';

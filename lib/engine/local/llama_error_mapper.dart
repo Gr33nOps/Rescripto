@@ -27,7 +27,9 @@ class LlamaErrorMapper {
     }
     return switch (error.code) {
       'MODEL_NOT_FOUND' => ModelNotInstalledException(error.message ?? ''),
-      'MODEL_NOT_LOADED' => ModelLoadFailedException(error.message),
+      'MODEL_NOT_LOADED' ||
+      'MODEL_LOAD_FAILED' ||
+      'CPU_BACKEND_UNAVAILABLE' => ModelLoadFailedException(error.message),
       _ => UnknownEngineException(error.message),
     };
   }

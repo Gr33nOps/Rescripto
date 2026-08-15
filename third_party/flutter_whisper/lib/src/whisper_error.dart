@@ -4,8 +4,15 @@ part of 'package:flutter_whisper/flutter_whisper.dart';
 class WhisperError implements Exception {
   final String message;
   final WhisperErrorCode code;
+  final String? nativeCode;
+  final WhisperNativeSupport? nativeSupport;
 
-  WhisperError(this.message, this.code);
+  WhisperError(
+    this.message,
+    this.code, {
+    this.nativeCode,
+    this.nativeSupport,
+  });
 
   @override
   String toString() => 'WhisperError($code): $message';

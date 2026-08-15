@@ -37,6 +37,8 @@ class FlutterLlama {
   /// Reason the last [loadModel] call failed, or null after a success.
   String? get lastLoadError => _lastLoadError;
   String? _lastLoadError;
+  String? get lastLoadErrorCode => _lastLoadErrorCode;
+  String? _lastLoadErrorCode;
 
   /// Initialize and load a GGUF model
   ///
@@ -45,6 +47,7 @@ class FlutterLlama {
   /// callers can show something better than a generic failure.
   Future<bool> loadModel(LlamaConfig config) async {
     _lastLoadError = null;
+    _lastLoadErrorCode = null;
     try {
       if (kDebugMode) {
         print('[FlutterLlama] Loading model: ${config.modelPath}');
@@ -74,6 +77,7 @@ class FlutterLlama {
       return _isModelLoaded;
     } on PlatformException catch (e) {
       _lastLoadError = e.message;
+      _lastLoadErrorCode = e.code;
       if (kDebugMode) {
         print('[FlutterLlama] Error loading model: ${e.code} ${e.message}');
       }

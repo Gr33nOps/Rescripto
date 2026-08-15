@@ -50,9 +50,11 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
     
     private var modelLoaded = false
     private var modelPath: String? = null
+    private var nativeLibraryDir: String = ""
     @Volatile private var shouldStop = false
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        nativeLibraryDir = flutterPluginBinding.applicationContext.applicationInfo.nativeLibraryDir
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(this)
         
@@ -138,6 +140,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                 // Initialize model through JNI
                 val success = nativeInitModel(
                     modelPath,
+                    nativeLibraryDir,
                     nThreads,
                     nGpuLayers,
                     contextSize,
@@ -149,6 +152,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                 modelLoaded = success
 
                 val reason = if (success) "" else nativeGetLastError()
+                val errorCode = if (success) "" else nativeGetLastErrorCode()
 
                 mainHandler.post {
                     if (success) {
@@ -157,7 +161,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                         result.success(true)
                     } else {
                         result.error(
-                            "INIT_FAILED",
+                            errorCode.ifBlank { "INIT_FAILED" },
                             reason.ifBlank { "Failed to initialize model" },
                             null,
                         )
@@ -408,6 +412,7 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
 
     private external fun nativeInitModel(
         modelPath: String,
+        nativeLibraryDir: String,
         nThreads: Int,
         nGpuLayers: Int,
         contextSize: Int,
@@ -442,6 +447,9 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
 
     /** Reason the last native init/generate failed, or "" if there was none. */
     private external fun nativeGetLastError(): String
+
+    /** Stable platform-channel code for the last native failure. */
+    private external fun nativeGetLastErrorCode(): String
 
     private external fun nativeFreeModel()
 

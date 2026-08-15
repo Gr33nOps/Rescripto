@@ -6,17 +6,39 @@ class WhisperNativeSupport {
     required this.supported,
     this.code,
     this.message,
+    this.stage,
+    this.abis = const [],
+    this.apiLevel,
+    this.libraryPath,
+    this.detail,
   });
 
   final bool supported;
   final String? code;
   final String? message;
+  final String? stage;
+  final List<String> abis;
+  final int? apiLevel;
+  final String? libraryPath;
+  final String? detail;
+
+  String get diagnosticMessage => [
+        if (message != null && message!.isNotEmpty) message!,
+        if (detail != null && detail!.isNotEmpty) detail!,
+      ].join(' ');
 
   factory WhisperNativeSupport.fromMap(Map<String, dynamic> map) =>
       WhisperNativeSupport(
         supported: map['supported'] == true,
         code: map['code'] as String?,
         message: map['message'] as String?,
+        stage: map['stage'] as String?,
+        abis: (map['abis'] as List<dynamic>? ?? const [])
+            .map((value) => value.toString())
+            .toList(growable: false),
+        apiLevel: map['apiLevel'] as int?,
+        libraryPath: map['libraryPath'] as String?,
+        detail: map['detail'] as String?,
       );
 }
 

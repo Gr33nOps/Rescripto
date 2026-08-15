@@ -44,42 +44,18 @@ class _MicButtonState extends State<MicButton>
     final phase = controller.phase;
     final canTap = phase == SpeechPhase.idle || phase == SpeechPhase.recording;
     final scheme = Theme.of(context).colorScheme;
-    final unavailable = phase == SpeechPhase.idle &&
-        controller.lastError.isNotEmpty &&
-        (controller.lastError.toLowerCase().contains('support') ||
-            controller.lastError.toLowerCase().contains('processor') ||
-            controller.lastError.toLowerCase().contains('abi'));
+    final availability = controller.availability;
+    final unavailable =
+        phase == SpeechPhase.idle &&
+        availability != SpeechAvailability.available;
 
     if (unavailable) {
-      return Semantics(
-        container: true,
-        identifier: 'speech_unavailable',
-        label: 'Voice input unavailable',
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: scheme.outlineVariant),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.mic_off_outlined, size: 20, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Voice input unavailable',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              Tooltip(
-                message: controller.lastError,
-                child: Icon(Icons.info_outline, size: 18, color: scheme.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
+      return VoiceAvailabilityPanel(
+        availability: availability,
+        message: controller.lastError,
+        onRetry: availability == SpeechAvailability.retryableFailure
+            ? () => _start(context)
+            : null,
       );
     }
 
@@ -218,11 +194,93 @@ class _MicButtonState extends State<MicButton>
   String _phaseLabel(SpeechPhase phase, String downloadSize) => switch (phase) {
     SpeechPhase.idle => 'Tap to dictate',
     SpeechPhase.requestingPermission => 'Checking microphone access…',
-    SpeechPhase.downloadingModel => downloadSize.isEmpty
-        ? 'Downloading the voice model…'
-        : 'Downloading the voice model ($downloadSize)…',
+    SpeechPhase.downloadingModel =>
+      downloadSize.isEmpty
+          ? 'Downloading the voice model…'
+          : 'Downloading the voice model ($downloadSize)…',
     SpeechPhase.initializing => 'Preparing voice input…',
     SpeechPhase.recording => 'Tap to stop',
     SpeechPhase.transcribing => 'Creating transcript…',
   };
+}
+
+@visibleForTesting
+class VoiceAvailabilityPanel extends StatelessWidget {
+  const VoiceAvailabilityPanel({
+    super.key,
+    required this.availability,
+    required this.message,
+    this.onRetry,
+  });
+
+  final SpeechAvailability availability;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final retryable = availability == SpeechAvailability.retryableFailure;
+    return Semantics(
+      container: true,
+      identifier: 'speech_unavailable',
+      label: retryable
+          ? 'Voice input needs attention'
+          : 'Voice input unavailable',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.mic_off_outlined,
+              size: 20,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    retryable
+                        ? 'Voice input needs attention'
+                        : 'Voice input unavailable',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  if (message.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (retryable)
+              TextButton(onPressed: onRetry, child: const Text('Retry'))
+            else
+              Tooltip(
+                message: message,
+                child: Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

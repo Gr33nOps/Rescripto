@@ -34,6 +34,11 @@ android {
 
     packaging {
         jniLibs {
+            // Native inference backends must be real files in
+            // applicationInfo.nativeLibraryDir.  Android can dlopen a library
+            // directly from base.apk, but llama.cpp's runtime backend loader
+            // needs stable filesystem paths on API 24+ devices.
+            useLegacyPackaging = true
             excludes += setOf(
                 "lib/armeabi-v7a/**",
                 "lib/x86/**",

@@ -12,7 +12,7 @@
 #include <atomic>
 #include <chrono>
 #include <android/log.h>
-#include <dlfcn.h>
+#include <sys/auxv.h>
 
 #define LOG_TAG "FlutterLlamaBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -20,6 +20,17 @@
 
 // Include llama.cpp headers
 #include "llama.h"
+#include "cpu_backend_plan.h"
+
+#ifndef HWCAP_FPHP
+#define HWCAP_FPHP (1 << 9)
+#endif
+#ifndef HWCAP_ASIMDDP
+#define HWCAP_ASIMDDP (1 << 20)
+#endif
+#ifndef HWCAP2_I8MM
+#define HWCAP2_I8MM (1 << 13)
+#endif
 
 // Forwards llama.cpp's own diagnostics into logcat. Without this, a failed
 // model load surfaces to Dart as a bare "false" with no reason attached.
@@ -41,6 +52,7 @@ static std::atomic<bool> g_should_stop{false};
 static int g_stream_remaining = 0;
 static bool g_stream_finished = true;
 static std::string g_last_error;
+static std::string g_last_error_code;
 
 static std::string jstring_to_utf8(JNIEnv* env, jstring input) {
     if (!input) return {};
@@ -168,21 +180,41 @@ static bool decode_prompt_in_batches(const std::vector<llama_token>& tokens) {
     return true;
 }
 
-// Dynamic CPU variants must be loaded from the app's native-library directory,
-// not from Android's APK path. dladdr gives us this bridge's loaded .so path.
-static void load_dynamic_backends() {
-    Dl_info info{};
-    if (dladdr(reinterpret_cast<void*>(&llama_log_to_android), &info) != 0 &&
-        info.dli_fname != nullptr) {
-        const std::string bridge_path(info.dli_fname);
-        const size_t slash = bridge_path.find_last_of('/');
-        if (slash != std::string::npos) {
-            ggml_backend_load_all_from_path(bridge_path.substr(0, slash).c_str());
-            return;
+// Android release libraries may otherwise be addressed as base.apk!/lib/..., a
+// path std::filesystem cannot enumerate. Load exact extracted files from the
+// directory supplied by ApplicationInfo and let each backend's score function
+// reject CPU features the device does not have. The final entry is the ARMv8-A
+// baseline and must work on every supported arm64-v8a Android device.
+static bool load_cpu_backend(const std::string& native_library_dir) {
+    if (ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU) != nullptr) {
+        return true;
+    }
+
+    const unsigned long hwcap = getauxval(AT_HWCAP);
+    const unsigned long hwcap2 = getauxval(AT_HWCAP2);
+    const auto candidates = cpu_backend_plan({
+        (hwcap & HWCAP_ASIMDDP) != 0,
+        (hwcap & HWCAP_FPHP) != 0,
+        (hwcap2 & HWCAP2_I8MM) != 0,
+    });
+
+    for (const char* soname : candidates) {
+        const std::string path = native_library_dir.empty()
+            ? std::string(soname)
+            : native_library_dir + "/" + soname;
+        if (ggml_backend_load(path.c_str()) != nullptr &&
+            ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU) != nullptr) {
+            LOGI("Loaded compatible CPU backend: %s", soname);
+            return true;
         }
     }
-    LOGE("Could not determine native library directory; using ggml default search paths");
-    ggml_backend_load_all();
+
+    g_last_error_code = "CPU_BACKEND_UNAVAILABLE";
+    g_last_error = "No compatible llama.cpp CPU backend could be loaded. "
+                   "The app package may be incomplete; reinstall this version.";
+    LOGE("%s Native library directory: %s", g_last_error.c_str(),
+         native_library_dir.c_str());
+    return false;
 }
 
 extern "C" {
@@ -193,6 +225,7 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
     JNIEnv* env,
     jobject thiz,
     jstring model_path,
+    jstring native_library_dir,
     jint n_threads,
     jint n_gpu_layers,
     jint context_size,
@@ -203,11 +236,13 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
     std::lock_guard<std::mutex> lock(g_mutex);
 
     g_last_error.clear();
+    g_last_error_code.clear();
 
     static std::once_flag log_once;
     std::call_once(log_once, [] { llama_log_set(llama_log_to_android, nullptr); });
 
     const std::string path = jstring_to_utf8(env, model_path);
+    const std::string library_dir = jstring_to_utf8(env, native_library_dir);
 
     LOGI("Initializing model: %s", path.c_str());
     LOGI("Threads: %d, GPU layers: %d, Context: %d, GPU: %d",
@@ -227,8 +262,11 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
         g_model = nullptr;
     }
 
-    // Load the safest compatible CPU backend for this device.
-    load_dynamic_backends();
+    // Load the safest compatible CPU backend for this device before asking
+    // llama.cpp to allocate or inspect model tensors.
+    if (!load_cpu_backend(library_dir)) {
+        return JNI_FALSE;
+    }
 
     // Set up model parameters
     llama_model_params model_params = llama_model_default_params();
@@ -254,6 +292,7 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
     // Load model
     g_model = llama_model_load_from_file(path.c_str(), model_params);
     if (!g_model) {
+        g_last_error_code = "MODEL_LOAD_FAILED";
         g_last_error = "llama.cpp could not load this model file. It may be "
                        "incomplete or in an unsupported GGUF format.";
         LOGE("Failed to load model from: %s", path.c_str());
@@ -307,6 +346,15 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGetLastError(
 ) {
     std::lock_guard<std::mutex> lock(g_mutex);
     return utf8_to_jstring(env, g_last_error);
+}
+
+JNIEXPORT jstring JNICALL
+Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGetLastErrorCode(
+    JNIEnv* env,
+    jobject thiz
+) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return utf8_to_jstring(env, g_last_error_code);
 }
 
 // Generate text

@@ -38,6 +38,13 @@ static jobject g_target = nullptr;        // global ref to WhisperContext
 static jmethodID g_onProgress = nullptr;  // (I)V
 static std::atomic<bool> g_abort{false};
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_io_github_govindtank_flutter_1whisper_FlutterWhisperPlugin_nativeSmokeTest(
+    JNIEnv*, jobject) {
+    const char* version = whisper_version();
+    return (version != nullptr && version[0] != '\0') ? JNI_TRUE : JNI_FALSE;
+}
+
 static jstring utf8_to_jstring(JNIEnv* env, const std::string& input) {
     std::vector<jchar> output;
     output.reserve(input.size());

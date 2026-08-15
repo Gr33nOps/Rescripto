@@ -14,11 +14,19 @@ class Whisper {
   static final Whisper _instance = Whisper._internal();
   factory Whisper() => _instance;
 
+  @visibleForTesting
+  Whisper.withEngineForTesting({
+    required WhisperEngine engine,
+    required Future<String> Function(WhisperModel model) resolveModelPath,
+  })  : _engine = engine,
+        _modelPathResolver = resolveModelPath;
+
   WhisperEngine? _engine;
   WhisperModel? _loadedModel;
   bool _isInitialized = false;
   WhisperDownloader? _downloader;
   String? _downloadDir;
+  Future<String> Function(WhisperModel model)? _modelPathResolver;
 
   // Last init params — used by resumeDownload().
   WhisperModel? _lastModel;
@@ -78,18 +86,24 @@ class Whisper {
     final support = await _engine!.checkSupport();
     if (!support.supported) {
       throw WhisperError(
-        support.message ?? 'On-device voice input is unavailable on this device.',
+        support.diagnosticMessage.isNotEmpty
+            ? support.diagnosticMessage
+            : 'On-device voice input is unavailable on this device.',
         WhisperErrorCode.nativeUnavailable,
+        nativeCode: support.code,
+        nativeSupport: support,
       );
     }
 
     // Get model file path (downloads if not cached, resumes if partial).
-    final modelPath = await _ensureModel(
-      model,
-      onProgress: onProgress,
-      config: downloadConfig,
-      httpClient: httpClient,
-    );
+    final modelPath = _modelPathResolver != null
+        ? await _modelPathResolver!(model)
+        : await _ensureModel(
+            model,
+            onProgress: onProgress,
+            config: downloadConfig,
+            httpClient: httpClient,
+          );
 
     try {
       await _engine!.initialize(modelPath: modelPath, options: options);

@@ -75,21 +75,107 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
 
     /** Checks native loading before a caller downloads a large model file. */
     private fun checkSupport(result: Result) {
+        val abis = Build.SUPPORTED_ABIS.toList()
+        val apiLevel = Build.VERSION.SDK_INT
+        val libraryDir = context?.applicationInfo?.nativeLibraryDir.orEmpty()
+        if (!abis.contains("arm64-v8a")) {
+            result.success(
+                supportResult(
+                    supported = false,
+                    code = "ABI_UNSUPPORTED",
+                    message = "On-device voice requires a 64-bit ARM Android system.",
+                    stage = "abi",
+                    abis = abis,
+                    apiLevel = apiLevel,
+                    libraryDir = libraryDir,
+                ),
+            )
+            return
+        }
+
+        var stage = "c++_shared"
         try {
+            System.loadLibrary("c++_shared")
+            stage = "whisper"
             System.loadLibrary("whisper")
-            result.success(mapOf("supported" to true))
+            stage = "jni_smoke_test"
+            if (!nativeSmokeTest()) {
+                result.success(
+                    supportResult(
+                        supported = false,
+                        code = "JNI_SMOKE_TEST_FAILED",
+                        message = "The voice engine loaded but failed its native self-check.",
+                        stage = stage,
+                        abis = abis,
+                        apiLevel = apiLevel,
+                        libraryDir = libraryDir,
+                    ),
+                )
+                return
+            }
+            result.success(
+                supportResult(
+                    supported = true,
+                    stage = "ready",
+                    abis = abis,
+                    apiLevel = apiLevel,
+                    libraryDir = libraryDir,
+                ),
+            )
         } catch (e: UnsatisfiedLinkError) {
-            val abis = Build.SUPPORTED_ABIS.joinToString(", ")
             Log.e("FlutterWhisper", "Native whisper library could not load", e)
             result.success(
-                mapOf(
-                    "supported" to false,
-                    "code" to "NATIVE_LOAD_FAILED",
-                    "message" to "On-device voice support could not load for this phone " +
-                        "($abis). Update the app or use a 64-bit ARM Android device.",
+                supportResult(
+                    supported = false,
+                    code = "NATIVE_LOAD_FAILED",
+                    message = "The on-device voice library could not load at $stage.",
+                    stage = stage,
+                    detail = sanitizeLinkerDetail(e.message),
+                    abis = abis,
+                    apiLevel = apiLevel,
+                    libraryDir = libraryDir,
+                ),
+            )
+        } catch (e: Throwable) {
+            Log.e("FlutterWhisper", "Native whisper self-check failed", e)
+            result.success(
+                supportResult(
+                    supported = false,
+                    code = "NATIVE_CHECK_FAILED",
+                    message = "The on-device voice self-check failed at $stage.",
+                    stage = stage,
+                    detail = e.message.orEmpty().take(300),
+                    abis = abis,
+                    apiLevel = apiLevel,
+                    libraryDir = libraryDir,
                 ),
             )
         }
+    }
+
+    private fun supportResult(
+        supported: Boolean,
+        stage: String,
+        abis: List<String>,
+        apiLevel: Int,
+        libraryDir: String,
+        code: String? = null,
+        message: String? = null,
+        detail: String? = null,
+    ): Map<String, Any?> = mapOf(
+        "supported" to supported,
+        "code" to code,
+        "message" to message,
+        "stage" to stage,
+        "abis" to abis,
+        "apiLevel" to apiLevel,
+        "libraryPath" to libraryDir,
+        "detail" to detail,
+    )
+
+    private fun sanitizeLinkerDetail(detail: String?): String {
+        if (detail.isNullOrBlank()) return "Android did not provide linker details."
+        return detail.replace(Regex("/data/[^ ]+"), "<app-native-path>").take(300)
     }
 
     private fun initialize(call: MethodCall, result: Result) {
@@ -349,6 +435,8 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
             return null
         }
     }
+
+    private external fun nativeSmokeTest(): Boolean
 
     companion object {
         /** Writes a 44-byte PCM WAV header (16 kHz mono 16-bit). */
