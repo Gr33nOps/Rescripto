@@ -17,13 +17,9 @@ set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_METAL OFF CACHE BOOL "" FORCE)
 set(GGML_ACCELERATE OFF CACHE BOOL "" FORCE)
 
-# Same story as flutter_llama: cross-compiling turns GGML_NATIVE off, and with
-# no GGML_CPU_ARM_ARCH the encoder ran on the plain armv8-a fallbacks. Keep this
-# baseline identical to flutter_llama's so a device that can run the LLM can
-# always run whisper too.
-if(ANDROID_ABI STREQUAL "arm64-v8a")
-    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod" CACHE STRING "" FORCE)
-endif()
+# Whisper is statically linked into libwhisper.so to avoid colliding with the
+# llama.cpp ggml libraries. Keep that one copy on the ARMv8-A baseline so every
+# arm64-v8a Android phone supported by the APK can load and run it.
 
 # Build whisper.cpp + its bundled ggml as static libraries. The app also links
 # llama.cpp (flutter_llama), which ships its own shared libggml-*.so; if whisper

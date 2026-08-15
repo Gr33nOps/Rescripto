@@ -12,7 +12,7 @@
 #include <atomic>
 #include <chrono>
 #include <android/log.h>
-#include <sys/auxv.h>
+#include <dlfcn.h>
 
 #define LOG_TAG "FlutterLlamaBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -20,21 +20,6 @@
 
 // Include llama.cpp headers
 #include "llama.h"
-
-#if defined(__aarch64__)
-#if !defined(HWCAP_ASIMDDP)
-#define HWCAP_ASIMDDP (1 << 20)
-#endif
-// ggml-cpu is compiled with -march=armv8.2-a+dotprod (see CMakeLists.txt), so
-// its quantized kernels emit SDOT/UDOT. Executing those on a core without
-// FEAT_DotProd is an illegal instruction, which the JVM reports as an opaque
-// native crash. Fail loudly instead.
-static bool cpu_has_required_features() {
-    return (getauxval(AT_HWCAP) & HWCAP_ASIMDDP) != 0;
-}
-#else
-static bool cpu_has_required_features() { return true; }
-#endif
 
 // Forwards llama.cpp's own diagnostics into logcat. Without this, a failed
 // model load surfaces to Dart as a bare "false" with no reason attached.
@@ -154,6 +139,52 @@ static std::string token_to_utf8(llama_token token) {
     return length > 0 ? std::string(buffer.data(), static_cast<size_t>(length)) : std::string();
 }
 
+// llama.cpp treats n_batch as a hard maximum, not a hint. Sending the whole
+// rewrite prompt at once used to trip its GGML_ASSERT when our instructions
+// exceeded 512 tokens, killing the Android process before Flutter could see an
+// error. Automatic positions make sequential one-sequence batches safe.
+static bool decode_prompt_in_batches(const std::vector<llama_token>& tokens) {
+    const int batch_limit = static_cast<int>(llama_n_batch(g_context));
+    if (batch_limit <= 0) {
+        g_last_error = "The model has no usable prompt batch size.";
+        LOGE("%s", g_last_error.c_str());
+        return false;
+    }
+
+    for (size_t offset = 0; offset < tokens.size();) {
+        const int remaining = static_cast<int>(tokens.size() - offset);
+        const int count = remaining < batch_limit ? remaining : batch_limit;
+        const llama_batch batch = llama_batch_get_one(
+            const_cast<llama_token*>(tokens.data() + offset), count);
+        const int status = llama_decode(g_context, batch);
+        if (status != 0) {
+            g_last_error = "The model could not read the prompt (decode error " +
+                           std::to_string(status) + ").";
+            LOGE("%s", g_last_error.c_str());
+            return false;
+        }
+        offset += static_cast<size_t>(count);
+    }
+    return true;
+}
+
+// Dynamic CPU variants must be loaded from the app's native-library directory,
+// not from Android's APK path. dladdr gives us this bridge's loaded .so path.
+static void load_dynamic_backends() {
+    Dl_info info{};
+    if (dladdr(reinterpret_cast<void*>(&llama_log_to_android), &info) != 0 &&
+        info.dli_fname != nullptr) {
+        const std::string bridge_path(info.dli_fname);
+        const size_t slash = bridge_path.find_last_of('/');
+        if (slash != std::string::npos) {
+            ggml_backend_load_all_from_path(bridge_path.substr(0, slash).c_str());
+            return;
+        }
+    }
+    LOGE("Could not determine native library directory; using ggml default search paths");
+    ggml_backend_load_all();
+}
+
 extern "C" {
 
 // Initialize and load model
@@ -172,15 +203,6 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
     std::lock_guard<std::mutex> lock(g_mutex);
 
     g_last_error.clear();
-
-    if (!cpu_has_required_features()) {
-        g_last_error =
-            "This device's processor is missing the ARM dot-product extension "
-            "that on-device AI needs. Rescripto requires a 64-bit ARM CPU from "
-            "roughly 2018 or later.";
-        LOGE("%s", g_last_error.c_str());
-        return JNI_FALSE;
-    }
 
     static std::once_flag log_once;
     std::call_once(log_once, [] { llama_log_set(llama_log_to_android, nullptr); });
@@ -205,8 +227,8 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeInitModel(
         g_model = nullptr;
     }
 
-    // Load dynamic backends
-    ggml_backend_load_all();
+    // Load the safest compatible CPU backend for this device.
+    load_dynamic_backends();
 
     // Set up model parameters
     llama_model_params model_params = llama_model_default_params();
@@ -300,8 +322,10 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerate(
     jfloat repeat_penalty
 ) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    
+
+    g_last_error.clear();
     if (!g_model || !g_context || !g_vocab) {
+        g_last_error = "The model is not loaded.";
         LOGE("Model not loaded");
         return nullptr;
     }
@@ -313,6 +337,7 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerate(
     const int n_ctx = static_cast<int>(llama_n_ctx(g_context));
     const int n_prompt = -llama_tokenize(g_vocab, prompt_text.c_str(), prompt_text.size(), NULL, 0, true, true);
     if (n_prompt <= 0 || n_ctx - n_prompt - 4 < 16) {
+        g_last_error = "This text is too long for the selected context size.";
         LOGE("Prompt/output exceeds context: prompt=%d output=%d context=%d",
              n_prompt, max_tokens, n_ctx);
         return nullptr;
@@ -323,18 +348,14 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerate(
     std::vector<llama_token> prompt_tokens(n_prompt);
     
     if (llama_tokenize(g_vocab, prompt_text.c_str(), prompt_text.size(), prompt_tokens.data(), prompt_tokens.size(), true, true) < 0) {
+        g_last_error = "The prompt could not be tokenized.";
         LOGE("Failed to tokenize prompt");
         return nullptr;
     }
     
     llama_memory_clear(llama_get_memory(g_context), true);
 
-    // Create batch
-    llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
-    
-    // Decode prompt
-    if (llama_decode(g_context, batch) != 0) {
-        LOGE("Failed to decode prompt");
+    if (!decode_prompt_in_batches(prompt_tokens)) {
         return nullptr;
     }
     
@@ -343,7 +364,6 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerate(
     // Generate tokens
     std::string result;
     int n_generated = 0;
-    int n_pos = prompt_tokens.size();
     
     g_should_stop = false;
     
@@ -367,12 +387,12 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerate(
         result.append(token_to_utf8(new_token));
         
         // Prepare for next iteration
-        batch = llama_batch_get_one(&new_token, 1);
-        n_pos++;
+        const llama_batch batch = llama_batch_get_one(&new_token, 1);
         
         if (llama_decode(g_context, batch) != 0) {
-            LOGE("Failed to decode token");
-            break;
+            g_last_error = "The model could not generate the next token.";
+            LOGE("%s", g_last_error.c_str());
+            return nullptr;
         }
         
         n_generated++;
@@ -458,13 +478,7 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerateStreamInit(
 
     llama_memory_clear(llama_get_memory(g_context), true);
 
-    // Create batch
-    llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
-
-    // Decode prompt
-    if (llama_decode(g_context, batch) != 0) {
-        g_last_error = "The model ran out of memory while reading the prompt.";
-        LOGE("Failed to decode prompt");
+    if (!decode_prompt_in_batches(prompt_tokens)) {
         return JNI_FALSE;
     }
 
@@ -496,6 +510,8 @@ Java_net_nativemind_flutter_1llama_FlutterLlamaPlugin_nativeGenerateStreamNext(
     const std::string piece = token_to_utf8(token);
     llama_batch batch = llama_batch_get_one(&token, 1);
     if (llama_decode(g_context, batch) != 0) {
+        g_last_error = "The model could not generate the next token.";
+        LOGE("%s", g_last_error.c_str());
         g_stream_finished = true;
         return nullptr;
     }

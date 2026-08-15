@@ -32,7 +32,6 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                 System.loadLibrary("c++_shared")
                 System.loadLibrary("ggml")
                 System.loadLibrary("ggml-base")
-                System.loadLibrary("ggml-cpu")
                 System.loadLibrary("llama")
                 System.loadLibrary("flutter_llama_bridge")
                 Log.d(TAG, "Native libraries loaded successfully")
@@ -224,7 +223,11 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                         Log.d(TAG, "Generated: ${generationResult.tokensGenerated} tokens in ${generationTime}ms")
                         result.success(response)
                     } else {
-                        result.error("GENERATION_FAILED", "Failed to generate response", null)
+                        result.error(
+                            "GENERATION_FAILED",
+                            nativeGetLastError().ifBlank { "Failed to generate response" },
+                            null,
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -315,11 +318,17 @@ class FlutterLlamaPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stream
                     mainHandler.post { sink.success(safe) }
                 }
 
+                val generationError = nativeGetLastError()
                 nativeGenerateStreamEnd()
 
                 mainHandler.post {
-                    sink.endOfStream()
-                    result.success(null)
+                    if (generationError.isNotBlank() && !shouldStop && !stoppedAtSequence) {
+                        sink.error("GENERATION_FAILED", generationError, null)
+                        result.error("GENERATION_FAILED", generationError, null)
+                    } else {
+                        sink.endOfStream()
+                        result.success(null)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in streaming generation", e)

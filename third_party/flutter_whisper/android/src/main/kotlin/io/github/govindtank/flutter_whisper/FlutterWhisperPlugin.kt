@@ -10,6 +10,7 @@ import android.media.audiofx.NoiseSuppressor
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.os.Build
 import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -60,6 +61,7 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
 
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
         when (call.method) {
+            "checkSupport" -> checkSupport(result)
             "initialize" -> initialize(call, result)
             "transcribeFile" -> transcribeFile(call, result)
             "transcribePcm" -> transcribePcm(call, result)
@@ -68,6 +70,25 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
             "cancel" -> cancel(result)
             "dispose" -> dispose(result)
             else -> result.notImplemented()
+        }
+    }
+
+    /** Checks native loading before a caller downloads a large model file. */
+    private fun checkSupport(result: Result) {
+        try {
+            System.loadLibrary("whisper")
+            result.success(mapOf("supported" to true))
+        } catch (e: UnsatisfiedLinkError) {
+            val abis = Build.SUPPORTED_ABIS.joinToString(", ")
+            Log.e("FlutterWhisper", "Native whisper library could not load", e)
+            result.success(
+                mapOf(
+                    "supported" to false,
+                    "code" to "NATIVE_LOAD_FAILED",
+                    "message" to "On-device voice support could not load for this phone " +
+                        "($abis). Update the app or use a 64-bit ARM Android device.",
+                ),
+            )
         }
     }
 
@@ -94,7 +115,7 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
             } catch (e: UnsatisfiedLinkError) {
                 Log.e("FlutterWhisper", "Native whisper library missing", e)
                 mainHandler.post {
-                    result.error("NATIVE_NOT_BUILT", "whisper.cpp native library is unavailable", null)
+                    result.error("NATIVE_LOAD_FAILED", "whisper.cpp native library could not load", null)
                 }
             } catch (e: Exception) {
                 Log.e("FlutterWhisper", "Initialize failed", e)

@@ -89,7 +89,7 @@ class _AudienceEditorScreenState extends State<AudienceEditorScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Label',
                   hintText: 'e.g. coworkers, a teacher, customers',
-                  helperText: 'Interpolated directly: "Audience: written for <label>."',
+                  helperText: 'Tell Rescripto who this rewrite is for, such as “My manager”.',
                   border: OutlineInputBorder(),
                 ),
               ),

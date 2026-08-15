@@ -27,6 +27,7 @@ class _SyncScreenState extends State<SyncScreen> {
   late final _urlController = TextEditingController();
   late final _usernameController = TextEditingController();
   bool _busy = false;
+  bool _testing = false;
   DateTime? _remoteNewerThan;
 
   @override
@@ -58,7 +59,7 @@ class _SyncScreenState extends State<SyncScreen> {
       appBar: AppBar(title: const Text('WebDAV sync')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
           children: [
             Text(
               'Syncs one encrypted file to a WebDAV server (Nextcloud, '
@@ -93,19 +94,18 @@ class _SyncScreenState extends State<SyncScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Semantics(
-                    identifier: 'sync_set_password_button',
-                    child: OutlinedButton.icon(
-                      onPressed: _busy ? null : () => _setPassword(context),
-                      icon: const Icon(Icons.password_outlined),
-                      label: const Text('Set server password'),
-                    ),
+                Semantics(
+                  identifier: 'sync_set_password_button',
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _setPassword(context),
+                    icon: const Icon(Icons.password_outlined),
+                    label: const Text('Set server password'),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(height: 8),
                 Semantics(
                   identifier: 'sync_save_server_config_button',
                   child: FilledButton.icon(
@@ -113,6 +113,14 @@ class _SyncScreenState extends State<SyncScreen> {
                     icon: const Icon(Icons.save_outlined),
                     label: const Text('Save'),
                   ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _testing ? null : () => _testConnection(context),
+                  icon: _testing
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.wifi_tethering_outlined),
+                  label: const Text('Test connection'),
                 ),
               ],
             ),
@@ -246,6 +254,29 @@ class _SyncScreenState extends State<SyncScreen> {
     if (!context.mounted) return;
     showAppSnackBar('Server settings saved.');
     _checkForRemoteChanges(context);
+  }
+
+  Future<void> _testConnection(BuildContext context) async {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      showAppSnackBar('Enter a server URL first.');
+      return;
+    }
+    setState(() => _testing = true);
+    try {
+      final settings = context.read<SettingsController>();
+      final sync = context.read<SyncService>();
+      await settings.setWebdavUrl(url);
+      if (!mounted) return;
+      await settings.setWebdavUsername(_usernameController.text.trim());
+      if (!mounted) return;
+      await sync.remoteNewerThanLastPush();
+      if (context.mounted) showAppSnackBar('Connected successfully.');
+    } on Object catch (error) {
+      if (context.mounted) showAppSnackBar('Connection failed: $error');
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
   }
 
   Future<void> _setPassword(BuildContext context) async {

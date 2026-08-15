@@ -59,8 +59,10 @@ android {
                 cppFlags '-std=c++17 -fexceptions -frtti -O3'
                 def cmakeArgs = [
                     '-DANDROID_STL=c++_shared',
-                    '-DANDROID_PLATFORM=android-28',
-                    '-DCMAKE_BUILD_TYPE=Release'
+                    '-DCMAKE_BUILD_TYPE=Release',
+                    // ggml-vulkan cannot link against Android's API-24
+                    // Vulkan loader; keep the native runtime API-24 compatible.
+                    '-DFLUTTER_LLAMA_VULKAN=OFF'
                 ]
                 // llama.cpp's ggml-vulkan backend needs the host glslc binary
                 // to generate shaders while cross-compiling for Android.

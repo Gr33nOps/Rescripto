@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/icon_catalog.dart';
@@ -87,7 +88,10 @@ class _ToneSelectorState extends State<ToneSelector> {
                     child: ChoiceChip(
                       showCheckmark: false,
                       selected: selected,
-                      onSelected: (_) => widget.onChanged(tone.id),
+                      onSelected: (_) {
+                        HapticFeedback.selectionClick();
+                        widget.onChanged(tone.id);
+                      },
                       avatar: Icon(IconCatalog.resolve(tone.iconToken), size: 18),
                       label: Text(tone.name),
                       selectedColor: scheme.primaryContainer,

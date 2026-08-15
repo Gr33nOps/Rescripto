@@ -28,7 +28,7 @@ class PrivacyScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Privacy & network')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 104),
           children: [
             Card(
               color: scheme.errorContainer,
@@ -41,9 +41,7 @@ class PrivacyScreen extends StatelessWidget {
                     style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w700),
                   ),
                   subtitle: Text(
-                    'Blocks every network request this app makes, overriding '
-                    'every setting below. Model downloads, cloud rewriting, '
-                    'everything.',
+                    'Block all network access from Rescripto.',
                     style: TextStyle(color: scheme.onErrorContainer),
                   ),
                   value: policy.killSwitch,
@@ -70,7 +68,7 @@ class PrivacyScreen extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.receipt_long_outlined),
                   title: const Text('Network log'),
-                  subtitle: const Text('Every request this app has made or blocked, host and path only'),
+                  subtitle: const Text('See what left the device and what was blocked'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context).pushNamed(AppRoutes.networkLog),
                 ),
@@ -84,11 +82,7 @@ class PrivacyScreen extends StatelessWidget {
                 child: ListTile(
                   leading: Icon(Icons.warning_amber_outlined, color: scheme.error),
                   title: const Text('Panic: wipe & lock down'),
-                  subtitle: const Text(
-                    'Removes every saved API key, disables every cloud '
-                    'provider, cancels anything in flight, and turns on the '
-                    'kill switch.',
-                  ),
+                  subtitle: const Text('Delete keys, cancel requests, and enable the kill switch'),
                   onTap: () => _confirmPanic(context),
                 ),
               ),
@@ -178,8 +172,7 @@ class _FeatureSwitch extends StatelessWidget {
       identifier: 'privacy_feature_switch_${feature.name}',
       child: SwitchListTile(
         title: Text(_titles[feature]!),
-        subtitle: Text('Sends: ${_descriptions[feature]}'),
-        isThreeLine: true,
+        subtitle: Text(_descriptions[feature]!),
         value: policy.isAllowed(feature),
         onChanged: policy.killSwitch
             ? null

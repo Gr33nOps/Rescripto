@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_messenger.dart';
 import '../engine/engine_error_messages.dart';
@@ -125,7 +126,14 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
                 ),
               )
             else
-              _ReadOnlyField(label: 'Base URL', value: _preset.baseUrl),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Advanced settings'),
+                subtitle: const Text('Base URL and provider details'),
+                children: [
+                  _ReadOnlyField(label: 'Base URL', value: _preset.baseUrl),
+                ],
+              ),
             const SizedBox(height: 16),
             Semantics(
               identifier: 'provider_edit_api_key',
@@ -151,9 +159,13 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
             ),
             if (_preset.docsUrl != null) ...[
               const SizedBox(height: 4),
-              Text(
-                'Get a key from ${_preset.docsUrl}',
-                style: Theme.of(context).textTheme.bodySmall,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => launchUrl(Uri.parse(_preset.docsUrl!)),
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: Text('Get an ${_preset.displayName} API key'),
+                ),
               ),
             ],
             const SizedBox(height: 24),
@@ -172,39 +184,31 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            if (!isNew) ...[
-              Semantics(
-                identifier: 'provider_edit_test_connection',
-                child: OutlinedButton.icon(
-                  onPressed: _testing ? null : _testConnection,
-                  icon: _testing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.wifi_tethering_outlined),
-                  label: const Text('Test connection'),
-                ),
+            Semantics(
+              identifier: 'provider_edit_test_connection',
+              child: OutlinedButton.icon(
+                onPressed: _testing ? null : _testConnection,
+                icon: _testing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.wifi_tethering_outlined),
+                label: const Text('Test connection'),
               ),
-              if (_testResult != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _testResult!,
-                  style: TextStyle(
-                    color: _testFailed
-                        ? Theme.of(context).colorScheme.error
-                        : Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ] else
+            ),
+            if (_testResult != null) ...[
+              const SizedBox(height: 8),
               Text(
-                'Save this provider first, then reopen it to test the connection.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                _testResult!,
+                style: TextStyle(
+                  color: _testFailed
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).colorScheme.primary,
+                ),
               ),
+            ],
           ],
         ),
       ),
@@ -273,21 +277,52 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
 
   Future<void> _testConnection() async {
     final existing = _existing;
-    if (existing == null) return;
     setState(() {
       _testing = true;
       _testResult = null;
     });
+    CredentialRef? temporaryRef;
+    final credentials = context.read<CredentialStore>();
+    final networkGuard = context.read<NetworkGuard>();
     try {
+      ProviderConfig config;
+      if (existing != null) {
+        config = existing;
+      } else {
+        final id = 'connection-test-${DateTime.now().microsecondsSinceEpoch}';
+        temporaryRef = CredentialRef(providerId: id, kind: CredentialKind.apiKey);
+        final key = _keyController.text.trim();
+        if (_preset.requiresKey && key.isEmpty) {
+          throw ArgumentError('Enter an API key before testing the connection.');
+        }
+        if (key.isNotEmpty) {
+          await credentials.write(temporaryRef, key);
+        }
+        config = ProviderConfig(
+          id: id,
+          presetId: _preset.id,
+          displayName: _nameController.text.trim().isEmpty ? _preset.displayName : _nameController.text.trim(),
+          credential: temporaryRef,
+          baseUrlOverride: _preset.editableBaseUrl ? _baseUrlController.text.trim() : null,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
       final tester = ProviderConnectionTester(
-        context.read<NetworkGuard>(),
-        context.read<CredentialStore>(),
+        networkGuard,
+        credentials,
       );
-      await tester.test(existing);
+      await tester.test(config);
       if (!mounted) return;
       setState(() {
         _testResult = 'Connected successfully.';
         _testFailed = false;
+      });
+    } on ArgumentError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testResult = e.message.toString();
+        _testFailed = true;
       });
     } on EngineException catch (e) {
       if (!mounted) return;
@@ -296,6 +331,10 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         _testFailed = true;
       });
     } finally {
+      final ref = temporaryRef;
+      if (ref != null) {
+        await credentials.delete(ref);
+      }
       if (mounted) setState(() => _testing = false);
     }
   }

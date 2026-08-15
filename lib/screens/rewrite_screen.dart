@@ -104,9 +104,20 @@ class _RewriteScreenState extends State<RewriteScreen> {
             ),
         ],
       ),
+      bottomNavigationBar: isPro
+          ? SafeArea(
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: _RewriteButton(
+                running: controller.isRunning,
+                cancelling: controller.isCancelling,
+                onRewrite: () => _rewrite(controller),
+                onStop: controller.stop,
+              ),
+            )
+          : null,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 104),
           children: [
             if (controller.routing.isBlocked && !models.scanning)
               _TargetNotReadyBanner(blocker: controller.routing.blocker!),
@@ -168,12 +179,13 @@ class _RewriteScreenState extends State<RewriteScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            _RewriteButton(
-              running: controller.isRunning,
-              cancelling: controller.isCancelling,
-              onRewrite: () => _rewrite(controller),
-              onStop: controller.stop,
-            ),
+            if (!isPro)
+              _RewriteButton(
+                running: controller.isRunning,
+                cancelling: controller.isCancelling,
+                onRewrite: () => _rewrite(controller),
+                onStop: controller.stop,
+              ),
             const SizedBox(height: 16),
             if (controller.isRunning)
               _StreamingPanel(
@@ -366,9 +378,19 @@ class _SourceInputState extends State<_SourceInput> {
       child: TextField(
         controller: _text,
         onChanged: controller.setSource,
-        minLines: 5,
-        maxLines: 12,
-        maxLength: 8000,
+        minLines: 3,
+        maxLines: 10,
+          maxLength: 8000,
+          buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '$currentLength/${maxLength ?? 8000}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
         textInputAction: TextInputAction.newline,
         decoration: InputDecoration(
           labelText: 'Text to rewrite',
@@ -511,7 +533,16 @@ class _RewriteButton extends StatelessWidget {
       child: Semantics(
         identifier: 'rewrite_button',
         child: FilledButton.icon(
-          onPressed: cancelling ? null : (running ? onStop : onRewrite),
+          onPressed: cancelling
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  if (running) {
+                    onStop();
+                  } else {
+                    onRewrite();
+                  }
+                },
           icon: running
               ? const SizedBox(
                   width: 18,

@@ -1,7 +1,29 @@
 part of 'package:flutter_whisper/flutter_whisper.dart';
 
+/// Native availability reported before any voice-model download begins.
+class WhisperNativeSupport {
+  const WhisperNativeSupport({
+    required this.supported,
+    this.code,
+    this.message,
+  });
+
+  final bool supported;
+  final String? code;
+  final String? message;
+
+  factory WhisperNativeSupport.fromMap(Map<String, dynamic> map) =>
+      WhisperNativeSupport(
+        supported: map['supported'] == true,
+        code: map['code'] as String?,
+        message: map['message'] as String?,
+      );
+}
+
 /// Abstract engine interface for platform implementations.
 abstract class WhisperEngine {
+  Future<WhisperNativeSupport> checkSupport();
+
   Future<void> initialize({
     required String modelPath,
     WhisperOptions? options,
@@ -38,6 +60,21 @@ class MethodChannelWhisperEngine implements WhisperEngine {
         _onTranscribeProgress?.call(call.arguments as int);
       }
     });
+  }
+
+  @override
+  Future<WhisperNativeSupport> checkSupport() async {
+    final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+      'checkSupport',
+    );
+    if (result == null) {
+      return const WhisperNativeSupport(
+        supported: false,
+        code: 'NATIVE_CHECK_FAILED',
+        message: 'Voice support could not be checked on this device.',
+      );
+    }
+    return WhisperNativeSupport.fromMap(Map<String, dynamic>.from(result));
   }
 
   @override

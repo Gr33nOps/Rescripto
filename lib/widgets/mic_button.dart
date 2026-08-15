@@ -44,6 +44,44 @@ class _MicButtonState extends State<MicButton>
     final phase = controller.phase;
     final canTap = phase == SpeechPhase.idle || phase == SpeechPhase.recording;
     final scheme = Theme.of(context).colorScheme;
+    final unavailable = phase == SpeechPhase.idle &&
+        controller.lastError.isNotEmpty &&
+        (controller.lastError.toLowerCase().contains('support') ||
+            controller.lastError.toLowerCase().contains('processor') ||
+            controller.lastError.toLowerCase().contains('abi'));
+
+    if (unavailable) {
+      return Semantics(
+        container: true,
+        identifier: 'speech_unavailable',
+        label: 'Voice input unavailable',
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.mic_off_outlined, size: 20, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Voice input unavailable',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              Tooltip(
+                message: controller.lastError,
+                child: Icon(Icons.info_outline, size: 18, color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (isRecording) {
       if (!_pulse.isAnimating) _pulse.repeat();

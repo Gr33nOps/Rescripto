@@ -22,6 +22,13 @@ class AdvancedEngineScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
+            Text(
+              'Advanced settings — recommended defaults work well for most devices.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
             const SectionTitle('AI engine'),
             Card(
               child: Column(
@@ -71,6 +78,18 @@ class AdvancedEngineScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  settings.setThreads(4);
+                  settings.setContextSize(2048);
+                },
+                icon: const Icon(Icons.restore),
+                label: const Text('Reset to recommended defaults'),
               ),
             ),
           ],

@@ -147,7 +147,7 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Temperature', style: Theme.of(context).textTheme.labelLarge),
+            Text('Creativity', style: Theme.of(context).textTheme.labelLarge),
             Row(
               children: [
                 Expanded(
@@ -170,7 +170,7 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
               ],
             ),
             Text(
-              'Lower is more predictable, higher is more varied.',
+              'Predictable ←──────────── Creative',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -475,34 +475,54 @@ class _GenerationSlider extends StatelessWidget {
   }
 }
 
-class _IconPicker extends StatelessWidget {
+class _IconPicker extends StatefulWidget {
   const _IconPicker({required this.selected, required this.onSelected});
 
   final String selected;
   final ValueChanged<String> onSelected;
 
   @override
+  State<_IconPicker> createState() => _IconPickerState();
+}
+
+class _IconPickerState extends State<_IconPicker> {
+  bool _showAll = false;
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    final tokens = IconCatalog.tokens.toList();
+    final visible = _showAll ? tokens : tokens.take(16).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final token in IconCatalog.tokens)
-          Semantics(
-            identifier: 'tone_editor_icon_$token',
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () => onSelected(token),
-              child: CircleAvatar(
-                radius: 22,
-                backgroundColor: token == selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
-                child: Icon(
-                  IconCatalog.resolve(token),
-                  color: token == selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final token in visible)
+              Semantics(
+                identifier: 'tone_editor_icon_$token',
+                label: token.replaceAll('_', ' '),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(24),
+                  onTap: () => widget.onSelected(token),
+                  child: CircleAvatar(
+                    radius: 22,
+                    backgroundColor: token == widget.selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                    child: Icon(
+                      IconCatalog.resolve(token),
+                      color: token == widget.selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
-            ),
+          ],
+        ),
+        if (tokens.length > 16)
+          TextButton(
+            onPressed: () => setState(() => _showAll = !_showAll),
+            child: Text(_showAll ? 'Show fewer icons' : 'More icons'),
           ),
       ],
     );

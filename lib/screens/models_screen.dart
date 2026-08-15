@@ -22,7 +22,7 @@ class ModelsScreen extends StatelessWidget {
         child: controller.scanning
             ? const Center(child: CircularProgressIndicator())
             : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 104),
                 children: [
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -201,9 +201,15 @@ class _ModelTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${model.parameters} · ${model.quant} · ${_mb(model.sizeMb)} · '
-                        '${model.languages.join(', ')}',
+                        '${_descriptor(model)} · ${_mb(model.sizeMb)} · ${model.languages.join(', ')}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${model.parameters} · ${model.quant}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -262,18 +268,14 @@ class _ModelTile extends StatelessWidget {
                 ],
               ),
             ] else ...[
-              SizedBox(
-                width: double.infinity,
+              Align(
+                alignment: Alignment.centerLeft,
                 child: Semantics(
                   identifier: 'model_download_${model.id}',
-                  child: FilledButton.tonalIcon(
+                  child: OutlinedButton.icon(
                     onPressed: downloadBlocked ? null : onDownload,
-                    icon: const Icon(Icons.download_outlined),
-                    label: Text(
-                      downloadBlocked
-                          ? 'Finish current download first'
-                          : 'Download · ${_mb(model.sizeMb)}',
-                    ),
+                    icon: const Icon(Icons.download_outlined, size: 18),
+                    label: Text(downloadBlocked ? 'Finish current download' : 'Download'),
                   ),
                 ),
               ),
@@ -288,6 +290,12 @@ class _ModelTile extends StatelessWidget {
   String _mb(int sizeMb) {
     if (sizeMb >= 1024) return '${(sizeMb / 1024).toStringAsFixed(1)} GB';
     return '$sizeMb MB';
+  }
+
+  String _descriptor(AiModel model) {
+    if (model.sizeMb <= 900) return 'Fast · good for most phones';
+    if (model.sizeMb >= 2500) return 'Best quality · needs more memory';
+    return 'Balanced quality and speed';
   }
 }
 
