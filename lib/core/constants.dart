@@ -1,25 +1,25 @@
 /// Global app constants.
 abstract final class AppConstants {
   static const String appName = 'Rescripto';
-  static const String tagline = 'Polished text. Private, on-device AI.';
+  static const String tagline = 'Clearer writing, on your terms.';
 
   /// True in every processing mode — the part of the original promise that
   /// survived Cloud/Hybrid mode existing at all.
   static const String privacyPromise =
-      'No accounts · No tracking · You choose where your text is processed';
+      'No account · No tracking · You choose where your text is processed';
 
   /// Only true in [ProcessingMode.local] — the original, stronger claim.
   /// `AppConstants.privacyPromise` alone became false the moment a Cloud
   /// mode existed; this is what's shown instead when the mode genuinely
   /// backs it.
   static const String localModePromise =
-      'No accounts · No cloud processing · Your content stays local';
+      'No account · No cloud processing · Your content stays on this device';
 
   static const String sourceUrl = 'https://github.com/Gr33nOps/Rescripto';
   static const String issuesUrl =
       'https://github.com/Gr33nOps/Rescripto/issues';
   // Keep in step with `version:` in pubspec.yaml.
-  static const String versionName = '1.2.5';
+  static const String versionName = '1.2.6';
 
   // Storage keys (shared_preferences).
   static const String keySelectedModel = 'selected_model_id';
@@ -38,15 +38,18 @@ abstract final class AppConstants {
   static const String keyUiMode = 'ui_mode'; // 'simple' | 'pro'
   static const String keyScheduledBackupsEnabled = 'scheduled_backups_enabled';
   static const String keyLastScheduledBackupAt = 'last_scheduled_backup_at';
-  static const String keyScheduledBackupIncludeHistory = 'scheduled_backup_include_history';
-  static const String keyScheduledBackupIncludeCredentials = 'scheduled_backup_include_credentials';
+  static const String keyScheduledBackupIncludeHistory =
+      'scheduled_backup_include_history';
+  static const String keyScheduledBackupIncludeCredentials =
+      'scheduled_backup_include_credentials';
   static const String keyWebdavUrl = 'webdav_url';
   static const String keyWebdavUsername = 'webdav_username';
   static const String keyLastSyncPushAt = 'last_sync_push_at';
   static const String keySyncIncludeSettings = 'sync_include_settings';
   static const String keySyncIncludePresets = 'sync_include_presets';
   static const String keySyncIncludeWorkflows = 'sync_include_workflows';
-  static const String keySyncIncludeProviderConfigs = 'sync_include_provider_configs';
+  static const String keySyncIncludeProviderConfigs =
+      'sync_include_provider_configs';
   static const String keySyncIncludeHistory = 'sync_include_history';
   static const String keySyncIncludeCredentials = 'sync_include_credentials';
   static const String keySettingsSchemaVersion = 'settings_schema_version';

@@ -47,7 +47,9 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
     text: widget.existing?.displayName ?? _preset.displayName,
   );
   late final _baseUrlController = TextEditingController(
-    text: widget.existing?.baseUrlOverride ?? (_preset.editableBaseUrl ? _preset.baseUrl : ''),
+    text:
+        widget.existing?.baseUrlOverride ??
+        (_preset.editableBaseUrl ? _preset.baseUrl : ''),
   );
   final _keyController = TextEditingController();
 
@@ -84,7 +86,11 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isNew ? 'Add ${_preset.displayName}' : 'Edit ${_existing.displayName}'),
+        title: Text(
+          isNew
+              ? 'Add ${_preset.displayName}'
+              : 'Edit ${_existing.displayName}',
+        ),
         actions: [
           if (!isNew)
             Semantics(
@@ -140,9 +146,17 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
               child: TextField(
                 controller: _keyController,
                 obscureText: true,
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  labelText: _preset.requiresKey ? 'API key' : 'API key (optional)',
-                  hintText: _hasStoredKey ? '•••• configured · type to replace' : 'Paste your API key',
+                  labelText: _preset.requiresKey
+                      ? 'API key'
+                      : 'API key (optional)',
+                  hintText: _hasStoredKey
+                      ? '•••• configured · type to replace'
+                      : 'Paste your API key',
+                  helperText: !isNew && _keyController.text.trim().isNotEmpty
+                      ? 'Save before testing this new key.'
+                      : null,
                   border: const OutlineInputBorder(),
                   suffixIcon: _hasStoredKey
                       ? Semantics(
@@ -223,12 +237,16 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       final existing = _existing;
       final id = existing?.id ?? registry.newConfigId(_preset.id);
       final credential =
-          existing?.credential ?? CredentialRef(providerId: id, kind: CredentialKind.apiKey);
+          existing?.credential ??
+          CredentialRef(providerId: id, kind: CredentialKind.apiKey);
       final now = DateTime.now();
 
       final name = _nameController.text.trim();
-      final baseUrlOverride = _preset.editableBaseUrl ? _baseUrlController.text.trim() : null;
-      if (_preset.editableBaseUrl && (baseUrlOverride == null || baseUrlOverride.isEmpty)) {
+      final baseUrlOverride = _preset.editableBaseUrl
+          ? _baseUrlController.text.trim()
+          : null;
+      if (_preset.editableBaseUrl &&
+          (baseUrlOverride == null || baseUrlOverride.isEmpty)) {
         throw ArgumentError('Base URL is required for this provider.');
       }
 
@@ -259,9 +277,11 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      showAppSnackBar('Couldn’t save: $e');
+      showAppSnackBar(
+        'Couldn’t save this provider. Check the details and try again.',
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -290,10 +310,15 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         config = existing;
       } else {
         final id = 'connection-test-${DateTime.now().microsecondsSinceEpoch}';
-        temporaryRef = CredentialRef(providerId: id, kind: CredentialKind.apiKey);
+        temporaryRef = CredentialRef(
+          providerId: id,
+          kind: CredentialKind.apiKey,
+        );
         final key = _keyController.text.trim();
         if (_preset.requiresKey && key.isEmpty) {
-          throw ArgumentError('Enter an API key before testing the connection.');
+          throw ArgumentError(
+            'Enter an API key before testing the connection.',
+          );
         }
         if (key.isNotEmpty) {
           await credentials.write(temporaryRef, key);
@@ -301,17 +326,18 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         config = ProviderConfig(
           id: id,
           presetId: _preset.id,
-          displayName: _nameController.text.trim().isEmpty ? _preset.displayName : _nameController.text.trim(),
+          displayName: _nameController.text.trim().isEmpty
+              ? _preset.displayName
+              : _nameController.text.trim(),
           credential: temporaryRef,
-          baseUrlOverride: _preset.editableBaseUrl ? _baseUrlController.text.trim() : null,
+          baseUrlOverride: _preset.editableBaseUrl
+              ? _baseUrlController.text.trim()
+              : null,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
       }
-      final tester = ProviderConnectionTester(
-        networkGuard,
-        credentials,
-      );
+      final tester = ProviderConnectionTester(networkGuard, credentials);
       await tester.test(config);
       if (!mounted) return;
       setState(() {
@@ -346,7 +372,9 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Delete ${existing.displayName}?'),
-        content: const Text('This removes the provider and its saved API key from this device.'),
+        content: const Text(
+          'This removes the provider and its saved API key from this device.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -379,7 +407,10 @@ class _ReadOnlyField extends StatelessWidget {
     return TextField(
       controller: TextEditingController(text: value),
       readOnly: true,
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
     );
   }
 }

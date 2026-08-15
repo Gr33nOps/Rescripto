@@ -135,9 +135,11 @@ class _WorkflowRunScreenState extends State<WorkflowRunScreen> {
     } on EngineException catch (e) {
       if (!context.mounted) return;
       showAppSnackBar(describeEngineError(e));
-    } catch (e) {
+    } catch (_) {
       if (!context.mounted) return;
-      showAppSnackBar('$e');
+      showAppSnackBar(
+        'Couldn’t finish this workflow. Check its steps and try again.',
+      );
     }
   }
 }
@@ -169,13 +171,21 @@ class _StepProgress extends StatelessWidget {
                     ? (runner.isRunning ? _StepState.running : _StepState.done)
                     : _StepState.pending,
                 stage: i == runner.currentStepIndex ? runner.stage : null,
-                output: i < runner.stepOutputs.length ? runner.stepOutputs[i] : null,
-                streamingText: i == runner.currentStepIndex ? runner.currentStreamingText : '',
+                output: i < runner.stepOutputs.length
+                    ? runner.stepOutputs[i]
+                    : null,
+                streamingText: i == runner.currentStepIndex
+                    ? runner.currentStreamingText
+                    : '',
               ),
               if (i != workflow.steps.length - 1)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Icon(Icons.arrow_downward, size: 16, color: scheme.onSurfaceVariant),
+                  child: Icon(
+                    Icons.arrow_downward,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
             ],
             if (runner.lastError != null) ...[
@@ -212,7 +222,10 @@ class _StepRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (icon, color) = switch (state) {
-      _StepState.pending => (Icons.radio_button_unchecked, scheme.onSurfaceVariant),
+      _StepState.pending => (
+        Icons.radio_button_unchecked,
+        scheme.onSurfaceVariant,
+      ),
       _StepState.running => (Icons.autorenew, scheme.primary),
       _StepState.done => (Icons.check_circle, scheme.primary),
     };
@@ -226,25 +239,31 @@ class _StepRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Step ${index + 1}: $toneName', style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                'Step ${index + 1}: $toneName',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               if (state == _StepState.running)
                 Text(
                   stageLabel(
                     stage ?? EngineStage.preparing,
-                    const EngineCapabilities(needsLocalInstall: false, requiresNetwork: false),
+                    const EngineCapabilities(
+                      needsLocalInstall: false,
+                      requiresNetwork: false,
+                    ),
                   ),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               if (state == _StepState.done && output != null)
                 Text(
                   output!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
             ],
           ),

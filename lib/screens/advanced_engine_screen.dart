@@ -23,7 +23,8 @@ class AdvancedEngineScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
             Text(
-              'Advanced settings — recommended defaults work well for most devices.',
+              'The recommended defaults work well for most phones. Change '
+              'these settings only if you need to tune performance.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),

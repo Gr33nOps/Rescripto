@@ -27,19 +27,20 @@ class SystemSpeechEngine implements SpeechEngine {
   );
 
   @override
-  Future<void> prepare({void Function(double fraction)? onProgress}) async => _unsupported();
+  Future<void> prepare({void Function(double fraction)? onProgress}) async =>
+      _unsupported();
 
   @override
   Future<void> startRecording() async => _unsupported();
 
   @override
-  Future<SpeechResult> stopAndTranscribe({void Function(double fraction)? onProgress}) async =>
-      _unsupported();
+  Future<SpeechResult> stopAndTranscribe({
+    void Function(double fraction)? onProgress,
+  }) async => _unsupported();
 
   Never _unsupported() {
     throw UnsupportedError(
-      'The system speech recognizer isn’t available yet — it needs a '
-      'platform integration this build doesn’t have.',
+      'Android system voice input is not available in this version.',
     );
   }
 

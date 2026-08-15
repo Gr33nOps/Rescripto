@@ -53,7 +53,10 @@ class ProvidersScreen extends StatelessWidget {
                       'A configured provider only receives text when you '
                       'pick it in Cloud or Hybrid mode, and only if Cloud '
                       'rewriting is on in Privacy settings.',
-                      style: TextStyle(color: scheme.onSecondaryContainer, fontSize: 13),
+                      style: TextStyle(
+                        color: scheme.onSecondaryContainer,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -67,9 +70,9 @@ class ProvidersScreen extends StatelessWidget {
                   child: Text(
                     'No providers configured yet.\nTap "Add provider" to get started.',
                     textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               )
@@ -100,7 +103,9 @@ class ProvidersScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.cloud_outlined),
                 title: Text(preset.displayName),
-                subtitle: Text(preset.editableBaseUrl ? 'Custom base URL' : preset.baseUrl),
+                subtitle: Text(
+                  preset.editableBaseUrl ? 'Custom base URL' : preset.baseUrl,
+                ),
                 onTap: () => Navigator.pop(sheetContext, preset),
               ),
             ),
@@ -109,7 +114,9 @@ class ProvidersScreen extends StatelessWidget {
     );
     if (preset == null || !context.mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ProviderEditScreen(presetId: preset.id)),
+      MaterialPageRoute(
+        builder: (_) => ProviderEditScreen(presetId: preset.id),
+      ),
     );
   }
 }
@@ -134,11 +141,13 @@ class _ActiveCloudModelCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     final provider = router.effectiveCloudProvider;
-    final modelRef = provider == null ? null : router.effectiveCloudModelRef(provider);
+    final modelRef = provider == null
+        ? null
+        : router.effectiveCloudModelRef(provider);
 
     final subtitle = switch ((provider, modelRef)) {
       (null, _) when registry.enabledConfigs.isEmpty =>
-        'No provider is enabled — turn one on below.',
+        'No provider is enabled. Choose one below to use cloud rewriting.',
       (null, _) => 'No provider selected.',
       (final p?, null) =>
         'No model available for ${p.displayName}. Add one when editing it.',
@@ -163,56 +172,60 @@ class _ActiveCloudModelCard extends StatelessWidget {
     final registry = context.read<ProviderRegistry>();
     final settings = context.read<SettingsController>();
 
-    final choice = await showModalBottomSheet<(String providerId, String modelRef)>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: [
-            Text(
-              'Choose a model',
-              style: Theme.of(sheetContext).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            for (final config in registry.enabledConfigs) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 4),
-                child: Text(
-                  config.displayName,
-                  style: Theme.of(sheetContext).textTheme.labelLarge,
+    final choice =
+        await showModalBottomSheet<(String providerId, String modelRef)>(
+          context: context,
+          showDragHandle: true,
+          isScrollControlled: true,
+          builder: (sheetContext) => DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (_, scrollController) => ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              children: [
+                Text(
+                  'Choose a model',
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
                 ),
-              ),
-              if (config.allModels.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'No models listed. Add one when editing this provider.',
-                    style: Theme.of(sheetContext).textTheme.bodySmall,
-                  ),
-                )
-              else
-                for (final model in config.allModels)
-                  Semantics(
-                    identifier: 'provider_model_option_${model.modelRef}',
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.memory_outlined),
-                      title: Text(model.displayName),
-                      onTap: () => Navigator.pop(sheetContext, (config.id, model.modelRef)),
+                const SizedBox(height: 12),
+                for (final config in registry.enabledConfigs) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 4),
+                    child: Text(
+                      config.displayName,
+                      style: Theme.of(sheetContext).textTheme.labelLarge,
                     ),
                   ),
-            ],
-          ],
-        ),
-      ),
-    );
+                  if (config.allModels.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'No models listed. Add one when editing this provider.',
+                        style: Theme.of(sheetContext).textTheme.bodySmall,
+                      ),
+                    )
+                  else
+                    for (final model in config.allModels)
+                      Semantics(
+                        identifier: 'provider_model_option_${model.modelRef}',
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.memory_outlined),
+                          title: Text(model.displayName),
+                          onTap: () => Navigator.pop(sheetContext, (
+                            config.id,
+                            model.modelRef,
+                          )),
+                        ),
+                      ),
+                ],
+              ],
+            ),
+          ),
+        );
 
     if (choice == null) return;
     // Both halves, always together: a provider id without a matching model
@@ -261,7 +274,9 @@ class _ProviderTile extends StatelessWidget {
             ),
           ),
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => ProviderEditScreen(existing: config)),
+            MaterialPageRoute(
+              builder: (_) => ProviderEditScreen(existing: config),
+            ),
           ),
         ),
       ),

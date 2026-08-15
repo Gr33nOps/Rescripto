@@ -65,13 +65,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             Text(
               'Welcome to ${AppConstants.appName}',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              'Choose how you\'d like your text handled. You can change this '
-              'anytime in Settings.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+              'Choose where Rescripto rewrites your text. You can change this '
+              'later in Settings.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
             RadioGroup<_Choice>(
@@ -90,10 +94,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: _ModeCard(
                       value: _Choice.local,
                       icon: Icons.lock_outline,
-                      title: 'Private & Offline',
+                      title: 'On-device',
                       description:
-                          'Everything happens on this device. No accounts, no '
-                          'cloud — nothing you write ever leaves your phone.',
+                          'Rewrite privately without an account. Your text '
+                          'stays on this phone.',
                       recommended: true,
                     ),
                   ),
@@ -103,10 +107,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: _ModeCard(
                       value: _Choice.cloud,
                       icon: Icons.cloud_outlined,
-                      title: 'Easy Cloud',
+                      title: 'Cloud',
                       description:
-                          'Rewrite using a cloud AI provider you set up with '
-                          'your own API key — no model download, often faster.',
+                          'Use a provider you configure with your own API key. '
+                          'There is no local model download.',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -117,9 +121,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       icon: Icons.swap_horiz_outlined,
                       title: 'Hybrid',
                       description:
-                          'Prefer this device; for very long text, or if '
-                          'on-device rewriting fails, Rescripto asks before '
-                          'sending anything to the cloud.',
+                          'Prefer this phone, with cloud available for long '
+                          'text. Rescripto asks before sending a failed local '
+                          'rewrite to your provider.',
                     ),
                   ),
                 ],
@@ -133,16 +137,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   identifier: 'onboarding_cloud_consent',
                   child: CheckboxListTile(
                     value: _cloudConsentGiven,
-                    onChanged: (v) => setState(() => _cloudConsentGiven = v ?? false),
+                    onChanged: (v) =>
+                        setState(() => _cloudConsentGiven = v ?? false),
                     controlAffinity: ListTileControlAffinity.leading,
                     title: Text(
                       'Allow cloud rewriting',
-                      style: TextStyle(color: scheme.onTertiaryContainer, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: scheme.onTertiaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     subtitle: Text(
-                      'The text you rewrite will be sent to whichever cloud '
-                      'provider you configure. You can turn this off anytime '
-                      'in Privacy settings.',
+                      'Rewrites will be sent to the provider you configure. '
+                      'You can turn this off in Privacy settings.',
                       style: TextStyle(color: scheme.onTertiaryContainer),
                     ),
                   ),
@@ -194,7 +201,8 @@ class _ModeCard extends StatelessWidget {
       color: selected ? scheme.primaryContainer : null,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => RadioGroup.maybeOf<_Choice>(context)?.onChanged.call(value),
+        onTap: () =>
+            RadioGroup.maybeOf<_Choice>(context)?.onChanged.call(value),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -221,18 +229,22 @@ class _ModeCard extends StatelessWidget {
                         ),
                         if (recommended)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: scheme.primary,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               'Recommended',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: scheme.onPrimary,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.2,
-                              ),
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: scheme.onPrimary,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.2,
+                                  ),
                             ),
                           ),
                       ],
@@ -241,7 +253,9 @@ class _ModeCard extends StatelessWidget {
                     Text(
                       description,
                       style: TextStyle(
-                        color: selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+                        color: selected
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                     ),

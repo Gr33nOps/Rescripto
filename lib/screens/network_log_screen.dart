@@ -99,12 +99,13 @@ class _Footer extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'This shows every request made through this app\'s network guard '
-              '— host and path only, never a header, body, or query string. It '
-              'cannot see audio sent by the system speech recognizer (if you '
-              'use it), which leaves the device through Android\'s own code, '
-              'outside this log entirely.',
-              style: TextStyle(color: scheme.onSecondaryContainer, fontSize: 13),
+              'This log shows the host and path for network requests made by '
+              'Rescripto. It never stores headers, request bodies, query '
+              'strings, or credentials.',
+              style: TextStyle(
+                color: scheme.onSecondaryContainer,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -123,7 +124,11 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
         children: [
-          Icon(Icons.wifi_off_outlined, size: 40, color: scheme.onSurfaceVariant),
+          Icon(
+            Icons.wifi_off_outlined,
+            size: 40,
+            color: scheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 12),
           Text(
             'Nothing logged yet',
@@ -131,8 +136,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'A row appears here the first time this app makes — or blocks —\n'
-            'a network request.',
+            'Requests will appear here when Rescripto sends or blocks them.',
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
@@ -155,9 +159,15 @@ class _LogTile extends StatelessWidget {
     final (icon, color) = switch (entry.outcome) {
       NetworkOutcome.allowed => (Icons.check_circle_outline, scheme.primary),
       NetworkOutcome.blockedByPolicy => (Icons.block_outlined, scheme.error),
-      NetworkOutcome.blockedByKillSwitch => (Icons.power_settings_new, scheme.error),
+      NetworkOutcome.blockedByKillSwitch => (
+        Icons.power_settings_new,
+        scheme.error,
+      ),
       NetworkOutcome.failed => (Icons.error_outline, scheme.error),
-      NetworkOutcome.cancelled => (Icons.cancel_outlined, scheme.onSurfaceVariant),
+      NetworkOutcome.cancelled => (
+        Icons.cancel_outlined,
+        scheme.onSurfaceVariant,
+      ),
     };
 
     return Card(

@@ -35,10 +35,16 @@ class PrivacyScreen extends StatelessWidget {
               child: Semantics(
                 identifier: 'privacy_kill_switch',
                 child: SwitchListTile(
-                  secondary: Icon(Icons.power_settings_new, color: scheme.onErrorContainer),
+                  secondary: Icon(
+                    Icons.power_settings_new,
+                    color: scheme.onErrorContainer,
+                  ),
                   title: Text(
                     'Network kill switch',
-                    style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: scheme.onErrorContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   subtitle: Text(
                     'Block all network access from Rescripto.',
@@ -56,7 +62,8 @@ class PrivacyScreen extends StatelessWidget {
                 children: [
                   for (final feature in NetworkFeature.values) ...[
                     _FeatureSwitch(feature: feature, policy: policy),
-                    if (feature != NetworkFeature.values.last) const Divider(height: 1),
+                    if (feature != NetworkFeature.values.last)
+                      const Divider(height: 1),
                   ],
                 ],
               ),
@@ -68,21 +75,29 @@ class PrivacyScreen extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.receipt_long_outlined),
                   title: const Text('Network log'),
-                  subtitle: const Text('See what left the device and what was blocked'),
+                  subtitle: const Text(
+                    'See what left the device and what was blocked',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.networkLog),
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.networkLog),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            const SectionTitle('Emergency'),
+            const SectionTitle('Emergency controls'),
             Card(
               child: Semantics(
                 identifier: 'privacy_panic_button',
                 child: ListTile(
-                  leading: Icon(Icons.warning_amber_outlined, color: scheme.error),
-                  title: const Text('Panic: wipe & lock down'),
-                  subtitle: const Text('Delete keys, cancel requests, and enable the kill switch'),
+                  leading: Icon(
+                    Icons.warning_amber_outlined,
+                    color: scheme.error,
+                  ),
+                  title: const Text('Lock down Rescripto'),
+                  subtitle: const Text(
+                    'Stop network access and delete saved API keys',
+                  ),
                   onTap: () => _confirmPanic(context),
                 ),
               ),
@@ -97,15 +112,15 @@ class PrivacyScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Wipe & lock down?'),
+        title: const Text('Lock down Rescripto?'),
         content: const Text(
-          'This will, right now:\n\n'
-          '• Turn on the network kill switch\n'
-          '• Cancel any rewrite or transcription in progress\n'
-          '• Turn off every configured cloud provider\n'
-          '• Permanently delete every saved API key from this device\n\n'
-          'You can turn the kill switch back off and re-add keys '
-          'afterward. This cannot be undone for the deleted keys.',
+          'Rescripto will immediately:\n\n'
+          '• Block all network access\n'
+          '• Cancel active rewrites and transcriptions\n'
+          '• Disable every cloud provider\n'
+          '• Permanently delete saved API keys\n\n'
+          'You can reconnect providers later, but deleted keys cannot be '
+          'recovered.',
         ),
         actions: [
           TextButton(
@@ -116,11 +131,15 @@ class PrivacyScreen extends StatelessWidget {
             identifier: 'privacy_panic_confirm',
             child: FilledButton.tonal(
               style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(dialogContext).colorScheme.errorContainer,
-                foregroundColor: Theme.of(dialogContext).colorScheme.onErrorContainer,
+                backgroundColor: Theme.of(
+                  dialogContext,
+                ).colorScheme.errorContainer,
+                foregroundColor: Theme.of(
+                  dialogContext,
+                ).colorScheme.onErrorContainer,
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Wipe & lock down'),
+              child: const Text('Lock down'),
             ),
           ),
         ],
@@ -128,13 +147,11 @@ class PrivacyScreen extends StatelessWidget {
     );
     if (confirmed != true || !context.mounted) return;
 
-    final report = await context.read<PanicService>().wipeCredentials();
+    await context.read<PanicService>().wipeCredentials();
     if (!context.mounted) return;
 
     showAppSnackBar(
-      'Done. Kill switch on, ${report.providersDisabled} provider(s) '
-      'disabled, ${report.requestsCancelled} request(s) cancelled, '
-      '${report.credentialsWiped} key(s) deleted.',
+      'Rescripto is locked down. Network access is off and saved API keys were deleted.',
     );
   }
 }
@@ -156,14 +173,19 @@ class _FeatureSwitch extends StatelessWidget {
 
   // What leaves the device — never "allow network access".
   static const _descriptions = {
-    NetworkFeature.modelDownload: 'The on-device AI model files you choose to download.',
-    NetworkFeature.voiceModelDownload: 'The on-device voice model files you choose to download.',
-    NetworkFeature.cloudRewrite: 'The text you\'re rewriting, only when you use a cloud provider.',
-    NetworkFeature.cloudSpeech: 'Your voice recording, only when you use cloud speech-to-text.',
+    NetworkFeature.modelDownload:
+        'The on-device AI model files you choose to download.',
+    NetworkFeature.voiceModelDownload:
+        'The on-device voice model files you choose to download.',
+    NetworkFeature.cloudRewrite:
+        'The text you\'re rewriting, only when you use a cloud provider.',
+    NetworkFeature.cloudSpeech:
+        'Your voice recording, only when you use cloud speech-to-text.',
     NetworkFeature.sync:
         'An encrypted backup file, only when you sync to a WebDAV server you '
         'set up. The server never sees your text unencrypted.',
-    NetworkFeature.updateCheck: 'A check for a new app version. Not available yet.',
+    NetworkFeature.updateCheck:
+        'A check for a new app version. Not available yet.',
   };
 
   @override

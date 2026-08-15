@@ -77,7 +77,6 @@ class _ResultViewState extends State<ResultView> {
         : outputs.isEmpty
         ? 'No rewrite output was produced.'
         : outputs[selectedIndex].text;
-    final generation = outputs.isEmpty ? null : outputs.first;
 
     return Card(
       child: Padding(
@@ -86,7 +85,7 @@ class _ResultViewState extends State<ResultView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Result',
+              'Rewrite result',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -176,21 +175,6 @@ class _ResultViewState extends State<ResultView> {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                if (!_showOriginal && generation != null) ...[
-                  if (generation.tokensGenerated > 0)
-                    _StatChip(
-                      icon: Icons.bolt,
-                      label:
-                          '${generation.tokensGenerated} generated tokens total',
-                    ),
-                  if (generation.generationTimeMs > 0)
-                    _StatChip(
-                      icon: Icons.timer_outlined,
-                      label:
-                          '${(generation.generationTimeMs / 1000).toStringAsFixed(1)}s total · '
-                          '${generation.tokensPerSecond.toStringAsFixed(1)} tok/s',
-                    ),
-                ],
                 Semantics(
                   label: 'Copy displayed text',
                   identifier: 'copy_result',
@@ -220,44 +204,12 @@ class _ResultViewState extends State<ResultView> {
   Future<void> _copy(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    showAppSnackBar('Copied to clipboard');
+    showAppSnackBar('Copied to clipboard.');
   }
 
   Future<void> _share(String text) async {
     await SharePlus.instance.share(
       ShareParams(text: text, subject: 'Rewritten with Rescripto'),
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: scheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

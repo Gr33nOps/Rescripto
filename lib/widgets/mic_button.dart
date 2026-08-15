@@ -200,7 +200,7 @@ class _MicButtonState extends State<MicButton>
           : 'Downloading the voice model ($downloadSize)…',
     SpeechPhase.initializing => 'Preparing voice input…',
     SpeechPhase.recording => 'Tap to stop',
-    SpeechPhase.transcribing => 'Creating transcript…',
+    SpeechPhase.transcribing => 'Transcribing…',
   };
 }
 
@@ -225,7 +225,7 @@ class VoiceAvailabilityPanel extends StatelessWidget {
       container: true,
       identifier: 'speech_unavailable',
       label: retryable
-          ? 'Voice input needs attention'
+          ? 'Voice input could not start'
           : 'Voice input unavailable',
       child: Container(
         width: double.infinity,
@@ -249,7 +249,7 @@ class VoiceAvailabilityPanel extends StatelessWidget {
                 children: [
                   Text(
                     retryable
-                        ? 'Voice input needs attention'
+                        ? 'Voice input could not start'
                         : 'Voice input unavailable',
                     style: Theme.of(context).textTheme.labelLarge,
                   ),

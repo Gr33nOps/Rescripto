@@ -20,7 +20,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Voice input needs attention'), findsOneWidget);
+    expect(find.text('Voice input could not start'), findsOneWidget);
     expect(find.textContaining('could not load'), findsOneWidget);
     await tester.tap(find.text('Retry'));
     expect(retried, isTrue);

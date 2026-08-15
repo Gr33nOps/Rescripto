@@ -140,6 +140,6 @@ class HistoryDetailScreen extends StatelessWidget {
   Future<void> _copy(BuildContext context, String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
-    showAppSnackBar('Copied to clipboard');
+    showAppSnackBar('Copied to clipboard.');
   }
 }

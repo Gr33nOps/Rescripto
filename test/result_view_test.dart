@@ -62,7 +62,7 @@ void main() {
 
     await tester.pumpWidget(_host(_result(3), textScale: 2));
 
-    expect(find.text('Result'), findsOneWidget);
+    expect(find.text('Rewrite result'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

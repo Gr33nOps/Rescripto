@@ -26,7 +26,9 @@ class ToneEditorScreen extends StatefulWidget {
 }
 
 class _ToneEditorScreenState extends State<ToneEditorScreen> {
-  late final _nameController = TextEditingController(text: widget.existing?.name ?? '');
+  late final _nameController = TextEditingController(
+    text: widget.existing?.name ?? '',
+  );
   late final _descriptionController = TextEditingController(
     text: widget.existing?.description ?? '',
   );
@@ -34,12 +36,15 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
     text: widget.existing?.instruction ?? '',
   );
   late double _temperature = widget.existing?.temperature ?? 0.5;
-  late String _iconToken = widget.existing?.iconToken ?? IconCatalog.tokens.first;
+  late String _iconToken =
+      widget.existing?.iconToken ?? IconCatalog.tokens.first;
   late double _topP = widget.existing?.topP ?? 0.95;
   late int _topK = widget.existing?.topK ?? 40;
   late double _repeatPenalty = widget.existing?.repeatPenalty ?? 1.1;
   late int _maxOutputTokens = widget.existing?.maxOutputTokens ?? 1024;
-  late final List<String> _stopSequences = List.of(widget.existing?.stopSequences ?? const []);
+  late final List<String> _stopSequences = List.of(
+    widget.existing?.stopSequences ?? const [],
+  );
   final _stopSequenceController = TextEditingController();
   bool _saving = false;
 
@@ -61,7 +66,11 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
     // Wherever a rewrite would route to right now, so the advanced section
     // can grey out a field the target won't actually read — see
     // `GenerationFieldSupport`'s own doc for the ground truth this reflects.
-    final targetEngineId = context.read<TargetRouter>().route(inputLength: 0).target?.engineId;
+    final targetEngineId = context
+        .read<TargetRouter>()
+        .route(inputLength: 0)
+        .target
+        ?.engineId;
     final fieldSupport = GenerationFieldSupport.forEngine(targetEngineId ?? '');
 
     return Scaffold(
@@ -97,11 +106,13 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'This is a built-in tone. Saving any change detaches it '
-                        'from future app updates to its wording — a later '
-                        'release that improves "${existing.name}" won\'t reach '
-                        'your edited copy. "Reset to default" always undoes this.',
-                        style: TextStyle(color: scheme.onTertiaryContainer, fontSize: 13),
+                        'This tone comes with Rescripto. If you edit it, future '
+                        'updates will not replace your version. Use "Reset to '
+                        'default" whenever you want the latest built-in version.',
+                        style: TextStyle(
+                          color: scheme.onTertiaryContainer,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -165,7 +176,10 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                 ),
                 SizedBox(
                   width: 44,
-                  child: Text(_temperature.toStringAsFixed(2), textAlign: TextAlign.end),
+                  child: Text(
+                    _temperature.toStringAsFixed(2),
+                    textAlign: TextAlign.end,
+                  ),
                 ),
               ],
             ),
@@ -177,11 +191,14 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
             ),
             if (isPro) ...[
               const SizedBox(height: 24),
-              Text('Advanced generation', style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                'Advanced generation',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               const SizedBox(height: 4),
               Text(
-                'Fine sampling controls for this tone. Fields greyed out below '
-                'aren\'t read by wherever a rewrite would run right now.',
+                'These controls change how the selected engine writes in this '
+                'tone. Controls that do not apply are disabled.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -234,11 +251,15 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                   max: 4096,
                   divisions: 31,
                   display: '$_maxOutputTokens',
-                  onChanged: (v) => setState(() => _maxOutputTokens = v.round()),
+                  onChanged: (v) =>
+                      setState(() => _maxOutputTokens = v.round()),
                 ),
               ),
               const SizedBox(height: 12),
-              Text('Stop sequences', style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                'Stop sequences',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -249,7 +270,8 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                       identifier: 'tone_editor_stop_sequence_$sequence',
                       child: InputChip(
                         label: Text(sequence),
-                        onDeleted: () => setState(() => _stopSequences.remove(sequence)),
+                        onDeleted: () =>
+                            setState(() => _stopSequences.remove(sequence)),
                       ),
                     ),
                 ],
@@ -280,14 +302,6 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'No seed control here: the on-device engine has no plumbing '
-                'for one yet, so a slider for it would do nothing.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
             const SizedBox(height: 20),
@@ -337,7 +351,9 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
     }
     final instruction = _instructionController.text.trim();
     if (instruction.isEmpty) {
-      showAppSnackBar('An instruction is required — it\'s what the model reads.');
+      showAppSnackBar(
+        'Add an instruction so the model knows how to write this tone.',
+      );
       return;
     }
 
@@ -374,7 +390,11 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(existing.isBuiltin ? 'Remove ${existing.name}?' : 'Delete ${existing.name}?'),
+        title: Text(
+          existing.isBuiltin
+              ? 'Remove ${existing.name}?'
+              : 'Delete ${existing.name}?',
+        ),
         content: Text(
           existing.isBuiltin
               ? 'This built-in tone will be hidden from the tone list. You '
@@ -449,14 +469,21 @@ class _GenerationSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final color = enabled ? null : scheme.onSurfaceVariant.withValues(alpha: 0.5);
+    final color = enabled
+        ? null
+        : scheme.onSurfaceVariant.withValues(alpha: 0.5);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
           SizedBox(
             width: 110,
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color)),
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: color),
+            ),
           ),
           Expanded(
             child: Slider(
@@ -468,7 +495,14 @@ class _GenerationSlider extends StatelessWidget {
               onChanged: enabled ? onChanged : null,
             ),
           ),
-          SizedBox(width: 44, child: Text(display, textAlign: TextAlign.end, style: TextStyle(color: color))),
+          SizedBox(
+            width: 44,
+            child: Text(
+              display,
+              textAlign: TextAlign.end,
+              style: TextStyle(color: color),
+            ),
+          ),
         ],
       ),
     );
@@ -509,10 +543,14 @@ class _IconPickerState extends State<_IconPicker> {
                   onTap: () => widget.onSelected(token),
                   child: CircleAvatar(
                     radius: 22,
-                    backgroundColor: token == widget.selected ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                    backgroundColor: token == widget.selected
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHigh,
                     child: Icon(
                       IconCatalog.resolve(token),
-                      color: token == widget.selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+                      color: token == widget.selected
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurfaceVariant,
                     ),
                   ),
                 ),

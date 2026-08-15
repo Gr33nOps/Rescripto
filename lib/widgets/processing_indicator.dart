@@ -42,7 +42,9 @@ class ProcessingIndicator extends StatelessWidget {
         fontSize: 12,
         color: blocked ? scheme.onErrorContainer : scheme.onSecondaryContainer,
       ),
-      backgroundColor: blocked ? scheme.errorContainer : scheme.secondaryContainer,
+      backgroundColor: blocked
+          ? scheme.errorContainer
+          : scheme.secondaryContainer,
       side: BorderSide.none,
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -54,12 +56,14 @@ class ProcessingIndicator extends StatelessWidget {
     if (decision.isBlocked) return Icons.error_outline;
     final target = decision.target!;
     if (target.providerId == null) return Icons.lock_outline;
-    return decision.reason.startsWith('Hybrid') ? Icons.swap_horiz_outlined : Icons.cloud_outlined;
+    return decision.reason.startsWith('Hybrid')
+        ? Icons.swap_horiz_outlined
+        : Icons.cloud_outlined;
   }
 
   String _shortLabel(RoutingDecision decision) {
-    if (decision.isBlocked) return 'Not ready';
-    final mode = decision.reason.split(' — ').first;
+    if (decision.isBlocked) return 'Setup needed';
+    final mode = decision.reason.split(': ').first;
     if (mode != 'Hybrid') return mode;
     final side = decision.target!.providerId == null ? 'On-device' : 'Cloud';
     return 'Hybrid · $side';

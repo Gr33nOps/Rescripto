@@ -9,19 +9,20 @@ import 'engine_exception.dart';
 /// a substring check would just silently fall through to the generic message.
 String describeEngineError(EngineException error) => switch (error) {
   ModelNotInstalledException() =>
-    'The AI model is not downloaded yet. Open "AI Models" to install it.',
+    'No on-device model is installed. Open Models to download one.',
   ModelLoadFailedException(nativeReason: final reason) =>
     reason == null || reason.isEmpty
         ? 'Couldn’t load the AI model. Try again. If it keeps happening, '
               'restart the app.'
         : reason,
-  ContextOverflowException(contextSize: final size) => size == null
-      ? 'This text is too long for the model’s context window. Shorten it '
-            'or increase Context size in Settings.'
-      : 'This text is too long for the $size-token context. Shorten it or '
-            'increase Context size in Settings.',
+  ContextOverflowException(contextSize: final size) =>
+    size == null
+        ? 'This text is too long for the model’s context window. Shorten it '
+              'or increase Context size in Settings.'
+        : 'This text is too long for the $size-token context. Shorten it or '
+              'increase Context size in Settings.',
   EmptyResponseException() =>
-    'The model returned an empty result. Try a different intensity.',
+    'The model did not return any text. Try another intensity or model.',
   ModelRefusedException() =>
     'This model declined to rewrite that text, even after a retry. Small '
         'on-device models sometimes refuse ordinary writing. Try a different '
@@ -42,17 +43,18 @@ String describeEngineError(EngineException error) => switch (error) {
       'Cloud rewriting is turned off. Enable it in Privacy settings to send '
           'text to a provider.',
     CloudBlockReason.secretInUrl =>
-      'This request was blocked before it left the device — the request '
-          'was built incorrectly. Please report this.',
+      'Rescripto blocked this request before it left your device because it '
+          'was not built safely. Please report the issue.',
   },
   ProviderNotConfiguredException() =>
     'This provider isn’t set up yet. Add an API key in Providers to use it.',
   ProviderAuthException() =>
     'The provider rejected the saved API key. Check it in Providers.',
-  RateLimitedException(retryAfter: final retryAfter) => retryAfter == null
-      ? 'The provider is rate-limiting requests. Try again shortly.'
-      : 'The provider is rate-limiting requests. Try again in '
-            '${retryAfter.inSeconds}s.',
+  RateLimitedException(retryAfter: final retryAfter) =>
+    retryAfter == null
+        ? 'The provider is rate-limiting requests. Try again shortly.'
+        : 'The provider is rate-limiting requests. Try again in '
+              '${retryAfter.inSeconds}s.',
   QuotaExhaustedException() =>
     'The provider account is out of quota or balance. Check your plan with '
         'the provider.',

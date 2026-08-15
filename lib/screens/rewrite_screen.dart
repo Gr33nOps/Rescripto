@@ -173,7 +173,8 @@ class _RewriteScreenState extends State<RewriteScreen> {
                     ButtonSegment(value: 3, label: Text('3')),
                   ],
                   selected: {controller.variantCount},
-                  onSelectionChanged: (s) => controller.setVariantCount(s.first),
+                  onSelectionChanged: (s) =>
+                      controller.setVariantCount(s.first),
                   showSelectedIcon: false,
                 ),
               ),
@@ -218,8 +219,9 @@ class _RewriteScreenState extends State<RewriteScreen> {
                 Semantics(
                   identifier: 'insert_result',
                   child: FilledButton.icon(
-                    onPressed: () =>
-                        shareIntent.finishProcessText(_selectedText(controller)),
+                    onPressed: () => shareIntent.finishProcessText(
+                      _selectedText(controller),
+                    ),
                     icon: const Icon(Icons.keyboard_return_outlined),
                     label: const Text('Insert & return'),
                   ),
@@ -289,7 +291,10 @@ class _RewriteScreenState extends State<RewriteScreen> {
   /// own doc) and retries immediately. Local→cloud sends text the user never
   /// explicitly chose to send off-device, so it asks first, naming the
   /// provider and model in full.
-  Future<void> _offerFallback(RewriteController controller, EngineTarget fallback) async {
+  Future<void> _offerFallback(
+    RewriteController controller,
+    EngineTarget fallback,
+  ) async {
     if (!controller.pendingFallbackNeedsConsent) {
       await _retryFallback(controller);
       return;
@@ -304,10 +309,10 @@ class _RewriteScreenState extends State<RewriteScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Send to the cloud instead?'),
+        title: const Text('Try this rewrite in the cloud?'),
         content: Text(
-          'The on-device rewrite failed. Send this text to $label '
-          '(${fallback.modelRef}) instead?',
+          'The on-device rewrite did not finish. Send this text to $label for '
+          'this attempt?',
         ),
         actions: [
           TextButton(
@@ -316,7 +321,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Send once'),
+            child: const Text('Send to cloud'),
           ),
         ],
       ),
@@ -380,21 +385,26 @@ class _SourceInputState extends State<_SourceInput> {
         onChanged: controller.setSource,
         minLines: 3,
         maxLines: 10,
-          maxLength: 8000,
-          buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '$currentLength/${maxLength ?? 8000}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+        maxLength: 8000,
+        buildCounter:
+            (
+              context, {
+              required currentLength,
+              required isFocused,
+              maxLength,
+            }) => Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '$currentLength/${maxLength ?? 8000}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
+            ),
         textInputAction: TextInputAction.newline,
         decoration: InputDecoration(
           labelText: 'Text to rewrite',
-          hintText: 'Type or paste your rough text here…',
+          hintText: 'Type or paste the text you want to improve',
           alignLabelWithHint: true,
           suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,
@@ -468,7 +478,7 @@ class _InstructionInputState extends State<_InstructionInput> {
         onChanged: widget.onChanged,
         decoration: const InputDecoration(
           labelText: 'Extra instructions',
-          hintText: 'e.g. Make it sound more optimistic',
+          hintText: 'For example: Make it sound more optimistic',
           prefixIcon: Icon(Icons.edit_note_outlined),
         ),
       ),
@@ -604,11 +614,11 @@ class _StreamingPanel extends StatelessWidget {
                 capabilities.needsLocalInstall) ...[
               const SizedBox(height: 8),
               Text(
-                'First run after opening the app reads the whole model into '
-                'memory. This is the slow part — later rewrites reuse it.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+                'The first rewrite after opening the app may take longer while '
+                'the model loads. Later rewrites will start faster.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
             if (text.isNotEmpty) ...[
@@ -679,8 +689,8 @@ class _TargetNotReadyBanner extends StatelessWidget {
 
   (String, String, IconData) get _copy => switch (blocker) {
     RoutingBlocker.noLocalModel => (
-      'First step: install an AI model',
-      'On-device rewriting needs a model downloaded to this phone.',
+      'Download an on-device model',
+      'Choose a model in the Models tab before your first local rewrite.',
       Icons.download_done_outlined,
     ),
     RoutingBlocker.noCloudProvider => (
@@ -734,7 +744,10 @@ class _TargetNotReadyBanner extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(color: scheme.onPrimaryContainer)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: scheme.onPrimaryContainer),
+                    ),
                   ],
                 ),
               ),

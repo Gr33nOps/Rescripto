@@ -8,8 +8,8 @@
 <h1 align="center">Rescripto</h1>
 
 <p align="center">
-  <strong>Polished writing, private by default.</strong><br>
-  A private writing companion that helps you say what you mean.
+  <strong>Clearer writing, on your terms.</strong><br>
+  Rewrite and dictate privately on Android with local models or a cloud provider you choose.
 </p>
 
 <p align="center">
@@ -24,10 +24,9 @@
 
 ---
 
-Rescripto helps you turn rough notes into clear, natural writing without an
-account or a server in the middle. Pick a model, download it once, and rewrite
-privately whenever you need to. Cloud and Hybrid modes are available when you
-want to use a provider you trust and configure yourself.
+Rescripto turns rough notes into clear, natural writing without requiring an
+account. Download a model once for private on-device rewrites, or connect a
+cloud provider you trust.
 
 ## At a glance
 
@@ -56,8 +55,8 @@ want to use a provider you trust and configure yourself.
 - **Optional cloud writing** using your own API key for OpenAI, Anthropic,
   Gemini, Groq, OpenRouter, Mistral, Together AI, Ollama, or a custom
   OpenAI-compatible endpoint.
-- **On-device voice dictation** through whisper.cpp, plus cloud and system
-  speech-to-text alternatives when you prefer them.
+- **Voice dictation** through whisper.cpp on your device, with optional cloud
+  transcription through OpenAI or Groq.
 - **Workflows** that chain rewrite steps, feeding each result into the next.
 - **Reliable model downloads** from Hugging Face: resumable and
   checksum-verified.
@@ -93,7 +92,6 @@ text back to the phone rather than sending it elsewhere.
 | Model download | Model file only | Hugging Face | Yes |
 | Cloud / Hybrid rewrite | The text being rewritten | Your configured provider | Yes |
 | Cloud speech-to-text | Voice recording | Your configured provider | Yes |
-| Android system recognizer | Voice recording | Android's recognizer | No. This native system path is outside the app's network layer. |
 
 Every request made by the app's Dart layer goes through `NetworkGuard`, which
 checks the current policy before logging the host and path. It never logs
@@ -103,10 +101,11 @@ work in flight, disables providers, and deletes saved API keys.
 
 ## Install
 
-Download the signed **APK** or **AAB** from the
-[GitHub Releases page](https://github.com/Gr33nOps/Rescripto/releases).
-Release builds package `arm64-v8a` only; review [Platform support](#platform-support)
-before installing.
+For direct installation, download the signed **APK** from the
+[latest release](https://github.com/Gr33nOps/Rescripto/releases/latest).
+The **AAB** is included for Android store publishing and cannot be installed
+directly like an APK. Release builds package `arm64-v8a` only, so review
+[Platform support](#platform-support) before installing.
 
 To build the project yourself, continue with [Development](#development).
 
@@ -189,7 +188,7 @@ README and the in-app About screen together.
 | Area | Responsibility |
 | --- | --- |
 | `lib/engine` | `RewriteEngine`, local llama.cpp, and cloud protocol adapters |
-| `lib/speech` | Local whisper.cpp, cloud transcription, and system recognizer |
+| `lib/speech` | Local whisper.cpp and optional cloud transcription |
 | `lib/state` | UI operation state and controllers |
 | `lib/services` | Settings, SQLite, downloads, network policy/logging, credentials, routing, and prompts |
 | `lib/models` | Immutable application and domain models |

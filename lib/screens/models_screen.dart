@@ -17,7 +17,7 @@ class ModelsScreen extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Models')),
+      appBar: AppBar(title: const Text('On-device models')),
       body: SafeArea(
         child: controller.scanning
             ? const Center(child: CircularProgressIndicator())
@@ -39,7 +39,8 @@ class ModelsScreen extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Download a model once to rewrite privately on this device.',
+                            'Download one model to rewrite privately, even when '
+                            'you are offline.',
                             style: TextStyle(
                               color: scheme.onSecondaryContainer,
                             ),
@@ -144,145 +145,147 @@ class _ModelTile extends StatelessWidget {
       container: true,
       identifier: 'model_tile_${model.id}',
       child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: scheme.primaryContainer,
-                  child: Icon(
-                    model.familyIcon,
-                    size: 20,
-                    color: scheme.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            model.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          if (model.isDefault) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Recommended',
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: scheme.onPrimary,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.2,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${_descriptor(model)} · ${_mb(model.sizeMb)} · ${model.languages.join(', ')}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${model.parameters} · ${model.quant}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (downloading) ...[
-              _DownloadProgress(progress: prog),
-            ] else if (failed) ...[
-              Text(
-                prog?.error ?? 'Download failed.',
-                style: TextStyle(color: scheme.error),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: Semantics(
-                  identifier: 'model_retry_${model.id}',
-                  child: FilledButton.tonalIcon(
-                    onPressed: downloadBlocked ? null : onDownload,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry download'),
-                  ),
-                ),
-              ),
-            ] else if (installed) ...[
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(
                 children: [
-                  if (selected)
-                    const Chip(
-                      avatar: Icon(Icons.check_circle, size: 16),
-                      label: Text('Active'),
-                    )
-                  else
-                    Semantics(
-                      identifier: 'model_select_${model.id}',
-                      child: OutlinedButton(
-                        onPressed: onSelect,
-                        child: const Text('Use this model'),
-                      ),
+                  CircleAvatar(
+                    backgroundColor: scheme.primaryContainer,
+                    child: Icon(
+                      model.familyIcon,
+                      size: 20,
+                      color: scheme.onPrimaryContainer,
                     ),
-                  const Spacer(),
-                  Semantics(
-                    identifier: 'model_delete_${model.id}',
-                    child: IconButton(
-                      tooltip: deleteBlocked
-                          ? 'Stop the current rewrite before deleting models'
-                          : 'Delete from device',
-                      onPressed: deleteBlocked ? null : onDelete,
-                      icon: const Icon(Icons.delete_outline),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              model.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (model.isDefault) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Recommended',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: scheme.onPrimary,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.2,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_descriptor(model)} · ${_mb(model.sizeMb)} · ${model.languages.join(', ')}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${model.parameters} · ${model.quant}',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ] else ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Semantics(
-                  identifier: 'model_download_${model.id}',
-                  child: OutlinedButton.icon(
-                    onPressed: downloadBlocked ? null : onDownload,
-                    icon: const Icon(Icons.download_outlined, size: 18),
-                    label: Text(downloadBlocked ? 'Finish current download' : 'Download'),
+              const SizedBox(height: 12),
+              if (downloading) ...[
+                _DownloadProgress(progress: prog),
+              ] else if (failed) ...[
+                Text(
+                  prog?.error ?? 'Download failed.',
+                  style: TextStyle(color: scheme.error),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: Semantics(
+                    identifier: 'model_retry_${model.id}',
+                    child: FilledButton.tonalIcon(
+                      onPressed: downloadBlocked ? null : onDownload,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry download'),
+                    ),
                   ),
                 ),
-              ),
+              ] else if (installed) ...[
+                Row(
+                  children: [
+                    if (selected)
+                      const Chip(
+                        avatar: Icon(Icons.check_circle, size: 16),
+                        label: Text('Active'),
+                      )
+                    else
+                      Semantics(
+                        identifier: 'model_select_${model.id}',
+                        child: OutlinedButton(
+                          onPressed: onSelect,
+                          child: const Text('Use model'),
+                        ),
+                      ),
+                    const Spacer(),
+                    Semantics(
+                      identifier: 'model_delete_${model.id}',
+                      child: IconButton(
+                        tooltip: deleteBlocked
+                            ? 'Stop the current rewrite before deleting models'
+                            : 'Delete from device',
+                        onPressed: deleteBlocked ? null : onDelete,
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Semantics(
+                    identifier: 'model_download_${model.id}',
+                    child: OutlinedButton.icon(
+                      onPressed: downloadBlocked ? null : onDownload,
+                      icon: const Icon(Icons.download_outlined, size: 18),
+                      label: Text(
+                        downloadBlocked
+                            ? 'Finish current download'
+                            : 'Download',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -293,8 +296,8 @@ class _ModelTile extends StatelessWidget {
   }
 
   String _descriptor(AiModel model) {
-    if (model.sizeMb <= 900) return 'Fast · good for most phones';
-    if (model.sizeMb >= 2500) return 'Best quality · needs more memory';
+    if (model.sizeMb <= 900) return 'Fast · works well on most phones';
+    if (model.sizeMb >= 2500) return 'Highest quality · needs more memory';
     return 'Balanced quality and speed';
   }
 }

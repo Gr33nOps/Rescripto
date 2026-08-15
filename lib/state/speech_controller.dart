@@ -267,8 +267,8 @@ class SpeechController extends ChangeNotifier {
                 : 'Voice model downloads are turned off in Settings.';
           }
           return 'The voice model couldn’t be downloaded. Check your '
-              'connection and free storage, then tap the mic again — it '
-              'resumes where it left off.';
+              'connection and free storage, then tap the mic again. The '
+              'download will continue where it stopped.';
         case WhisperErrorCode.downloadPaused:
           return 'Voice model download paused. Tap the mic to resume.';
         case WhisperErrorCode.cancelled:

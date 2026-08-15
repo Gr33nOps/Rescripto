@@ -62,9 +62,9 @@ class _SyncScreenState extends State<SyncScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
           children: [
             Text(
-              'Syncs one encrypted file to a WebDAV server (Nextcloud, '
-              'ownCloud, or anything RFC 4918-compliant) — never raw data. '
-              'The server only ever sees ciphertext.',
+              'Sync one encrypted backup to a WebDAV server such as Nextcloud '
+              'or ownCloud. Your server receives encrypted data, not readable '
+              'text.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -118,7 +118,11 @@ class _SyncScreenState extends State<SyncScreen> {
                 OutlinedButton.icon(
                   onPressed: _testing ? null : () => _testConnection(context),
                   icon: _testing
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.wifi_tethering_outlined),
                   label: const Text('Test connection'),
                 ),
@@ -127,7 +131,10 @@ class _SyncScreenState extends State<SyncScreen> {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
-            Text('What to sync', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'What to sync',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Semantics(
               identifier: 'sync_toggle_settings',
@@ -167,7 +174,8 @@ class _SyncScreenState extends State<SyncScreen> {
                 label: 'Rewrite history',
                 value: settingsController.syncIncludeHistory,
                 onChanged: settingsController.setSyncIncludeHistory,
-                subtitle: 'Off by default — the most sensitive section.',
+                subtitle:
+                    'Off by default because history may contain private text.',
               ),
             ),
             Semantics(
@@ -192,7 +200,10 @@ class _SyncScreenState extends State<SyncScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.cloud_sync_outlined, color: scheme.onTertiaryContainer),
+                    Icon(
+                      Icons.cloud_sync_outlined,
+                      color: scheme.onTertiaryContainer,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -272,8 +283,18 @@ class _SyncScreenState extends State<SyncScreen> {
       if (!mounted) return;
       await sync.remoteNewerThanLastPush();
       if (context.mounted) showAppSnackBar('Connected successfully.');
-    } on Object catch (error) {
-      if (context.mounted) showAppSnackBar('Connection failed: $error');
+    } on WebDavException catch (error) {
+      if (context.mounted) showAppSnackBar(_describe(error));
+    } on NetworkBlockedByPolicyException {
+      if (context.mounted) {
+        showAppSnackBar('Backup sync is turned off in Privacy settings.');
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showAppSnackBar(
+          'Couldn’t connect. Check the server URL and try again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _testing = false);
     }
@@ -284,12 +305,16 @@ class _SyncScreenState extends State<SyncScreen> {
       context: context,
       builder: (dialogContext) => _SinglePasswordDialog(
         title: 'Server password',
-        helperText: 'Your WebDAV account password — stored in this device\'s '
-            'secure Keystore, sent only to the server above.',
+        helperText:
+            'Stored in the secure Android Keystore and sent only to '
+            'the WebDAV server above.',
       ),
     );
     if (password == null || !context.mounted) return;
-    await context.read<CredentialStore>().write(SyncService.passwordRef, password);
+    await context.read<CredentialStore>().write(
+      SyncService.passwordRef,
+      password,
+    );
     if (!context.mounted) return;
     showAppSnackBar('Server password saved.');
   }
@@ -298,7 +323,9 @@ class _SyncScreenState extends State<SyncScreen> {
     final settings = context.read<SettingsController>();
     if ((settings.webdavUrl ?? '').isEmpty) return;
     try {
-      final remote = await context.read<SyncService>().remoteNewerThanLastPush();
+      final remote = await context
+          .read<SyncService>()
+          .remoteNewerThanLastPush();
       if (mounted) setState(() => _remoteNewerThan = remote);
     } catch (_) {
       // A failed background check just means no banner shows — "Sync now"
@@ -311,14 +338,17 @@ class _SyncScreenState extends State<SyncScreen> {
     final alreadySet = await scheduler.hasPassphrase();
     if (!context.mounted) return null;
     if (alreadySet) {
-      return context.read<CredentialStore>().read(BackupScheduler.passphraseRef);
+      return context.read<CredentialStore>().read(
+        BackupScheduler.passphraseRef,
+      );
     }
     final passphrase = await showDialog<String>(
       context: context,
       builder: (dialogContext) => _SinglePasswordDialog(
         title: 'Sync passphrase',
-        helperText: 'Encrypts what\'s sent to the server. Shared with '
-            'scheduled local backups — set once, used for both.',
+        helperText:
+            'Encrypts the backup before it is sent. The same '
+            'passphrase is used for scheduled local backups.',
         confirm: true,
       ),
     );
@@ -380,8 +410,8 @@ class _SyncScreenState extends State<SyncScreen> {
         builder: (dialogContext) => AlertDialog(
           title: const Text('Apply the server\'s copy?'),
           content: Text(
-            'Made ${preview.createdAt.toLocal()}. Restored items merge with '
-            'what\'s already on this device — nothing already here is '
+            'Made ${preview.createdAt.toLocal()}. Restored items are added to '
+            'what is already on this device. Nothing currently here will be '
             'deleted.${preview.containsSecrets ? '\n\nThis copy includes cloud provider keys.' : ''}',
           ),
           actions: [
@@ -519,7 +549,10 @@ class _SinglePasswordDialogState extends State<_SinglePasswordDialog> {
           ],
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
         ],
       ),

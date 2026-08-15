@@ -23,7 +23,12 @@ enum RoutingBlocker {
 /// Where a rewrite should run, and why — read during widget `build()`, so
 /// nothing here does I/O or throws.
 class RoutingDecision {
-  const RoutingDecision({required this.target, required this.reason, this.fallback, this.blocker});
+  const RoutingDecision({
+    required this.target,
+    required this.reason,
+    this.fallback,
+    this.blocker,
+  });
 
   /// Null only when [blocker] explains why nothing is available at all.
   final EngineTarget? target;
@@ -80,17 +85,19 @@ class TargetRouter {
   /// a small on-device model's context window and speed both suffer most.
   static const hybridLengthThreshold = 1500;
 
-  RoutingDecision route({required int inputLength}) => switch (settings.processingMode) {
-    ProcessingMode.local => _localOnly(),
-    ProcessingMode.cloud => _cloudOnly(),
-    ProcessingMode.hybrid => _hybrid(inputLength),
-  };
+  RoutingDecision route({required int inputLength}) =>
+      switch (settings.processingMode) {
+        ProcessingMode.local => _localOnly(),
+        ProcessingMode.cloud => _cloudOnly(),
+        ProcessingMode.hybrid => _hybrid(inputLength),
+      };
 
   EngineTarget get _localTarget =>
       EngineTarget(engineId: 'local.llama', modelRef: settings.selectedModelId);
 
   bool get _cloudPolicyAllows =>
-      !networkPolicy.killSwitch && networkPolicy.isAllowed(NetworkFeature.cloudRewrite);
+      !networkPolicy.killSwitch &&
+      networkPolicy.isAllowed(NetworkFeature.cloudRewrite);
 
   /// The provider a cloud rewrite would use.
   ///
@@ -155,17 +162,21 @@ class TargetRouter {
 
   /// Which model [provider] would be asked for, same reasoning as
   /// [effectiveCloudProvider].
-  String? effectiveCloudModelRef(ProviderConfig provider) => _modelRefFor(provider);
+  String? effectiveCloudModelRef(ProviderConfig provider) =>
+      _modelRefFor(provider);
 
   RoutingDecision _localOnly() {
     if (!isLocalModelInstalled()) {
       return const RoutingDecision(
         target: null,
-        reason: 'Local — no model installed',
+        reason: 'Local: no model installed',
         blocker: RoutingBlocker.noLocalModel,
       );
     }
-    return RoutingDecision(target: _localTarget, reason: 'Local — on this device');
+    return RoutingDecision(
+      target: _localTarget,
+      reason: 'Local: on this device',
+    );
   }
 
   RoutingDecision _cloudOnly() {
@@ -173,13 +184,18 @@ class TargetRouter {
     if (target == null) {
       return RoutingDecision(
         target: null,
-        reason: _cloudPolicyAllows ? 'Cloud — no provider configured' : 'Cloud — disabled in Privacy settings',
+        reason: _cloudPolicyAllows
+            ? 'Cloud: no provider configured'
+            : 'Cloud: disabled in Privacy settings',
         blocker: _cloudPolicyAllows
             ? RoutingBlocker.noCloudProvider
             : RoutingBlocker.cloudDisabledByPolicy,
       );
     }
-    return RoutingDecision(target: target, reason: 'Cloud — ${_selectedProvider!.displayName}');
+    return RoutingDecision(
+      target: target,
+      reason: 'Cloud: ${_selectedProvider!.displayName}',
+    );
   }
 
   RoutingDecision _hybrid(int inputLength) {
@@ -191,7 +207,8 @@ class TargetRouter {
     if (preferCloud && cloudOk) {
       return RoutingDecision(
         target: cloudTarget,
-        reason: 'Hybrid — cloud (${_selectedProvider!.displayName}), long input',
+        reason:
+            'Hybrid: cloud (${_selectedProvider!.displayName}) for long text',
         fallback: localOk ? _localTarget : null,
       );
     }
@@ -199,20 +216,21 @@ class TargetRouter {
       return RoutingDecision(
         target: _localTarget,
         reason: preferCloud
-            ? 'Hybrid — local (no cloud provider set up for this long input)'
-            : 'Hybrid — local, short input',
+            ? 'Hybrid: on-device because no cloud provider is ready'
+            : 'Hybrid: on-device for shorter text',
         fallback: cloudOk ? cloudTarget : null,
       );
     }
     if (cloudOk) {
       return RoutingDecision(
         target: cloudTarget,
-        reason: 'Hybrid — cloud (${_selectedProvider!.displayName}), no local model installed',
+        reason:
+            'Hybrid: cloud (${_selectedProvider!.displayName}) because no local model is installed',
       );
     }
     return const RoutingDecision(
       target: null,
-      reason: 'Hybrid — nothing available yet',
+      reason: 'Hybrid: no model or cloud provider is ready',
       blocker: RoutingBlocker.noLocalModel,
     );
   }

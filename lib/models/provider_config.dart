@@ -14,12 +14,16 @@ class ProviderModelEntry {
   final String modelRef;
   final String displayName;
 
-  Map<String, Object?> toMap() => {'model_ref': modelRef, 'display_name': displayName};
+  Map<String, Object?> toMap() => {
+    'model_ref': modelRef,
+    'display_name': displayName,
+  };
 
-  factory ProviderModelEntry.fromMap(Map<String, Object?> row) => ProviderModelEntry(
-    modelRef: row['model_ref'] as String,
-    displayName: row['display_name'] as String,
-  );
+  factory ProviderModelEntry.fromMap(Map<String, Object?> row) =>
+      ProviderModelEntry(
+        modelRef: row['model_ref'] as String,
+        displayName: row['display_name'] as String,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -87,7 +91,9 @@ class ProviderConfig {
   ProviderPreset get preset {
     final found = ProviderPresetCatalog.byId(presetId);
     if (found == null) {
-      throw StateError('ProviderConfig "$id" references unknown preset "$presetId".');
+      throw StateError(
+        'ProviderConfig "$id" references unknown preset "$presetId".',
+      );
     }
     return found;
   }
@@ -97,14 +103,19 @@ class ProviderConfig {
   /// re-adding a known model just shows it twice in the built-in slot, which
   /// is harmless and simpler than a merge policy nobody asked for.
   List<ProviderModelEntry> get allModels => [
-    for (final name in preset.knownModels) ProviderModelEntry(modelRef: name, displayName: name),
+    for (final name in preset.knownModels)
+      ProviderModelEntry(modelRef: name, displayName: name),
     ...models,
   ];
 
-  Uri get baseUrl => normalizeBaseUrl(baseUrlOverride ?? preset.baseUrl, preset);
+  Uri get baseUrl =>
+      normalizeBaseUrl(baseUrlOverride ?? preset.baseUrl, preset);
 
-  EngineTarget targetFor(String modelRef) =>
-      EngineTarget(engineId: preset.protocol.engineId, modelRef: modelRef, providerId: id);
+  EngineTarget targetFor(String modelRef) => EngineTarget(
+    engineId: preset.protocol.engineId,
+    modelRef: modelRef,
+    providerId: id,
+  );
 
   static const _forbiddenHeaderKeys = {
     'authorization',
@@ -121,7 +132,7 @@ class ProviderConfig {
     for (final key in headers.keys) {
       if (_forbiddenHeaderKeys.contains(key.toLowerCase())) {
         throw ArgumentError(
-          'extraHeaders may not set "$key" — that header carries a '
+          'extraHeaders may not set "$key" because that header carries a '
           'credential and must come from CredentialStore instead.',
         );
       }
@@ -138,7 +149,8 @@ class ProviderConfig {
       throw ArgumentError('"$raw" is not a valid base URL.');
     }
     final schemeOk =
-        uri.scheme == 'https' || (uri.scheme == 'http' && preset.allowsPlainHttp);
+        uri.scheme == 'https' ||
+        (uri.scheme == 'http' && preset.allowsPlainHttp);
     if (!schemeOk) {
       throw ArgumentError(
         preset.allowsPlainHttp

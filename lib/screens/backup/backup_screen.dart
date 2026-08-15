@@ -72,7 +72,9 @@ class _BackupScreenState extends State<BackupScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.cloud_sync_outlined),
                   title: const Text('WebDAV sync'),
-                  subtitle: const Text('Keep this device and a self-hosted server in sync'),
+                  subtitle: const Text(
+                    'Keep this device and a self-hosted server in sync',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context).pushNamed(AppRoutes.sync),
                 ),
@@ -97,12 +99,21 @@ class _BackupScreenState extends State<BackupScreen> {
                 obscureText: !_passphraseVisible,
                 decoration: InputDecoration(
                   labelText: 'Passphrase',
-                  helperText: 'You will need this again to restore the backup. Forgotten passphrases cannot be recovered.',
+                  helperText:
+                      'You will need this again to restore the backup. Forgotten passphrases cannot be recovered.',
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
-                    tooltip: _passphraseVisible ? 'Hide passphrase' : 'Show passphrase',
-                    onPressed: () => setState(() => _passphraseVisible = !_passphraseVisible),
-                    icon: Icon(_passphraseVisible ? Icons.visibility_off : Icons.visibility),
+                    tooltip: _passphraseVisible
+                        ? 'Hide passphrase'
+                        : 'Show passphrase',
+                    onPressed: () => setState(
+                      () => _passphraseVisible = !_passphraseVisible,
+                    ),
+                    icon: Icon(
+                      _passphraseVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
                   ),
                 ),
               ),
@@ -120,7 +131,10 @@ class _BackupScreenState extends State<BackupScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            Text('Sensitive data', style: Theme.of(context).textTheme.labelLarge),
+            Text(
+              'Sensitive data',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             const SizedBox(height: 4),
             Semantics(
               identifier: 'backup_include_history',
@@ -129,7 +143,9 @@ class _BackupScreenState extends State<BackupScreen> {
                 value: _includeHistory,
                 onChanged: (v) => setState(() => _includeHistory = v ?? false),
                 title: const Text('Include rewrite history'),
-                subtitle: const Text('Off by default — the most sensitive section.'),
+                subtitle: const Text(
+                  'Off by default because history may contain private text.',
+                ),
               ),
             ),
             Semantics(
@@ -137,7 +153,8 @@ class _BackupScreenState extends State<BackupScreen> {
               child: CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _includeCredentials,
-                onChanged: (v) => setState(() => _includeCredentials = v ?? false),
+                onChanged: (v) =>
+                    setState(() => _includeCredentials = v ?? false),
                 title: const Text('Include cloud provider keys'),
                 subtitle: const Text(
                   'Stores your API keys in the file, protected only by the '
@@ -155,13 +172,19 @@ class _BackupScreenState extends State<BackupScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_outlined, color: scheme.onErrorContainer),
+                    Icon(
+                      Icons.warning_amber_outlined,
+                      color: scheme.onErrorContainer,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'A weak passphrase is the only thing standing between '
                         'this file and your API keys.',
-                        style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
+                        style: TextStyle(
+                          color: scheme.onErrorContainer,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -242,20 +265,25 @@ class _BackupScreenState extends State<BackupScreen> {
               _RestorePreviewCard(
                 preview: _preview!,
                 restoreSettings: _restoreSettings,
-                onRestoreSettingsChanged: (v) => setState(() => _restoreSettings = v),
+                onRestoreSettingsChanged: (v) =>
+                    setState(() => _restoreSettings = v),
                 restoreTones: _restoreTones,
                 onRestoreTonesChanged: (v) => setState(() => _restoreTones = v),
                 restoreAudiences: _restoreAudiences,
-                onRestoreAudiencesChanged: (v) => setState(() => _restoreAudiences = v),
+                onRestoreAudiencesChanged: (v) =>
+                    setState(() => _restoreAudiences = v),
                 restoreWorkflows: _restoreWorkflows,
-                onRestoreWorkflowsChanged: (v) => setState(() => _restoreWorkflows = v),
+                onRestoreWorkflowsChanged: (v) =>
+                    setState(() => _restoreWorkflows = v),
                 restoreProviderConfigs: _restoreProviderConfigs,
                 onRestoreProviderConfigsChanged: (v) =>
                     setState(() => _restoreProviderConfigs = v),
                 restoreCredentials: _restoreCredentials,
-                onRestoreCredentialsChanged: (v) => setState(() => _restoreCredentials = v),
+                onRestoreCredentialsChanged: (v) =>
+                    setState(() => _restoreCredentials = v),
                 historyStrategy: _historyStrategy,
-                onHistoryStrategyChanged: (v) => setState(() => _historyStrategy = v),
+                onHistoryStrategyChanged: (v) =>
+                    setState(() => _historyStrategy = v),
               ),
               const SizedBox(height: 16),
               Semantics(
@@ -336,7 +364,10 @@ class _BackupScreenState extends State<BackupScreen> {
     setState(() => _previewing = true);
     try {
       final service = context.read<BackupService>();
-      final bundle = await service.decrypt(bytes, _importPassphraseController.text);
+      final bundle = await service.decrypt(
+        bytes,
+        _importPassphraseController.text,
+      );
       if (!mounted) return;
       setState(() {
         _previewedBundle = bundle;
@@ -348,7 +379,9 @@ class _BackupScreenState extends State<BackupScreen> {
       showAppSnackBar('Wrong passphrase, or the file is corrupted.');
     } on BackupNewerFormatException {
       if (!context.mounted) return;
-      showAppSnackBar('This backup was made by a newer version of Rescripto. Update the app first.');
+      showAppSnackBar(
+        'This backup was made by a newer version of Rescripto. Update the app first.',
+      );
     } on BackupException {
       if (!context.mounted) return;
       showAppSnackBar('This file isn\'t a valid backup.');
@@ -369,8 +402,8 @@ class _BackupScreenState extends State<BackupScreen> {
           _historyStrategy == HistoryRestoreStrategy.replace
               ? 'Your current rewrite history will be replaced. Everything '
                     'else restored merges with what\'s already on this device.'
-              : 'Restored items merge with what\'s already on this device — '
-                    'nothing already here is deleted.',
+              : 'Restored items are added to what is already on this device. '
+                    'Nothing currently here will be deleted.',
         ),
         actions: [
           TextButton(
@@ -416,7 +449,9 @@ class _BackupScreenState extends State<BackupScreen> {
       });
     } on BackupOlderSchemaException {
       if (!context.mounted) return;
-      showAppSnackBar('This backup was made by a newer version of Rescripto. Update the app first.');
+      showAppSnackBar(
+        'This backup was made by a newer version of Rescripto. Update the app first.',
+      );
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -469,7 +504,9 @@ class _RestorePreviewCard extends StatelessWidget {
           children: [
             Text(
               'Made ${preview.createdAt.toLocal()} · Rescripto ${preview.appVersion}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
             if (preview.containsSecrets) ...[
               const SizedBox(height: 8),
@@ -481,13 +518,19 @@ class _RestorePreviewCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_outlined, color: scheme.onErrorContainer),
+                    Icon(
+                      Icons.warning_amber_outlined,
+                      color: scheme.onErrorContainer,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'This file contains ${preview.credentialCount} cloud provider '
                         'key(s).',
-                        style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
+                        style: TextStyle(
+                          color: scheme.onErrorContainer,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -543,7 +586,9 @@ class _RestorePreviewCard extends StatelessWidget {
                 dense: true,
                 value: restoreProviderConfigs,
                 onChanged: (v) => onRestoreProviderConfigsChanged(v ?? false),
-                title: Text('Cloud provider setup (${preview.providerConfigCount})'),
+                title: Text(
+                  'Cloud provider setup (${preview.providerConfigCount})',
+                ),
               ),
             ),
             if (preview.containsSecrets)
@@ -554,14 +599,20 @@ class _RestorePreviewCard extends StatelessWidget {
                   dense: true,
                   value: restoreCredentials,
                   onChanged: (v) => onRestoreCredentialsChanged(v ?? false),
-                  title: Text('Cloud provider keys (${preview.credentialCount})'),
+                  title: Text(
+                    'Cloud provider keys (${preview.credentialCount})',
+                  ),
                 ),
               ),
             const SizedBox(height: 8),
-            Text('Rewrite history (${preview.historyCount})', style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              'Rewrite history (${preview.historyCount})',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             RadioGroup<HistoryRestoreStrategy>(
               groupValue: historyStrategy,
-              onChanged: (v) => onHistoryStrategyChanged(v ?? HistoryRestoreStrategy.skip),
+              onChanged: (v) =>
+                  onHistoryStrategyChanged(v ?? HistoryRestoreStrategy.skip),
               child: Column(
                 children: [
                   Semantics(
@@ -607,7 +658,8 @@ class _ScheduledBackupsSection extends StatefulWidget {
   const _ScheduledBackupsSection();
 
   @override
-  State<_ScheduledBackupsSection> createState() => _ScheduledBackupsSectionState();
+  State<_ScheduledBackupsSection> createState() =>
+      _ScheduledBackupsSectionState();
 }
 
 class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
@@ -622,14 +674,19 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Scheduled backups', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Scheduled backups',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 4),
         Text(
-          'About once a week when you open the app, writes an encrypted '
-          'copy to this device\'s private storage and keeps the most '
-          'recent ${BackupScheduler.retentionCount}. Nothing leaves the '
-          'device — this isn\'t a substitute for the export above.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          'About once a week, Rescripto saves an encrypted backup when you '
+          'open the app. It keeps the latest ${BackupScheduler.retentionCount} '
+          'copies in private app storage. Export a backup if you want a copy '
+          'outside this device.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),
         Semantics(
@@ -640,7 +697,9 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
             onChanged: _busy ? null : (v) => _toggle(context, v),
             title: const Text('Automatic local backups'),
             subtitle: Text(
-              lastBackup == null ? 'No backup yet' : 'Last backup: ${lastBackup.toLocal()}',
+              lastBackup == null
+                  ? 'No backup yet'
+                  : 'Last backup: ${lastBackup.toLocal()}',
             ),
           ),
         ),
@@ -651,7 +710,8 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
               contentPadding: EdgeInsets.zero,
               dense: true,
               value: settingsController.scheduledBackupIncludeHistory,
-              onChanged: (v) => settingsController.setScheduledBackupIncludeHistory(v ?? false),
+              onChanged: (v) => settingsController
+                  .setScheduledBackupIncludeHistory(v ?? false),
               title: const Text('Include rewrite history'),
             ),
           ),
@@ -661,7 +721,8 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
               contentPadding: EdgeInsets.zero,
               dense: true,
               value: settingsController.scheduledBackupIncludeCredentials,
-              onChanged: (v) => settingsController.setScheduledBackupIncludeCredentials(v ?? false),
+              onChanged: (v) => settingsController
+                  .setScheduledBackupIncludeCredentials(v ?? false),
               title: const Text('Include cloud provider keys'),
             ),
           ),
@@ -745,9 +806,9 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Used only for automatic backups, stored in this device\'s '
-            'secure Keystore — never sent anywhere, never used for a '
-            'manual export above.',
+            'This passphrase is stored in the secure Android Keystore and is '
+            'used only for automatic backups on this device. Manual exports '
+            'use the passphrase you enter above.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -765,12 +826,17 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
             child: TextField(
               controller: _confirmController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm passphrase'),
+              decoration: const InputDecoration(
+                labelText: 'Confirm passphrase',
+              ),
             ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
         ],
       ),

@@ -5,6 +5,23 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.6] - 2026-08-15
+
+### Changed
+
+- Reworked in-app wording to be shorter, clearer, and more helpful throughout
+  setup, rewriting, models, settings, privacy, providers, backup, and sync.
+- Improved error messages so they explain what happened and what to try next.
+- Simplified the rewrite result screen and removed technical generation
+  statistics that were not useful during everyday writing.
+- Updated the README and privacy descriptions to match the voice and release
+  options that are actually available.
+
+### Compatibility
+
+- Existing voice models, rewrite models, settings, history, and backups remain
+  compatible. No download or data migration is required.
+
 ## [1.2.5] - 2026-08-15
 
 ### Fixed
@@ -121,6 +138,7 @@ app architecture) predates this changelog. See `git log` or the
 the full record.
 
 [1.1.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.2
+[1.2.6]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.6
 [1.2.5]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.5
 [1.2.4]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.3
