@@ -21,7 +21,10 @@
 #include <vector>
 #include <sstream>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <thread>
 
 #include "whisper.h"
@@ -102,8 +105,79 @@ void progress_cb(whisper_context* /*ctx*/, whisper_state* /*state*/, int progres
     }
 }
 
+// AudioRecord always writes a 16 kHz mono PCM16 WAV. Decode that small,
+// well-defined format ourselves before falling back to miniaudio. Some Android
+// devices expose a valid recording that miniaudio's stdio decoder cannot open,
+// even though the same file decodes normally elsewhere.
+static uint16_t read_le16(const unsigned char* p) {
+    return static_cast<uint16_t>(p[0]) |
+           (static_cast<uint16_t>(p[1]) << 8);
+}
+
+static uint32_t read_le32(const unsigned char* p) {
+    return static_cast<uint32_t>(p[0]) |
+           (static_cast<uint32_t>(p[1]) << 8) |
+           (static_cast<uint32_t>(p[2]) << 16) |
+           (static_cast<uint32_t>(p[3]) << 24);
+}
+
+static bool load_pcm16_wav_16k_mono(const std::string& path, std::vector<float>& out) {
+    std::ifstream stream(path, std::ios::binary);
+    if (!stream) return false;
+
+    std::vector<unsigned char> bytes(
+        (std::istreambuf_iterator<char>(stream)),
+        std::istreambuf_iterator<char>());
+    if (bytes.size() < 44 || std::memcmp(bytes.data(), "RIFF", 4) != 0 ||
+        std::memcmp(bytes.data() + 8, "WAVE", 4) != 0) {
+        return false;
+    }
+
+    uint16_t audio_format = 0;
+    uint16_t channels = 0;
+    uint16_t bits_per_sample = 0;
+    uint32_t sample_rate = 0;
+    const unsigned char* pcm = nullptr;
+    size_t pcm_size = 0;
+
+    size_t offset = 12;
+    while (offset + 8 <= bytes.size()) {
+        const unsigned char* chunk = bytes.data() + offset;
+        const uint32_t chunk_size = read_le32(chunk + 4);
+        const size_t data_offset = offset + 8;
+        if (data_offset > bytes.size() || chunk_size > bytes.size() - data_offset) {
+            return false;
+        }
+        if (std::memcmp(chunk, "fmt ", 4) == 0 && chunk_size >= 16) {
+            audio_format = read_le16(bytes.data() + data_offset);
+            channels = read_le16(bytes.data() + data_offset + 2);
+            sample_rate = read_le32(bytes.data() + data_offset + 4);
+            bits_per_sample = read_le16(bytes.data() + data_offset + 14);
+        } else if (std::memcmp(chunk, "data", 4) == 0) {
+            pcm = bytes.data() + data_offset;
+            pcm_size = chunk_size;
+        }
+        offset = data_offset + chunk_size + (chunk_size & 1U);
+    }
+
+    if (audio_format != 1 || channels != 1 || sample_rate != 16000 ||
+        bits_per_sample != 16 || pcm == nullptr || pcm_size < 2) {
+        return false;
+    }
+
+    const size_t sample_count = pcm_size / 2;
+    out.resize(sample_count);
+    for (size_t i = 0; i < sample_count; ++i) {
+        const int16_t sample = static_cast<int16_t>(read_le16(pcm + i * 2));
+        out[i] = static_cast<float>(sample) / 32768.0f;
+    }
+    return true;
+}
+
 // ---- audio decode: any format → 16 kHz mono f32 (miniaudio resamples) ----
 static bool load_audio_16k(const std::string& path, std::vector<float>& out) {
+    if (load_pcm16_wav_16k_mono(path, out)) return true;
+
     ma_decoder_config cfg = ma_decoder_config_init(ma_format_f32, 1, 16000);
     ma_decoder decoder;
     if (ma_decoder_init_file(path.c_str(), &cfg, &decoder) != MA_SUCCESS) return false;

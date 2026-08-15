@@ -5,6 +5,15 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.5] - 2026-08-15
+
+### Fixed
+
+- Fixed recorded voice clips failing at transcription on some Samsung phones.
+- Rescripto now reads its own 16 kHz mono WAV recordings directly before
+  falling back to the general audio decoder.
+- Existing voice models, rewrite models, settings, and history are preserved.
+
 ## [1.2.4] - 2026-08-15
 
 ### Fixed
@@ -112,6 +121,7 @@ app architecture) predates this changelog. See `git log` or the
 the full record.
 
 [1.1.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.2
+[1.2.5]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.5
 [1.2.4]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.3
 [1.2.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.2

@@ -19,7 +19,7 @@ abstract final class AppConstants {
   static const String issuesUrl =
       'https://github.com/Gr33nOps/Rescripto/issues';
   // Keep in step with `version:` in pubspec.yaml.
-  static const String versionName = '1.2.4';
+  static const String versionName = '1.2.5';
 
   // Storage keys (shared_preferences).
   static const String keySelectedModel = 'selected_model_id';
