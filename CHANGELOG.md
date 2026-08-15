@@ -5,6 +5,16 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] - 2026-08-15
+
+### Fixed
+
+- Made on-device voice loading use one explicit Android native-library path,
+  so the voice preflight and model initialization do not load different copies
+  of the same library.
+- Voice errors now identify the failed loading stage and retain Android's
+  sanitized linker details instead of always reporting a generic failure.
+
 ## [1.2.1] - 2026-08-15
 
 ### Fixed
@@ -82,6 +92,7 @@ app architecture) predates this changelog. See `git log` or the
 the full record.
 
 [1.1.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.2
+[1.2.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.2
 [1.2.1]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.1
 [1.2.0]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.0
 [1.1.1]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.1

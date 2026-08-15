@@ -22,7 +22,6 @@ class WhisperContext(
     private var handle: Long = 0
 
     init {
-        System.loadLibrary("whisper")
         handle = nativeInit(modelPath)
         if (handle == 0L) {
             throw RuntimeException("Failed to initialize whisper context: $modelPath")

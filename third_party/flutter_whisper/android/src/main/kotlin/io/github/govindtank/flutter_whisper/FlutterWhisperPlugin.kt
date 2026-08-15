@@ -93,11 +93,24 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
             return
         }
 
-        var stage = "c++_shared"
+        var stage = "native_loader"
         try {
-            System.loadLibrary("c++_shared")
-            stage = "whisper"
-            System.loadLibrary("whisper")
+            val loader = WhisperNativeLoader.ensureLoaded(requireNotNull(context))
+            if (!loader.loaded) {
+                result.success(
+                    supportResult(
+                        supported = false,
+                        code = "NATIVE_LOAD_FAILED",
+                        message = "The on-device voice library could not load at ${loader.stage}.",
+                        stage = loader.stage,
+                        detail = loader.detail,
+                        abis = abis,
+                        apiLevel = apiLevel,
+                        libraryDir = libraryDir,
+                    ),
+                )
+                return
+            }
             stage = "jni_smoke_test"
             if (!nativeSmokeTest()) {
                 result.success(
@@ -117,20 +130,6 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
                 supportResult(
                     supported = true,
                     stage = "ready",
-                    abis = abis,
-                    apiLevel = apiLevel,
-                    libraryDir = libraryDir,
-                ),
-            )
-        } catch (e: UnsatisfiedLinkError) {
-            Log.e("FlutterWhisper", "Native whisper library could not load", e)
-            result.success(
-                supportResult(
-                    supported = false,
-                    code = "NATIVE_LOAD_FAILED",
-                    message = "The on-device voice library could not load at $stage.",
-                    stage = stage,
-                    detail = sanitizeLinkerDetail(e.message),
                     abis = abis,
                     apiLevel = apiLevel,
                     libraryDir = libraryDir,
@@ -173,16 +172,26 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
         "detail" to detail,
     )
 
-    private fun sanitizeLinkerDetail(detail: String?): String {
-        if (detail.isNullOrBlank()) return "Android did not provide linker details."
-        return detail.replace(Regex("/data/[^ ]+"), "<app-native-path>").take(300)
-    }
-
     private fun initialize(call: MethodCall, result: Result) {
         val modelPath = call.argument<String>("modelPath") ?: return result.error("INVALID_ARGS", "modelPath required", null)
 
         transcribeExecutor.execute {
             try {
+                val appContext = context ?: run {
+                    mainHandler.post { result.error("NO_CONTEXT", "Voice plugin detached", null) }
+                    return@execute
+                }
+                val loader = WhisperNativeLoader.ensureLoaded(appContext)
+                if (!loader.loaded) {
+                    mainHandler.post {
+                        result.error(
+                            "NATIVE_LOAD_FAILED",
+                            "The on-device voice library could not load at ${loader.stage}.",
+                            mapOf("stage" to loader.stage, "detail" to loader.detail),
+                        )
+                    }
+                    return@execute
+                }
                 val modelFile = File(modelPath)
                 if (!modelFile.exists() && copyModelFromAssets(modelPath) == null) {
                     mainHandler.post {
@@ -201,7 +210,11 @@ class FlutterWhisperPlugin : FlutterPlugin, MethodCallHandler {
             } catch (e: UnsatisfiedLinkError) {
                 Log.e("FlutterWhisper", "Native whisper library missing", e)
                 mainHandler.post {
-                    result.error("NATIVE_LOAD_FAILED", "whisper.cpp native library could not load", null)
+                    result.error(
+                        "NATIVE_LOAD_FAILED",
+                        "The on-device voice library could not load during initialization.",
+                        mapOf("stage" to "initialization", "detail" to e.message.orEmpty().take(300)),
+                    )
                 }
             } catch (e: Exception) {
                 Log.e("FlutterWhisper", "Initialize failed", e)
