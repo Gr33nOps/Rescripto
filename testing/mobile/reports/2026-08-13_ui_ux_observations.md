@@ -1,8 +1,8 @@
-UI/UX OBSERVATIONS — 2026-08-13 mobile QA pass
+UI/UX OBSERVATIONS  -  2026-08-13 mobile QA pass
 Device/API:       Rescripto_Test, Android 15 (API 35), x86_64 emulator
 App build/commit: debug APK built from HEAD `2365240`, PROVIDER-001 fix applied
 
-These are visual/interaction-design observations, not correctness bugs — the
+These are visual/interaction-design observations, not correctness bugs  -  the
 app already renders consistently and matches Material Design conventions
 throughout. Filed separately from the functional bug reports since they're
 judgment calls about polish, not reproducible defects. Severity here means
@@ -15,7 +15,7 @@ judgment calls about polish, not reproducible defects. Severity here means
    The tone chips (Professional/Casual/Friendly/Formal/...) sit in a
    horizontally-scrolling row, but the row is exactly tall/wide enough that
    the last visible chip is sliced in half at the screen edge
-   (see rewrite screen screenshots throughout this pass — the 4th "Formal"
+   (see rewrite screen screenshots throughout this pass  -  the 4th "Formal"
    chip's icon is always partially cut off). Nothing hints the row scrolls:
    no fade-out gradient at the edge, no partial-next-item peek, no arrow.
    A user who doesn't habitually swipe UI rows sideways may never discover
@@ -27,7 +27,7 @@ judgment calls about polish, not reproducible defects. Severity here means
 2. Dictation button visually dominates the primary text-entry flow (Low/Medium)
    Area: Rewrite screen
    The circular "Tap to dictate" mic button is the single largest, most
-   visually weighted element on the whole screen — larger than the
+   visually weighted element on the whole screen  -  larger than the
    "Rewrite" action button itself, and it sits directly below the text
    field before the user has typed anything. For an app whose primary
    input method is clearly typed/pasted text (the field is labeled "Text
@@ -56,11 +56,11 @@ judgment calls about polish, not reproducible defects. Severity here means
 4. Password validation caption doesn't clear once input becomes valid (Medium)
    Area: Settings > Backup > WebDAV sync > "Set server password" dialog
    After a first save attempt with an effectively-empty field (see
-   CLOUD-PROVIDER-STALE-KEY-001's neighbor investigation — this shows up
+   CLOUD-PROVIDER-STALE-KEY-001's neighbor investigation  -  this shows up
    independent of that), the dialog displays "Use at least 8 characters."
    under the password field. Typing a genuinely valid password afterward
    (19 real characters, confirmed via the masked-dot rendering and a
-   successful subsequent Save) did not make this caption go away — it
+   successful subsequent Save) did not make this caption go away  -  it
    stayed visible right up until Save was tapped again and succeeded. A
    validation message that doesn't react to the input becoming valid reads
    as the app still rejecting a password the user can plainly see is long
@@ -82,8 +82,8 @@ judgment calls about polish, not reproducible defects. Severity here means
    Area: History screen, list entries
    Each history card stacks the original text (dimmer grey) directly above
    the rewritten text (full-white) with no label on either line. The
-   contrast is legible, but a user skimming quickly — or anyone with
-   reduced color/contrast perception — has to infer which line is which
+   contrast is legible, but a user skimming quickly  -  or anyone with
+   reduced color/contrast perception  -  has to infer which line is which
    from position and shade alone. An explicit small "Original" / "Rewrite"
    caption (as the Rewrite screen's own result view already uses via its
    Original/Rewrite tab labels) would remove the ambiguity for free.
@@ -93,12 +93,12 @@ judgment calls about polish, not reproducible defects. Severity here means
    Independent of SNACKBAR-FEEDBACK-MISSING-001 (which covers the
    *end-state* feedback being silently absent on failure): even when
    these actions succeed, there's no visible "working on it" state between
-   the tap and the result — no disabled button, no spinner, no progress
+   the tap and the result  -  no disabled button, no spinner, no progress
    text. A slow local model load or a slow WebDAV round trip currently
    looks identical, from the UI, to a tap that did nothing at all, which
    is exactly the ambiguity that made SNACKBAR-FEEDBACK-MISSING-001 so
    easy to mistake for "nothing happened" during this pass. Adding a
    lightweight in-flight state (the button already has the visual language
-   for this — see the Rewrite screen's AppBar `ProcessingIndicator` used
+   for this  -  see the Rewrite screen's AppBar `ProcessingIndicator` used
    during cloud/streaming generation) would help even once the SnackBar
    bug is fixed.

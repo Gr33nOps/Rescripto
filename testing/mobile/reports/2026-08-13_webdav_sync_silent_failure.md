@@ -10,7 +10,7 @@ Preconditions:    A WebDAV server configured (server URL + username + saved
                    "Backup sync" toggle in Settings > Privacy & network is in
                    its **default (off)** state.
 Steps to reproduce:
-  1. Settings > Cloud providers... (not needed) — Settings > Backup > WebDAV
+  1. Settings > Cloud providers... (not needed)  -  Settings > Backup > WebDAV
      sync. Fill in Server URL / Username, tap "Set server password", enter a
      password, Save.
   2. Do NOT enable "Backup sync" in Privacy & network (leave it at its
@@ -19,18 +19,18 @@ Steps to reproduce:
 Expected behavior:
   Either the button is disabled/explained when the feature is off (the way
   Processing-mode banners explain "add a cloud provider" per the test plan),
-  or tapping it shows a clear error such as "Backup sync is turned off —
+  or tapping it shows a clear error such as "Backup sync is turned off -
   enable it in Privacy & network to sync," matching the pattern already used
   elsewhere in the app for blocked actions.
 Actual behavior:
   Nothing happens. No SnackBar, no dialog, no inline error text, no change
   to the "Last pushed: ..." status line. The screen is pixel-identical
   before and after the tap (compare
-  `webdav_sync_silent_fail_20260813_005927.png` — the "Last pushed" caption
+  `webdav_sync_silent_fail_20260813_005927.png`  -  the "Last pushed" caption
   never advances). The failure is only discoverable by digging into
   Settings > Privacy & network > Network log, which does correctly record
   it as "Sync backup · Blocked (Privacy setting)"
-  (`webdav_network_log_evidence_20260813_005927.png`) — but almost no real
+  (`webdav_network_log_evidence_20260813_005927.png`)  -  but almost no real
   user would think to look there after a silently-ignored button tap.
   Root cause confirmed in logcat: an **unhandled** exception is thrown and
   swallowed by Flutter's default zone error handler, so the UI layer never
@@ -46,30 +46,30 @@ Actual behavior:
   the way out uncaught. This is the same *shape* of bug already reported in
   PROVIDER-001's "Workflow > Add step" finding (an exception thrown from a
   button callback, outside `build()`, is silently eaten by the zone handler
-  with zero UI signal) — but it is a different root cause and a different
+  with zero UI signal)  -  but it is a different root cause and a different
   code path (network policy guard vs. mis-registered `Provider`), so it is
   filed separately here.
 
   For contrast: when "Backup sync" IS enabled, the feature works correctly
-  and *does* give good feedback — a persistent "Last pushed: <timestamp>"
+  and *does* give good feedback  -  a persistent "Last pushed: <timestamp>"
   status line, and a "The server has a newer copy (...) [Review and apply]"
   conflict banner when the remote copy is newer. Confirmed via a real sync
   against the WebDAV test server (two successful `PUT` "HTTP 201" round
   trips visible in the Network log). So this is specifically a gap in the
   *failure* path, not a general absence of sync status UI.
-Reproducibility: Always (confirmed twice — once from the feature's true
+Reproducibility: Always (confirmed twice  -  once from the feature's true
   default state, once again after deliberately re-disabling it).
 Screenshot/video:
   testing/mobile/screenshots/webdav_sync_silent_fail_20260813_005927.png
-  (WebDAV sync screen immediately after the no-op "Sync now" tap — compare
+  (WebDAV sync screen immediately after the no-op "Sync now" tap  -  compare
   timestamp/state to any earlier screenshot of the same screen, identical)
   testing/mobile/screenshots/webdav_network_log_evidence_20260813_005927.png
   (Network log showing the same action correctly recorded as
   "Sync backup · Blocked (Privacy setting)", proving the app *does* know
-  why it failed — that information just never reaches the sync screen's UI)
+  why it failed  -  that information just never reaches the sync screen's UI)
 Relevant logs:    testing/mobile/logs/logcat_20260813_003247.txt (first
   occurrence, ~00:31:48), testing/mobile/logs/logcat_20260813_004122.txt
-  (second occurrence, ~00:34:56) — search for "NetworkBlockedByPolicyException"
+  (second occurrence, ~00:34:56)  -  search for "NetworkBlockedByPolicyException"
 Suspected cause:  `lib/screens/backup/sync_screen.dart:308`, `_push()`,
   calls `SyncService.push(...)` without a `try`/`catch` around the
   `NetworkBlockedByPolicyException` that `GuardedHttpClient.send` (in

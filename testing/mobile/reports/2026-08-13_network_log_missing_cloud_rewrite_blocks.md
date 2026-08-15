@@ -29,7 +29,7 @@ Actual behavior: No entry is added to the Network log for either the
   `log.record(...)` is never invoked for these blocks. This is the opposite
   of WebDAV's `SyncService`, which does dispatch its guarded request
   regardless of the toggle, so the guard's own block+log path fires (see
-  WEBDAV-SYNC-SILENT-FAIL-001 — that bug is the reverse problem: WebDAV logs
+  WEBDAV-SYNC-SILENT-FAIL-001  -  that bug is the reverse problem: WebDAV logs
   the block but shows no in-app feedback; cloud rewrite shows a clear
   snackbar but leaves no log record).
 Reproducibility:  Always (2/2 attempts: toggle-off and kill-switch)
@@ -37,7 +37,7 @@ Screenshot/video: testing/mobile/screenshots/44_privacy_cloud_rewrite_off_blocke
                    testing/mobile/screenshots/45_privacy_kill_switch_blocked_snackbar_20260813.png,
                    testing/mobile/screenshots/46_network_log_no_cloud_entries_20260813.png
 Relevant logs:    Confirmed via `adb logcat` grep for "groq"/"api.groq" around both
-                   attempts — zero matches, corroborating no HTTP call was even
+                   attempts  -  zero matches, corroborating no HTTP call was even
                    attempted (expected, given the pre-flight block), but this
                    also means there is no log evidence anywhere, in-app or
                    logcat, that the block happened except the transient snackbar.

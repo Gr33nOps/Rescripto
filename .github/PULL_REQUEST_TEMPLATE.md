@@ -1,10 +1,10 @@
 ## What does this change, and why?
 
-<!-- The "why" matters more than the "what" — the diff already shows what changed. -->
+<!-- Tell us why this change matters. The diff already shows the implementation. -->
 
 ## How was this tested?
 
-<!-- flutter test output, manual steps on a device/emulator, or both. -->
+<!-- Share flutter test output, manual device or emulator steps, or both. -->
 
 ## Checklist
 

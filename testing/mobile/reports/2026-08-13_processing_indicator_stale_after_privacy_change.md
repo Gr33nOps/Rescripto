@@ -25,7 +25,7 @@ Expected behavior: The pill should read "Cloud" and the "Cloud rewriting is
 Actual behavior: The pill still reads "Not ready" and the stale "Cloud
   rewriting is turned off" banner is still shown, even though the toggle is
   confirmed ON on the Privacy screen. The stale state persists indefinitely
-  across tab switches — it only self-corrects the instant something else
+  across tab switches  -  it only self-corrects the instant something else
   touches `RewriteController`'s own state, e.g. typing a single character
   into the source field immediately flips the pill to "Cloud" and removes
   the banner (confirmed: typing "a" fixed it in the same test run, no
@@ -36,32 +36,32 @@ Actual behavior: The pill still reads "Not ready" and the stale "Cloud
   state change occurs.
 Reproducibility:  Always (3/3 attempts, both directions), but requires the
   Rewrite screen to have been built at least once already in the current
-  app session — a completely fresh process reads the correct state on
+  app session  -  a completely fresh process reads the correct state on
   first render (no staleness possible, since there's nothing stale to
   show yet).
 Impact/scope: This is a **display-only** staleness bug, not an enforcement
   gap. `RewriteController.routing` (state/rewrite_controller.dart:98) is a
-  plain getter that calls `TargetRouter.route()` fresh on every access —
+  plain getter that calls `TargetRouter.route()` fresh on every access -
   it is not cached. Actually tapping "Rewrite" while the pill is stale
   still runs against the real, current policy (confirmed separately while
   investigating NETLOG-MISSING-CLOUD-BLOCK-001 today: tapping Rewrite with
   the policy genuinely off produces the correct block + snackbar every
   time, regardless of what the pill was showing beforehand). So no request
-  is ever incorrectly allowed or blocked because of this — only the
+  is ever incorrectly allowed or blocked because of this  -  only the
   glanceable status indicator lies until the user interacts with something
   else on the screen.
 Screenshot/video: testing/mobile/screenshots/47_pill_stale_not_ready_after_reenable_20260813.png
                    (pill + banner both stale, toggle confirmed ON moments earlier)
                    testing/mobile/screenshots/48_pill_corrected_after_typing_20260813.png
-                   (same screen, immediately after typing "a" — pill now "Cloud", banner gone)
+                   (same screen, immediately after typing "a"  -  pill now "Cloud", banner gone)
 Suspected cause:  `ProcessingIndicator.build()` (lib/widgets/processing_indicator.dart:21)
-                   does `context.watch<RewriteController>().routing` — it only
+                   does `context.watch<RewriteController>().routing`  -  it only
                    rebuilds when `RewriteController` itself calls
                    `notifyListeners()`. `NetworkPolicy` (a separate
                    `ChangeNotifier`, services/network/network_policy.dart:13)
                    notifies its own listeners when a Privacy toggle changes,
                    but nothing wires `RewriteController` to also notify when
-                   `NetworkPolicy` changes — so the already-built
+                   `NetworkPolicy` changes  -  so the already-built
                    `ProcessingIndicator` (and whatever renders the "Cloud
                    rewriting is turned off" banner, likely the same
                    `routing`/`RoutingDecision` read) simply never rebuilds

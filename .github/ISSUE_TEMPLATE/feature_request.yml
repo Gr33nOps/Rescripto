@@ -1,12 +1,12 @@
 name: Feature request
-description: Suggest an idea or improvement for Rescripto.
+description: Share an idea that could make Rescripto more useful.
 labels: ["enhancement"]
 body:
   - type: textarea
     id: problem
     attributes:
       label: What problem would this solve?
-      description: What are you trying to do that Rescripto doesn't support today?
+      description: What are you trying to do that Rescripto cannot do today?
     validations:
       required: true
 
@@ -14,7 +14,7 @@ body:
     id: solution
     attributes:
       label: Proposed solution
-      description: What you'd like to see happen. Rough is fine.
+      description: What would you like to see? A rough idea is completely fine.
     validations:
       required: true
 
@@ -22,7 +22,7 @@ body:
     id: alternatives
     attributes:
       label: Alternatives considered
-      description: Any other ways to solve this you've thought about, and why they don't fit as well.
+      description: What other approaches have you considered, and why do they not fit as well?
     validations:
       required: false
 
@@ -31,8 +31,7 @@ body:
     attributes:
       label: Privacy check
       description: >
-        Rescripto's default promise is that Local mode never touches the
-        network for rewriting. If this request would change what leaves the
-        device in any mode, please confirm you've thought about that.
+        Local mode does not use the network to rewrite text. If this idea
+        would change what leaves the device, please explain that trade-off.
       options:
         - label: This doesn't change what leaves the device, or I've described the tradeoff above.

@@ -1,8 +1,8 @@
 # Security Policy
 
-Rescripto's whole premise is that your text stays on your device unless you
-explicitly choose otherwise, so we take reports about that promise being
-broken — or about any other security issue — seriously.
+Rescripto is built around a simple promise: your text stays on your device
+unless you choose otherwise. We take anything that could break that promise,
+or any other security issue, seriously.
 
 ## Reporting a vulnerability
 
@@ -15,7 +15,7 @@ Instead, use GitHub's private vulnerability reporting for this repository:
 3. Describe the issue, how to reproduce it, and its impact
 
 If that's not available to you for some reason, open a normal issue asking
-for a private contact channel — without any vulnerability details — and
+for a private contact channel (without any vulnerability details) and
 we'll follow up.
 
 ## What's in scope
@@ -33,15 +33,15 @@ we'll follow up.
 ## What's out of scope
 
 - Vulnerabilities in a third-party cloud provider you've configured
-  yourself (OpenAI, Anthropic, Groq, etc.) — report those to the provider
+  yourself (OpenAI, Anthropic, Groq, etc.). Report those to the provider
 - Issues that require a rooted/compromised device or physical access with
   the device unlocked
 - The known, disclosed licensing/commercial-use restriction on
-  `third_party/flutter_llama` (see the [README](../README.md#license)) —
-  that's a licensing matter, not a vulnerability
+  `third_party/flutter_llama` (see the [README](../README.md#license)).
+  That's a licensing matter, not a vulnerability
 
 ## Response
 
-We'll acknowledge a report as soon as we can and aim to keep you updated as
-we work through it. Please give us a reasonable window to ship a fix before
-any public disclosure.
+We will acknowledge your report as soon as we can and keep you updated while
+we investigate it. Please give us a reasonable window to ship a fix before
+sharing details publicly.

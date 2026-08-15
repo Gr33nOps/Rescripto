@@ -5,6 +5,31 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-08-15
+
+### Fixed
+
+- Made on-device text and voice models more reliable on Android 7.0+ 64-bit
+  ARM phones. The app now loads a compatible CPU backend from the app's native
+  library directory and uses newer CPU features only when the phone supports
+  them.
+- Replaced misleading model and voice compatibility messages with specific
+  native-load and backend errors, including a retry path for voice input.
+- Prevented long rewrite prompts from crashing native generation by filling
+  the model context in safe batches.
+
+### Changed
+
+- Native libraries are extracted from the APK so Android can load the chosen
+  CPU backend reliably on Samsung, Redmi, and similar devices.
+
+## [1.2.0] - 2026-08-15
+
+### Changed
+
+- Refined the Android interface across rewriting, history, models, settings,
+  privacy, providers, backup, and WebDAV flows.
+
 ## [1.1.2] - 2026-08-14
 
 ### Fixed
@@ -22,7 +47,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
   different screen, until an unrelated action refreshed it. It now updates
   immediately.
 - A cloud rewrite blocked by the network kill switch or the Cloud rewriting
-  toggle no longer disappears from the Network log — it's recorded the same
+  toggle no longer disappears from the Network log. It's recorded the same
   way every other blocked or completed request is.
 
 ## [1.1.1] - 2026-08-12
@@ -44,18 +69,20 @@ and this project uses [Semantic Versioning](https://semver.org/).
   anything is applied.
 - Pro generation controls: per-tone top-P, top-K, repeat penalty, max
   output tokens, and stop sequences.
-- Multi-step workflows — chain rewrite steps into one saved pipeline.
+- Multi-step workflows, chaining rewrite steps into one saved pipeline.
 - The audience editor, and the tone preset studio.
 - Simple/Pro editor modes.
 
 ## Earlier history
 
-Everything before 1.1.0 — the initial local rewrite engine, cloud provider
+Everything before 1.1.0 (the initial local rewrite engine, cloud provider
 adapters, the network guard and privacy controls, onboarding, and the core
-app architecture — predates this changelog. See `git log` or the
+app architecture) predates this changelog. See `git log` or the
 [commit history](https://github.com/Gr33nOps/Rescripto/commits/main) for
 the full record.
 
 [1.1.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.2
+[1.2.1]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.1
+[1.2.0]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.0
 [1.1.1]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.0
