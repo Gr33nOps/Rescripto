@@ -394,6 +394,7 @@ class _SpeechEngineCard extends StatelessWidget {
     context.watch<ProviderRegistry>();
     final resolver = context.read<SpeechEngineResolver>();
     final cloudAvailable = resolver.hasCloudSpeechProvider;
+    final speechProvider = resolver.cloudSpeechProviderName;
     final scheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -423,10 +424,13 @@ class _SpeechEngineCard extends StatelessWidget {
                     title: const Text('Cloud'),
                     subtitle: Text(
                       cloudAvailable
-                          ? 'Faster on older phones. Your recording is uploaded '
-                                'to your configured provider.'
+                          ? 'Your recording is transcribed by '
+                                '${speechProvider ?? 'a speech provider'}, then '
+                                'the transcript goes to your selected cloud '
+                                'model.'
                           : 'Needs a provider that supports transcription '
-                                '(OpenAI or Groq) enabled in Cloud providers.',
+                                '(OpenAI, Groq, or xAI/Grok) enabled in Cloud '
+                                'providers.',
                     ),
                   ),
                 ),
@@ -438,8 +442,10 @@ class _SpeechEngineCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 'Cloud transcription sends the whole recording to your '
-                'provider. It appears in the Network log like any other '
-                'request.',
+                'speech provider. The transcript is then sent to the selected '
+                'cloud model. Both requests appear in the Network log. The '
+                'provider connection test checks text access; voice access is '
+                'checked when you record.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),

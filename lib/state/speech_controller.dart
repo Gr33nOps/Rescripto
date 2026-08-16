@@ -6,6 +6,7 @@ import 'package:flutter_whisper/flutter_whisper.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../models/speech_result.dart';
+import '../engine/engine_exception.dart';
 import '../engine/local/local_engine_host.dart';
 import '../services/network/network_exceptions.dart';
 import '../services/settings_service.dart';
@@ -239,13 +240,47 @@ class SpeechController extends ChangeNotifier {
     // failed, the disk was full, or the microphone was busy.
     if (error is SpeechEngineUnavailable) return error.message;
 
+    if (error is ProviderNotConfiguredException) {
+      return 'This cloud voice provider is not set up yet. Add its API key in '
+          'Cloud providers.';
+    }
+    if (error is ProviderAuthException) {
+      return 'The cloud voice provider rejected the saved API key. Check it '
+          'in Cloud providers.';
+    }
+    if (error is RateLimitedException) {
+      return error.retryAfter == null
+          ? 'The cloud voice provider is busy. Try again shortly.'
+          : 'The cloud voice provider is busy. Try again in '
+              '${error.retryAfter!.inSeconds}s.';
+    }
+    if (error is QuotaExhaustedException) {
+      return 'The cloud voice provider account is out of quota or balance. '
+          'Check its billing or plan.';
+    }
+    if (error is ProviderUnavailableException) {
+      return 'The cloud voice provider is having trouble right now. Try '
+          'again shortly.';
+    }
+    if (error is NetworkUnavailableException) {
+      return 'Cloud voice could not reach the provider. Check your internet '
+          'connection and try again.';
+    }
+    if (error is EmptyResponseException) {
+      return 'The cloud voice provider returned no transcript. Try recording '
+          'again.';
+    }
+
     if (error is NetworkBlockedByPolicyException) {
       // A deliberate block, not a network fault — the generic "check your
       // connection" fallback below would send someone chasing a problem
       // that doesn't exist.
+      final cloud = _settings.speechEngine == SpeechEngineResolver.cloudId;
       return error.reason == NetworkBlockReason.killSwitch
           ? 'Network access is turned off. Turn it back on in Settings to '
-                'download the voice model.'
+                '${cloud ? 'use cloud voice input' : 'download the voice model'}.'
+          : cloud
+          ? 'Cloud voice input is turned off in Settings.'
           : 'Voice model downloads are turned off in Settings.';
     }
 

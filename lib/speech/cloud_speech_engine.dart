@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_whisper/flutter_whisper.dart';
 
 import '../engine/cloud/chat_protocol.dart' show joinPath;
+import '../engine/cloud/cloud_error_mapper.dart';
+import '../engine/cloud/openai_compatible_protocol.dart';
 import '../engine/engine_exception.dart';
 import '../models/provider_config.dart';
 import '../models/speech_result.dart';
@@ -31,13 +33,15 @@ class CloudSpeechEngine implements SpeechEngine {
   final CredentialStore _credentialStore;
   final NetworkGuard _networkGuard;
 
-  /// Every OpenAI-compatible provider that offers transcription uses this
-  /// model name convention. Not yet user-configurable, the way
-  /// `cloudModelRef` is for rewriting — a reasonable starting default
-  /// rather than a second per-provider model picker.
-  static const _transcriptionModel = 'whisper-1';
+  /// OpenAI uses `whisper-1`; Groq exposes Whisper under its own model ids.
+  /// This is intentionally selected from the provider preset, not the text
+  /// model picker, because speech models are a separate API capability.
+  String get _transcriptionModel =>
+      _provider.presetId == 'groq' ? 'whisper-large-v3-turbo' : 'whisper-1';
 
   final Whisper _recorder = Whisper();
+  static const _errorMapper = CloudErrorMapper();
+  static const _protocol = OpenAiCompatibleProtocol();
 
   @override
   String get id => 'cloud.openaiCompatible';
@@ -50,7 +54,15 @@ class CloudSpeechEngine implements SpeechEngine {
   );
 
   @override
-  Future<void> prepare({void Function(double fraction)? onProgress}) async {}
+  Future<void> prepare({void Function(double fraction)? onProgress}) async {
+    // Fail before opening the microphone when Cloud is selected without a
+    // usable credential. Previously the recording started and the missing
+    // key only surfaced after Stop, which looked like a broken microphone.
+    final secret = await _credentialStore.read(_provider.credential);
+    if (secret == null || secret.trim().isEmpty) {
+      throw ProviderNotConfiguredException(_provider.id);
+    }
+  }
 
   @override
   Future<void> startRecording() => _recorder.startRecording();
@@ -68,25 +80,50 @@ class CloudSpeechEngine implements SpeechEngine {
         NetworkFeature.cloudSpeech,
         purpose: 'Cloud speech via ${_provider.displayName}',
       );
-      final uri = joinPath(_provider.baseUrl, 'audio/transcriptions');
-      final form = FormData.fromMap({
-        'model': _transcriptionModel,
-        'file': await MultipartFile.fromFile(wavPath, filename: 'audio.wav'),
-      });
-
-      final response = await dio.post<Map<String, dynamic>>(
-        uri.toString(),
-        data: form,
-        options: Options(
-          headers: {
-            ..._provider.preset.extraHeaders,
-            ..._provider.extraHeaders,
-            'Authorization': 'Bearer $secret',
-          },
-        ),
+      final xaiSpeech = _isXaiSpeechProvider;
+      final uri = joinPath(
+        _provider.baseUrl,
+        xaiSpeech ? 'stt' : 'audio/transcriptions',
       );
+      // xAI requires the file to be the final multipart field and uses the
+      // /stt endpoint instead of OpenAI's /audio/transcriptions contract.
+      final form = xaiSpeech
+          ? FormData.fromMap({
+              'format': 'true',
+              'language': 'en',
+              'file': await MultipartFile.fromFile(wavPath, filename: 'audio.wav'),
+            })
+          : FormData.fromMap({
+              'model': _transcriptionModel,
+              'file': await MultipartFile.fromFile(wavPath, filename: 'audio.wav'),
+            });
+
+      late final Response<Map<String, dynamic>> response;
+      try {
+        response = await dio.post<Map<String, dynamic>>(
+          uri.toString(),
+          data: form,
+          options: Options(
+            headers: {
+              ..._provider.preset.extraHeaders,
+              ..._provider.extraHeaders,
+              'Authorization': 'Bearer $secret',
+            },
+          ),
+        );
+      } catch (error) {
+        // NetworkGuard deliberately wraps policy blocks in DioException.
+        // Classify the wrapped error before it reaches the generic speech
+        // fallback, so cloud voice never presents a local-model message.
+        throw _errorMapper.map(
+          error,
+          provider: _provider,
+          protocol: _protocol,
+        );
+      }
 
       final text = response.data?['text'] as String? ?? '';
+      if (text.trim().isEmpty) throw const EmptyResponseException();
       return SpeechResult(text: text.trim(), language: '');
     } finally {
       await _deleteFile(wavPath);
@@ -106,4 +143,7 @@ class CloudSpeechEngine implements SpeechEngine {
     final file = File(path);
     if (await file.exists()) await file.delete();
   }
+
+  bool get _isXaiSpeechProvider =>
+      _provider.presetId == 'xai' || _provider.baseUrl.host == 'api.x.ai';
 }

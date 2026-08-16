@@ -55,6 +55,10 @@ class SpeechEngineResolver {
   /// offered as available and then refused at record time.
   bool get hasCloudSpeechProvider => _speechCapableProvider != null;
 
+  /// Name shown in Settings so users can tell which service transcribes
+  /// their recording before the selected cloud text model receives it.
+  String? get cloudSpeechProviderName => _speechCapableProvider?.displayName;
+
   /// The first enabled provider whose preset advertises transcription.
   ///
   /// [ProviderPreset.supportsSpeech] is only meaningful for OpenAI-compatible
@@ -66,7 +70,9 @@ class SpeechEngineResolver {
     for (final config in providerRegistry.enabledConfigs) {
       final preset = ProviderPresetCatalog.byId(config.presetId);
       if (preset == null) continue;
-      if (preset.supportsSpeech && preset.protocol == ProviderProtocol.openAiCompatible) {
+      final xaiEndpoint = config.baseUrl.host == 'api.x.ai';
+      if ((preset.supportsSpeech || xaiEndpoint) &&
+          preset.protocol == ProviderProtocol.openAiCompatible) {
         return config;
       }
     }
@@ -80,7 +86,8 @@ class SpeechEngineResolver {
     if (provider == null) {
       throw const SpeechEngineUnavailable(
         'Cloud voice input needs a provider that supports transcription '
-        '(OpenAI or Groq), enabled in Cloud providers. Add one, or switch '
+        '(OpenAI, Groq, or xAI/Grok), enabled in Cloud providers. Add one, or '
+        'switch '
         'voice input back to On-device in Settings.',
       );
     }

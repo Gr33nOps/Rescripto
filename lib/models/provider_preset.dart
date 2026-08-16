@@ -178,6 +178,16 @@ class ProviderPresetCatalog {
       supportsSpeech: true,
     ),
     ProviderPreset(
+      id: 'xai',
+      displayName: 'xAI (Grok)',
+      protocol: ProviderProtocol.openAiCompatible,
+      baseUrl: 'https://api.x.ai/v1',
+      authStyle: AuthStyle.bearer,
+      knownModels: ['grok-4.1-fast-reasoning', 'grok-4.1-mini'],
+      docsUrl: 'https://console.x.ai',
+      supportsSpeech: true,
+    ),
+    ProviderPreset(
       id: 'openrouter',
       displayName: 'OpenRouter',
       protocol: ProviderProtocol.openAiCompatible,

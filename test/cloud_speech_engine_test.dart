@@ -150,6 +150,23 @@ void main() {
     expect(wavFile.existsSync(), isFalse);
   });
 
+  test('checks the cloud credential before recording starts', () async {
+    final guard = NetworkGuard(
+      policy,
+      log,
+      adapterOverride: () => _FixedJsonAdapter(
+        statusCode: 200,
+        json: {'text': 'unused'},
+      ),
+    );
+    final engine = CloudSpeechEngine(provider, credentialStore, guard);
+
+    await expectLater(
+      engine.prepare(),
+      throwsA(isA<ProviderNotConfiguredException>()),
+    );
+  });
+
   test('cancel stops recording and deletes the file without uploading', () async {
     await credentialStore.write(provider.credential, 'sk-test');
     final adapter = _FixedJsonAdapter(statusCode: 200, json: {'text': 'unused'});
@@ -161,5 +178,35 @@ void main() {
 
     expect(wavFile.existsSync(), isFalse);
     expect(adapter.lastRequest, isNull);
+  });
+
+  test('maps provider authentication failures instead of hiding them', () async {
+    await credentialStore.write(provider.credential, 'sk-test');
+    final adapter = _FixedJsonAdapter(statusCode: 401, json: {
+      'error': {'message': 'invalid api key'},
+    });
+    final guard = NetworkGuard(policy, log, adapterOverride: () => adapter);
+    final engine = CloudSpeechEngine(provider, credentialStore, guard);
+
+    await engine.startRecording();
+    await expectLater(
+      engine.stopAndTranscribe(),
+      throwsA(isA<ProviderAuthException>()),
+    );
+    expect(wavFile.existsSync(), isFalse);
+  });
+
+  test('rejects an empty provider transcript', () async {
+    await credentialStore.write(provider.credential, 'sk-test');
+    final adapter = _FixedJsonAdapter(statusCode: 200, json: {'text': ''});
+    final guard = NetworkGuard(policy, log, adapterOverride: () => adapter);
+    final engine = CloudSpeechEngine(provider, credentialStore, guard);
+
+    await engine.startRecording();
+    await expectLater(
+      engine.stopAndTranscribe(),
+      throwsA(isA<EmptyResponseException>()),
+    );
+    expect(wavFile.existsSync(), isFalse);
   });
 }
