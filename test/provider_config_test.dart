@@ -26,9 +26,9 @@ ProviderConfig _config({
 
 void main() {
   group('ProviderPresetCatalog', () {
-    test('has nine distinct providers over three protocols', () {
+    test('has ten distinct providers over three protocols', () {
       final ids = ProviderPresetCatalog.all.map((p) => p.id).toSet();
-      expect(ids, hasLength(9));
+      expect(ids, hasLength(10));
       expect(ids, hasLength(ProviderPresetCatalog.all.length));
     });
 
