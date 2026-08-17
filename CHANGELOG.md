@@ -5,6 +5,22 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.10] - 2026-08-18
+
+### Fixed
+
+- Fixed Groq and Google Gemini cloud rewrite failing on every request. Both
+  providers retired their previously default models on their end; Rescripto
+  now defaults to their current models instead.
+- Fixed OpenRouter showing "no cloud provider configured" even when it was
+  fully set up — it had no default model to offer, so nothing was ever
+  selectable.
+- Fixed cloud rewrite and cloud voice both showing "the provider is
+  rate-limiting requests, try again shortly" for a provider account that
+  was actually out of credits or quota. That message is now shown only for
+  a genuine rate limit; an out-of-quota response now says so and points to
+  checking your plan with the provider.
+
 ## [1.2.9] - 2026-08-18
 
 ### Fixed

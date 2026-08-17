@@ -104,7 +104,16 @@ class OpenAiCompatibleProtocol implements ChatProtocol {
     if (code == 'context_length_exceeded') {
       return const ContextOverflowException();
     }
-    if (code == 'insufficient_quota') {
+    // OpenAI overloads HTTP 429 for both genuine rate-limiting and running
+    // out of billing credits — the two are distinguished only by this body
+    // code, never by status code alone. `insufficient_quota` is the older,
+    // still-current `error.type`; `credit_balance_exhausted` is the newer
+    // `error.code` seen directly from a live "no credits remaining"
+    // response. Missing either meant that response fell through to
+    // UnknownEngineException below and, at the CloudErrorMapper level, got
+    // shown to the user as "rate-limited, try again shortly" — which never
+    // resolves a zero-balance account no matter how many times it retries.
+    if (code == 'insufficient_quota' || code == 'credit_balance_exhausted') {
       return const QuotaExhaustedException();
     }
     return UnknownEngineException(code);

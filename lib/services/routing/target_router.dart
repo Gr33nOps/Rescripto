@@ -122,9 +122,15 @@ class TargetRouter {
   ///
   /// Same reasoning as [_selectedProvider]: prefer the explicit choice, but
   /// fall back to the provider's own first known model rather than refusing
-  /// to route. Every preset ships a `knownModels` list, so this is null only
-  /// for a custom endpoint whose model list the user hasn't filled in — the
-  /// one case where there genuinely is nothing to pick.
+  /// to route. Every hosted preset ships a `knownModels` list — see
+  /// `provider_preset_test.dart`'s regression coverage for that, added
+  /// after OpenRouter shipped without one and a provider a user had
+  /// configured, enabled, and keyed correctly still routed as if nothing
+  /// were configured at all. This is null only for the two presets whose
+  /// model list genuinely cannot be known ahead of time: `custom` (an
+  /// arbitrary endpoint) and `ollama` (whatever the user has pulled
+  /// locally) — the only cases where there is nothing to pick until the
+  /// user fills one in themselves.
   String? _modelRefFor(ProviderConfig provider) {
     final models = provider.allModels;
     final explicit = settings.cloudModelRef;

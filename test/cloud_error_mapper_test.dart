@@ -114,6 +114,42 @@ void main() {
       expect((result as RateLimitedException).retryAfter, isNull);
     });
 
+    test(
+      '429 with a quota-shaped body maps to QuotaExhaustedException, not RateLimitedException',
+      () {
+        // Regression coverage: verified live against OpenAI — a "no
+        // credits remaining" response is HTTP 429 with this exact body
+        // shape, indistinguishable from a genuine rate limit by status
+        // code alone. Retrying a zero-balance account never succeeds, so
+        // showing "try again shortly" here is actively misleading.
+        final result = _mapper.mapStatusCode(
+          429,
+          {
+            'error': {
+              'message': 'You have no credits remaining.',
+              'type': 'insufficient_quota',
+              'code': 'credit_balance_exhausted',
+            },
+          },
+          provider: provider,
+          protocol: _protocol,
+        );
+        expect(result, isA<QuotaExhaustedException>());
+      },
+    );
+
+    test('429 with an unrecognized body still falls back to RateLimitedException', () {
+      final result = _mapper.mapStatusCode(
+        429,
+        {
+          'error': {'type': 'rate_limit_exceeded', 'code': 'rate_limit_exceeded'},
+        },
+        provider: provider,
+        protocol: _protocol,
+      );
+      expect(result, isA<RateLimitedException>());
+    });
+
     test('5xx maps to ProviderUnavailableException carrying the status code', () {
       final result = _mapper.mapStatusCode(503, null, provider: provider, protocol: _protocol);
       expect(result, isA<ProviderUnavailableException>());

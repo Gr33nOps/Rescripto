@@ -164,7 +164,14 @@ class ProviderPresetCatalog {
       protocol: ProviderProtocol.gemini,
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
       authStyle: AuthStyle.googApiKey,
-      knownModels: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+      // gemini-2.5-pro and gemini-2.5-flash now 404 with "no longer
+      // available to new users" — verified directly against
+      // streamGenerateContent. Google's own error body names the exact
+      // replacements used here. TargetRouter._modelRefFor already falls
+      // back to knownModels.first for any saved ref no longer in this list,
+      // so an existing config pointed at a retired model recovers
+      // automatically once this ships.
+      knownModels: ['gemini-3.1-pro-preview', 'gemini-3.6-flash'],
       docsUrl: 'https://aistudio.google.com/apikey',
     ),
     ProviderPreset(
@@ -173,7 +180,13 @@ class ProviderPresetCatalog {
       protocol: ProviderProtocol.openAiCompatible,
       baseUrl: 'https://api.groq.com/openai/v1',
       authStyle: AuthStyle.bearer,
-      knownModels: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+      // llama-3.3-70b-versatile and llama-3.1-8b-instant were decommissioned
+      // by Groq — POSTing either now 404s with "model_not_found", verified
+      // directly against Groq's own /chat/completions and /models endpoints.
+      // TargetRouter._modelRefFor already falls back to knownModels.first for
+      // any saved ref no longer in this list, so an existing config pointed
+      // at a decommissioned model recovers automatically once this ships.
+      knownModels: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
       docsUrl: 'https://console.groq.com/keys',
       supportsSpeech: true,
     ),
@@ -199,6 +212,18 @@ class ProviderPresetCatalog {
         'HTTP-Referer': 'https://github.com/Gr33nOps/Rescripto',
         'X-Title': 'Rescripto',
       },
+      // This preset shipped with no knownModels at all — the one other
+      // preset that's true for is 'custom', and TargetRouter._modelRefFor's
+      // own doc says that's meant to be the *only* case: "every preset
+      // ships a knownModels list ... the one case where there genuinely is
+      // nothing to pick" is the custom endpoint. With OpenRouter actually
+      // empty too, a provider a user had configured, enabled, and keyed
+      // correctly still routed as if nothing were configured at all —
+      // _cloudTarget can't tell "no provider" and "provider with no
+      // selectable model" apart, so it surfaced the same misleading
+      // "no cloud provider configured" reason either way. Both ids verified
+      // live against OpenRouter's own /chat/completions.
+      knownModels: ['openai/gpt-4o-mini', 'meta-llama/llama-3.3-70b-instruct'],
       docsUrl: 'https://openrouter.ai/keys',
     ),
     ProviderPreset(

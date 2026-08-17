@@ -95,6 +95,18 @@ class CloudErrorMapper {
     Headers? headers,
   }) {
     if (statusCode == 429) {
+      // 429 is not purely "rate-limited" — OpenAI (and Gemini's
+      // RESOURCE_EXHAUSTED) also use it for running out of quota/billing
+      // credits, distinguishable only by the response body. Ask the
+      // protocol first, the same way it already gets first look at 400 and
+      // anything unrecognized; only fall back to a generic rate limit (with
+      // whatever Retry-After the response carried) when the protocol found
+      // nothing more specific in the body. Confirmed live against OpenAI:
+      // a "no credits remaining" 429 was previously shown to the user as
+      // "try again shortly", which a zero balance never recovers from no
+      // matter how many retries.
+      final classified = protocol.classifyError(provider, statusCode, body);
+      if (classified is! UnknownEngineException) return classified;
       return RateLimitedException(_retryAfter(headers));
     }
     if (statusCode == 401 || statusCode == 403) {

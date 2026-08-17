@@ -130,12 +130,12 @@ void main() {
       await configureProviderWithoutSelecting('openai');
       final second = await configureProviderWithoutSelecting('groq');
       await settings.setCloudProviderId(second.id);
-      await settings.setCloudModelRef('llama-3.1-8b-instant');
+      await settings.setCloudModelRef('openai/gpt-oss-20b');
 
       final decision = router().route(inputLength: 10);
 
       expect(decision.target!.providerId, second.id);
-      expect(decision.target!.modelRef, 'llama-3.1-8b-instant');
+      expect(decision.target!.modelRef, 'openai/gpt-oss-20b');
     });
 
     test(
