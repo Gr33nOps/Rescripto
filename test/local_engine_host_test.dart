@@ -79,13 +79,111 @@ void main() {
       expect(service.unloadCalls, 1);
     });
   });
+
+  group('LocalEngineHost — per-request cancellation', () {
+    // Regression coverage for a bug where a rewrite and a workflow step
+    // could both reach this host: prepare (load) and generate used to be two
+    // separate withEngine calls, so a second caller's prepare could land in
+    // the gap between them and load a different model before the first
+    // caller's generate call ran. LocalLlmEngine now passes both under one
+    // withEngine call with a token; these tests pin the host-level contract
+    // that fix depends on.
+    late LocalEngineHost host;
+
+    setUp(() => host = LocalEngineHost(LocalLlmService()));
+
+    test('isActive is true only for the token currently running', () async {
+      final tokenA = Object();
+      final started = Completer<void>();
+      final blocked = Completer<void>();
+
+      final task = host.withEngine((_) async {
+        started.complete();
+        await blocked.future;
+        return null;
+      }, token: tokenA);
+
+      await started.future;
+      expect(host.isActive(tokenA), isTrue);
+      expect(host.isActive(Object()), isFalse);
+
+      blocked.complete();
+      await task;
+      expect(host.isActive(tokenA), isFalse);
+    });
+
+    test('requestStop calls native stop when the token is active', () async {
+      final service = _TrackingLocalLlmService();
+      final trackingHost = LocalEngineHost(service);
+      final token = Object();
+      final started = Completer<void>();
+      final blocked = Completer<void>();
+
+      final task = trackingHost.withEngine((_) async {
+        started.complete();
+        await blocked.future;
+        return null;
+      }, token: token);
+
+      await started.future;
+      await trackingHost.requestStop(token);
+      expect(service.stopCalls, 1);
+
+      blocked.complete();
+      await task;
+    });
+
+    test(
+      'requestStop is a no-op for a token still queued behind another one',
+      () async {
+        // The exact race this exists for: cancelling a queued-but-not-yet-
+        // started request must never touch native, or it would cut off
+        // whatever unrelated operation is actually running.
+        final service = _TrackingLocalLlmService();
+        final trackingHost = LocalEngineHost(service);
+        final activeToken = Object();
+        final queuedToken = Object();
+        final activeStarted = Completer<void>();
+        final releaseActive = Completer<void>();
+
+        final active = trackingHost.withEngine((_) async {
+          activeStarted.complete();
+          await releaseActive.future;
+          return null;
+        }, token: activeToken);
+
+        await activeStarted.future;
+        final queued = trackingHost.withEngine(
+          (_) async => null,
+          token: queuedToken,
+        );
+
+        await trackingHost.requestStop(queuedToken);
+        expect(
+          service.stopCalls,
+          0,
+          reason: 'the queued token has nothing native running yet',
+        );
+
+        releaseActive.complete();
+        await active;
+        await queued;
+      },
+    );
+  });
 }
 
 class _TrackingLocalLlmService extends LocalLlmService {
   int unloadCalls = 0;
+  int stopCalls = 0;
 
   @override
   Future<void> unloadModel() async {
     unloadCalls++;
+  }
+
+  @override
+  Future<void> stopGeneration() async {
+    stopCalls++;
   }
 }

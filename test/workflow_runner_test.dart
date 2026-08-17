@@ -84,6 +84,25 @@ void main() {
     );
   }
 
+  WorkflowDefinition oneStepWorkflow() {
+    final now = DateTime.now();
+    return WorkflowDefinition(
+      id: 'workflow_solo',
+      name: 'Polish',
+      steps: const [
+        WorkflowStep(
+          id: 'step_1',
+          toneId: 'casual',
+          intensity: RewriteIntensity.light,
+          length: RewriteLength.same,
+          target: EngineTarget(engineId: 'local.llama', modelRef: 'gemma'),
+        ),
+      ],
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
   group('WorkflowRunner.run', () {
     test('feeds step N\'s output as step N+1\'s input, in order', () async {
       final future = runner.run(twoStepWorkflow(), 'rough draft');
@@ -190,6 +209,48 @@ void main() {
       localEngine.lastHandle!.completeError(const GenerationCancelledException());
       await expectLater(future, throwsA(isA<GenerationCancelledException>()));
       expect(activeRequests.activeCount, 0);
+    });
+
+    group('refusal detection', () {
+      // Regression coverage: WorkflowRunner used to drive the engine itself
+      // with no refusal check at all — a step's "I can't assist with
+      // that…" flowed into the next step (or was saved) as if it were a
+      // real rewrite, and the workflow was reported as having succeeded.
+
+      test('a refused step is retried once and recovers, and the workflow continues', () async {
+        final future = runner.run(oneStepWorkflow(), 'rough draft');
+
+        await Future<void>.delayed(Duration.zero);
+        expect(localEngine.prepareCallCount, 1);
+        localEngine.lastHandle!.complete(
+          const RewriteOutput(text: "I'm sorry, but I can't help with that."),
+        );
+
+        // The retry is a second, independent start() call — not the same
+        // handle re-delivering a different result.
+        await Future<void>.delayed(Duration.zero);
+        localEngine.lastHandle!.complete(const RewriteOutput(text: 'a real rewrite'));
+
+        final result = await future;
+        expect(result, 'a real rewrite');
+      });
+
+      test('a refusal that survives the retry throws ModelRefusedException and writes no history', () async {
+        final future = runner.run(oneStepWorkflow(), 'rough draft');
+
+        await Future<void>.delayed(Duration.zero);
+        localEngine.lastHandle!.complete(
+          const RewriteOutput(text: "I'm sorry, but I can't help with that."),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        localEngine.lastHandle!.complete(
+          const RewriteOutput(text: "I'm sorry, but I can't help with that."),
+        );
+
+        await expectLater(future, throwsA(isA<ModelRefusedException>()));
+        expect(await storage.getHistory(), isEmpty);
+      });
     });
   });
 }

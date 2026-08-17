@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rescripto/services/share_intent_bridge.dart';
@@ -104,10 +106,77 @@ void main() {
       final bridge = ShareIntentBridge(channel: channel);
       await pumpEventQueue();
 
-      bridge.consume();
+      bridge.consume(bridge.pending!);
 
       expect(bridge.pending, isNull);
       expect(bridge.awaitingProcessTextResult, isTrue);
+    });
+
+    test('is a no-op for an intent that is no longer the front of the queue', () async {
+      // Regression coverage for the exact race HomeShell's own doc
+      // describes: two post-frame callbacks scheduled for the same pending
+      // intent before the first one runs. The *second*, stale callback's
+      // consume() call must not pop whatever queued after the one that was
+      // actually applied.
+      mockHandler((call) async => null);
+      final bridge = ShareIntentBridge(channel: channel);
+      await pumpEventQueue();
+
+      await simulateIncomingText({'text': 'first', 'source': 'share', 'readOnly': false});
+      final firstIncoming = bridge.pending!;
+      await simulateIncomingText({'text': 'second', 'source': 'share', 'readOnly': false});
+
+      // The first callback consumes "first" normally.
+      bridge.consume(firstIncoming);
+      expect(bridge.pending?.text, 'second');
+
+      // A second, stale callback for the same (already-consumed) instance
+      // must not touch "second" — it is no longer the front of the queue.
+      bridge.consume(firstIncoming);
+      expect(bridge.pending?.text, 'second', reason: 'a stale consume of an already-consumed instance is a no-op');
+    });
+  });
+
+  group('ShareIntentBridge — queued arrivals', () {
+    // Regression coverage: pending used to be a single field a second
+    // arrival overwrote outright, silently dropping whichever text arrived
+    // first if nothing had consumed it yet.
+
+    test('two rapid arrivals both survive, in the order they arrived', () async {
+      mockHandler((call) async => null);
+      final bridge = ShareIntentBridge(channel: channel);
+      await pumpEventQueue();
+
+      await simulateIncomingText({'text': 'first share', 'source': 'share', 'readOnly': false});
+      await simulateIncomingText({'text': 'second share', 'source': 'share', 'readOnly': false});
+
+      expect(bridge.pending?.text, 'first share', reason: 'the earlier arrival must not have been dropped');
+      bridge.consume(bridge.pending!);
+      expect(bridge.pending?.text, 'second share');
+      bridge.consume(bridge.pending!);
+      expect(bridge.pending, isNull);
+    });
+
+    test('a live incomingText call arriving before getInitialIntent resolves loses neither', () async {
+      // Simulates the cold-start race the class doc describes: the async
+      // getInitialIntent lookup is still pending when a live push arrives.
+      final initialIntentCompleter = Completer<Object?>();
+      mockHandler((call) async {
+        if (call.method == 'getInitialIntent') return initialIntentCompleter.future;
+        return null;
+      });
+      final bridge = ShareIntentBridge(channel: channel);
+
+      // The live call resolves first, while getInitialIntent is still in flight.
+      await simulateIncomingText({'text': 'live push', 'source': 'share', 'readOnly': false});
+      expect(bridge.pending?.text, 'live push');
+
+      initialIntentCompleter.complete({'text': 'cold start text', 'source': 'share', 'readOnly': false});
+      await pumpEventQueue();
+
+      expect(bridge.pending?.text, 'live push', reason: 'the earlier live arrival must stay at the front');
+      bridge.consume(bridge.pending!);
+      expect(bridge.pending?.text, 'cold start text', reason: 'the initial intent must not have been dropped');
     });
   });
 

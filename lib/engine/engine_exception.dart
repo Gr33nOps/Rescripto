@@ -23,6 +23,25 @@ final class ModelLoadFailedException extends EngineException {
   final String? nativeReason;
 }
 
+/// A load failure was traced to a corrupted file, not the engine — the file
+/// was already deleted by the time this is thrown.
+///
+/// `ModelManager`'s post-install `isInstalled()` check only verifies file
+/// size and a 4-byte magic number, never a full hash (the initial download
+/// does hash it — this is specifically about corruption *after* that, from
+/// a bad sector, an interrupted OS-level copy, disk pressure). So a file
+/// that goes bad after installation stays labelled "installed" until a load
+/// like this one actually hits it. `LocalLlmService.loadModel` re-hashes
+/// only in response to an actual native load failure — never proactively,
+/// and never on every launch — and deletes the file once corruption is
+/// confirmed, so the next `prepare()` reports [ModelNotInstalledException]
+/// instead of repeating this same failure forever.
+final class ModelCorruptedException extends EngineException {
+  const ModelCorruptedException(this.modelId);
+
+  final String modelId;
+}
+
 /// The prompt leaves too little of the context window for a useful reply.
 ///
 /// Both counts are nullable: the local engine always knows both, but a cloud

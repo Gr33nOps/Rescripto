@@ -6,6 +6,7 @@ import '../models/workflow_definition.dart';
 import '../models/workflow_step.dart';
 import '../services/config_store.dart';
 import '../services/prompt_builder.dart';
+import '../services/refusal_detector.dart';
 import '../services/storage_service.dart';
 import 'active_request_registry.dart';
 import 'engine_error_messages.dart';
@@ -136,7 +137,6 @@ class WorkflowRunner extends ChangeNotifier {
       customInstruction: step.customInstruction,
       variantCount: 1,
     );
-    final prompt = PromptBuilder.build(request, tone: tone, audienceLabels: audienceLabels);
     final options = GenerationOptions(
       temperature: tone.temperature,
       topP: tone.topP,
@@ -146,31 +146,58 @@ class WorkflowRunner extends ChangeNotifier {
       stopSequences: tone.stopSequences,
     );
 
-    final handle = engine.start(
-      EngineRequest(target: step.target, prompt: prompt, options: options),
-    );
-    _active = handle;
-    _activeRequests.register(handle);
+    Future<List<String>> attempt({required bool strictRetry}) async {
+      final prompt = PromptBuilder.build(
+        request,
+        tone: tone,
+        audienceLabels: audienceLabels,
+        strictRetry: strictRetry,
+      );
+      final handle = engine.start(
+        EngineRequest(target: step.target, prompt: prompt, options: options),
+      );
+      _active = handle;
+      _activeRequests.register(handle);
 
-    final subscription = handle.events.listen((event) {
-      switch (event) {
-        case StageChanged(:final stage):
-          _stage = stage;
-        case TokenDelta(:final delta):
-          _currentStreamingText += delta;
+      final subscription = handle.events.listen((event) {
+        switch (event) {
+          case StageChanged(:final stage):
+            _stage = stage;
+          case TokenDelta(:final delta):
+            _currentStreamingText += delta;
+        }
+        notifyListeners();
+      });
+
+      try {
+        final output = await handle.done;
+        final variants = PromptBuilder.parseVariants(output.text, expected: 1);
+        if (variants.isEmpty) throw const EmptyResponseException();
+        return variants;
+      } finally {
+        await subscription.cancel();
+        _activeRequests.unregister(handle);
       }
-      notifyListeners();
-    });
-
-    try {
-      final output = await handle.done;
-      final variants = PromptBuilder.parseVariants(output.text, expected: 1);
-      if (variants.isEmpty) throw const EmptyResponseException();
-      return variants.first;
-    } finally {
-      await subscription.cancel();
-      _activeRequests.unregister(handle);
     }
+
+    var variants = await attempt(strictRetry: false);
+
+    // A refusal arrives as a perfectly normal completion — without this a
+    // step's "I can't assist with that…" would flow into the next step as
+    // if it were real rewritten text, or be saved as the workflow's final
+    // result. Same one-retry-then-give-up treatment as RewriteController;
+    // see RefusalDetector.looksLikeRefusal for why it's deliberately
+    // conservative about what counts.
+    if (RefusalDetector.looksLikeRefusal(variants)) {
+      _currentStreamingText = '';
+      notifyListeners();
+      variants = await attempt(strictRetry: true);
+      if (RefusalDetector.looksLikeRefusal(variants)) {
+        throw const ModelRefusedException();
+      }
+    }
+
+    return variants.first;
   }
 
   Future<void> _saveToHistory(

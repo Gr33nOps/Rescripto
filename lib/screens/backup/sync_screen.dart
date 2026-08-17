@@ -10,6 +10,7 @@ import '../../services/credentials/credential_store.dart';
 import '../../services/network/network_exceptions.dart';
 import '../../services/sync/sync_service.dart';
 import '../../services/sync/webdav_exception.dart';
+import '../../services/sync/webdav_sync_conflict_exception.dart';
 import '../../state/settings_controller.dart';
 
 /// WebDAV/Nextcloud sync: server setup, per-section selection, and a
@@ -275,13 +276,12 @@ class _SyncScreenState extends State<SyncScreen> {
     }
     setState(() => _testing = true);
     try {
-      final settings = context.read<SettingsController>();
       final sync = context.read<SyncService>();
-      await settings.setWebdavUrl(url);
-      if (!mounted) return;
-      await settings.setWebdavUsername(_usernameController.text.trim());
-      if (!mounted) return;
-      await sync.remoteNewerThanLastPush();
+      // Deliberately does not touch SettingsController — only the "Save"
+      // button persists the URL/username the fields hold. This used to call
+      // setWebdavUrl/setWebdavUsername before testing, so even a *failed*
+      // test left the typed values saved.
+      await sync.testConnection(url, _usernameController.text.trim());
       if (context.mounted) showAppSnackBar('Connected successfully.');
     } on WebDavException catch (error) {
       if (context.mounted) showAppSnackBar(_describe(error));
@@ -357,7 +357,7 @@ class _SyncScreenState extends State<SyncScreen> {
     return passphrase;
   }
 
-  Future<void> _push(BuildContext context) async {
+  Future<void> _push(BuildContext context, {bool force = false}) async {
     // Busy from the first tap, not just once the network call starts: the
     // passphrase lookup ahead of it is itself an async gap with no other
     // visible feedback, which read as an ignored tap during QA.
@@ -376,11 +376,17 @@ class _SyncScreenState extends State<SyncScreen> {
         includeProviderConfigs: settings.syncIncludeProviderConfigs,
         includeHistory: settings.syncIncludeHistory,
         includeCredentials: settings.syncIncludeCredentials,
+        force: force,
       );
       if (!context.mounted) return;
       settings.refreshFromService();
       setState(() => _remoteNewerThan = null);
       showAppSnackBar('Synced.');
+    } on WebDavSyncConflictException catch (e) {
+      if (!context.mounted) return;
+      setState(() => _busy = false);
+      await _resolveConflict(context, e);
+      return;
     } on WebDavException catch (e) {
       if (!context.mounted) return;
       showAppSnackBar(_describe(e));
@@ -389,6 +395,50 @@ class _SyncScreenState extends State<SyncScreen> {
       showAppSnackBar('Backup sync is turned off in Privacy settings.');
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Someone else's push (or this device's own stale view of the server)
+  /// means proceeding would silently overwrite data this device has never
+  /// seen — see [SyncService.push]'s doc. Lets the user pull that copy
+  /// first instead of guessing, or explicitly accept overwriting it.
+  Future<void> _resolveConflict(
+    BuildContext context,
+    WebDavSyncConflictException error,
+  ) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('The server copy has changed'),
+        content: Text(
+          'Another device has synced since this one last checked'
+          '${error.remoteModifiedAt != null ? ' (${error.remoteModifiedAt!.toLocal()})' : ''}. '
+          'Pushing now would overwrite it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'pull'),
+            child: const Text('Review server copy'),
+          ),
+          Semantics(
+            identifier: 'sync_conflict_overwrite_button',
+            child: FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, 'overwrite'),
+              child: const Text('Overwrite anyway'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || choice == null) return;
+    if (choice == 'pull') {
+      await _pull(context);
+    } else if (choice == 'overwrite') {
+      await _push(context, force: true);
     }
   }
 
@@ -456,6 +506,10 @@ class _SyncScreenState extends State<SyncScreen> {
   String _describe(WebDavException e) {
     if (e.isAuthFailure) return 'Server rejected the username/password.';
     if (e.isNotFound) return 'Nothing has been synced to this server yet.';
+    // A null statusCode with a message is a local validation failure (e.g.
+    // an invalid server URL) rather than a real HTTP response — the message
+    // is the useful part, not a status code that doesn't exist.
+    if (e.statusCode == null && e.message != null) return e.message!;
     return 'Sync failed (${e.statusCode ?? 'connection error'}).';
   }
 }

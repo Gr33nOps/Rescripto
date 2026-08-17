@@ -201,14 +201,9 @@ class BackupService {
       case HistoryRestoreStrategy.skip:
         break;
       case HistoryRestoreStrategy.append:
-        for (final entry in bundle.history) {
-          await storage.insertHistory(entry);
-        }
+        await storage.appendHistory(bundle.history);
       case HistoryRestoreStrategy.replace:
-        await storage.clearHistory();
-        for (final entry in bundle.history) {
-          await storage.insertHistory(entry);
-        }
+        await storage.replaceHistory(bundle.history);
     }
   }
 

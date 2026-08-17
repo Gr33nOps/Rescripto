@@ -5,6 +5,33 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.9] - 2026-08-18
+
+### Fixed
+
+- Fixed a race between a rewrite and a workflow step that could load the
+  wrong on-device model mid-generation, or let stopping one cancel the
+  other.
+- WebDAV sync now checks the server before pushing and warns instead of
+  silently overwriting a copy from another device.
+- Restoring a backup with "replace history" no longer risks losing existing
+  history if the restore fails partway through.
+- A database problem writing the network activity log can no longer fail an
+  otherwise-successful cloud rewrite, model download, or sync.
+- "Test connection" on the WebDAV sync screen no longer saves the server
+  URL/username just by testing — only "Save" does.
+- Workflows now retry and give up on a model refusal the same way a normal
+  rewrite does, instead of treating a refusal as a successful step.
+- Saving a cloud provider key can no longer leave it stored but unusable if
+  the save is interrupted partway through.
+- A model file that gets corrupted after installation is now detected and
+  removed automatically, with a clear message to re-download it.
+- Workflow step status now reflects what that step is actually doing (for
+  example, "Sending to the provider…" for a cloud step) instead of generic
+  text.
+- Text shared into the app in quick succession is no longer at risk of one
+  piece silently replacing another before it's used.
+
 ## [1.2.8] - 2026-08-18
 
 ### Fixed

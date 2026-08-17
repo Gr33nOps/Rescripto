@@ -92,4 +92,21 @@ abstract final class RefusalDetector {
 
     return _patterns.any((pattern) => pattern.hasMatch(prefix));
   }
+
+  /// True when a parsed rewrite response looks like a refusal rather than a
+  /// rewrite — [variants] is the caller's already-parsed
+  /// `PromptBuilder.parseVariants` output.
+  ///
+  /// Only ever true for a single-variant response: with more than one
+  /// variant parsed the model clearly understood the task, and a multi-part
+  /// answer that merely opens with a refusal-shaped clause is far more
+  /// likely to be a rewrite of a draft that said so.
+  ///
+  /// Shared by `RewriteController` and `WorkflowRunner` so a refusal gets
+  /// the same one-retry-then-give-up treatment regardless of which one is
+  /// driving the engine — `WorkflowRunner` used to have no refusal check at
+  /// all, so a step's "I can't assist with that…" flowed into the next step
+  /// (or was saved as the workflow's final result) as if it were real text.
+  static bool looksLikeRefusal(List<String> variants) =>
+      variants.length == 1 && isRefusal(variants.first);
 }

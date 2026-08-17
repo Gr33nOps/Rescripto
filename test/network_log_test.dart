@@ -132,4 +132,62 @@ void main() {
       expect(await log.recent(), isEmpty);
     });
   });
+
+  group('NetworkLog — write failures are best-effort', () {
+    // Regression coverage: open/close/record used to let a database
+    // exception through, and NetworkGuard awaited every one of them on the
+    // path between "this request is permitted" and "dispatch it" — a write
+    // failure there turned an otherwise-valid request into a thrown error.
+    // Dropping the table is a simple, deterministic way to force every
+    // write in this group to fail without needing a fake Database.
+
+    test('open never throws and returns null when the write fails', () async {
+      final db = await database.db;
+      await db.execute('DROP TABLE network_log');
+
+      final id = await log.open(
+        feature: NetworkFeature.cloudRewrite,
+        method: 'POST',
+        host: 'api.openai.com',
+        path: '/v1/chat/completions',
+      );
+
+      expect(id, isNull);
+    });
+
+    test('close never throws when the write fails', () async {
+      final db = await database.db;
+      await db.execute('DROP TABLE network_log');
+
+      await expectLater(
+        log.close(1, outcome: NetworkOutcome.allowed, statusCode: 200),
+        completes,
+      );
+    });
+
+    test('close is a no-op for a null id without touching the database', () async {
+      // The id open() returns when its own write failed — nothing to
+      // finish, and no reason to touch the database at all.
+      await expectLater(
+        log.close(null, outcome: NetworkOutcome.allowed),
+        completes,
+      );
+    });
+
+    test('record never throws when the write fails', () async {
+      final db = await database.db;
+      await db.execute('DROP TABLE network_log');
+
+      await expectLater(
+        log.record(
+          feature: NetworkFeature.cloudRewrite,
+          method: 'POST',
+          host: 'api.openai.com',
+          path: '/v1/chat/completions',
+          outcome: NetworkOutcome.blockedByPolicy,
+        ),
+        completes,
+      );
+    });
+  });
 }

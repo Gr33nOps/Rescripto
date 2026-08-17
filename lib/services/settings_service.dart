@@ -249,6 +249,40 @@ class SettingsService {
     await _p.setString(AppConstants.keyLastSyncPushAt, value.toIso8601String());
   }
 
+  /// The remote file's ETag as of the last time this device confirmed the
+  /// server's state — via a push (after uploading) or a pull (right when
+  /// downloading). What `SyncService` compares a fresh PROPFIND's ETag
+  /// against to tell "nothing has changed since I last looked" from "someone
+  /// else's push landed since then" before ever overwriting the file.
+  String? get lastSyncEtag => _p.getString(AppConstants.keyLastSyncEtag);
+
+  Future<void> setLastSyncEtag(String? value) async {
+    if (value == null) {
+      await _p.remove(AppConstants.keyLastSyncEtag);
+    } else {
+      await _p.setString(AppConstants.keyLastSyncEtag, value);
+    }
+  }
+
+  /// The remote file's `getlastmodified` as of the last confirmed state —
+  /// same purpose as [lastSyncEtag], as the fallback for a server that
+  /// doesn't return `getetag`. Deliberately separate from [lastSyncPushAt]:
+  /// that field is "when did I last push" (shown in the sync screen as
+  /// such), while this one is "what did I last confirm the server holds",
+  /// which a pull updates too.
+  DateTime? get lastKnownRemoteAt {
+    final raw = _p.getString(AppConstants.keyLastKnownRemoteAt);
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  Future<void> setLastKnownRemoteAt(DateTime? value) async {
+    if (value == null) {
+      await _p.remove(AppConstants.keyLastKnownRemoteAt);
+    } else {
+      await _p.setString(AppConstants.keyLastKnownRemoteAt, value.toIso8601String());
+    }
+  }
+
   /// Per-section sync selection (Step 5). Everything defaults on except
   /// history — the same "off by default" stance as export and scheduled
   /// backups, and for the same reason: it's the most sensitive section.

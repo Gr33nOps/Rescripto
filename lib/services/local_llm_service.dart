@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_llama/flutter_llama.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -85,9 +86,31 @@ class LocalLlmService {
 
     final ok = await _llama.loadModel(config);
     if (!ok) {
-      throw ModelLoadFailedException(_llama.lastLoadError);
+      // A load failure on a file that exists (the only thing checked above)
+      // can mean the file is corrupted rather than the engine being at
+      // fault — see ModelCorruptedException's doc for why that can happen
+      // silently. Re-hash here, once, only in response to this actual
+      // failure — never proactively, and never on every launch.
+      if (!await _isCorrupted(path, model)) {
+        throw ModelLoadFailedException(_llama.lastLoadError);
+      }
+      await File(path).delete();
+      throw ModelCorruptedException(model.id);
     }
     _loadedConfig = requested;
+  }
+
+  /// True if [path] fails a full hash check against [model]'s known-good
+  /// SHA-256. A read failure (the file vanished, a permissions error) is
+  /// treated as "not corrupted" here — [ModelLoadFailedException] is the
+  /// more honest report for a file this method could not even examine.
+  Future<bool> _isCorrupted(String path, AiModel model) async {
+    try {
+      final digest = await sha256.bind(File(path).openRead()).first;
+      return digest.toString() != model.sha256;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Context size to actually use: the user's setting, never larger than what

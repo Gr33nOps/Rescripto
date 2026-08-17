@@ -348,6 +348,50 @@ void main() {
       expect(history.single.original, 'from backup');
     });
 
+    test(
+      'history strategy replace leaves existing history intact if an insert fails partway through',
+      () async {
+        // Regression test: replace used to call clearHistory() and then
+        // insert the bundle's rows one at a time, each its own committed
+        // statement — a failure partway through left the clear committed
+        // and only part of the backup restored, permanently losing whatever
+        // history existed before. A SQLite trigger forces a deterministic
+        // failure on the second row without relying on a schema quirk, so
+        // this proves the whole replace now rolls back as one unit.
+        final db = await database.db;
+        await db.execute('''
+          CREATE TRIGGER fail_on_poison BEFORE INSERT ON history
+          WHEN NEW.original = '__poison__'
+          BEGIN
+            SELECT RAISE(ABORT, 'forced failure for test');
+          END;
+        ''');
+
+        await storage.insertHistory(
+          HistoryEntry(id: 0, original: 'local', rewritten: 'local', toneId: 'casual', createdAt: DateTime.now()),
+        );
+        final bundle = BackupBundle(
+          formatVersion: BackupBundle.currentFormatVersion,
+          createdAt: DateTime.now(),
+          appVersion: '1.0.3',
+          dbVersion: AppConstants.dbVersion,
+          history: [
+            HistoryEntry(id: 0, original: 'from backup', rewritten: 'x', toneId: 'casual', createdAt: DateTime.now()),
+            HistoryEntry(id: 0, original: '__poison__', rewritten: 'x', toneId: 'casual', createdAt: DateTime.now()),
+          ],
+        );
+
+        await expectLater(
+          backupService.restore(bundle, const RestoreOptions(history: HistoryRestoreStrategy.replace)),
+          throwsA(anything),
+        );
+
+        final history = await storage.getHistory();
+        expect(history, hasLength(1));
+        expect(history.single.original, 'local');
+      },
+    );
+
     test('credentials restore only when applyCredentials is true, even if the bundle has them', () async {
       final id = providerRegistry.newConfigId('openai');
       final now = DateTime.now();

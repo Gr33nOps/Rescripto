@@ -15,6 +15,7 @@ import 'package:rescripto/services/storage_service.dart';
 import 'package:rescripto/services/sync/sync_service.dart';
 import 'package:rescripto/services/sync/webdav_client.dart';
 import 'package:rescripto/services/sync/webdav_exception.dart';
+import 'package:rescripto/services/sync/webdav_sync_conflict_exception.dart';
 import 'package:rescripto/services/workflows/workflow_registry.dart';
 import 'package:rescripto/services/workflows/workflow_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,8 +90,12 @@ void main() {
 
   group('SyncService.push', () {
     test('PUTs the encrypted bundle to <base>/rescripto-sync.rescriptobackup and records the push time', () async {
+      // push() now PROPFINDs before (and after) the PUT to check for/record
+      // a conflict — see the "conflict protection" group below. A 404
+      // response means "nothing there yet", so this is a plain first push.
       http.Request? captured;
       final service = buildService((request) async {
+        if (request.method == 'PROPFIND') return http.Response('', 404);
         captured = request;
         return http.Response('', 201);
       });
@@ -121,13 +126,19 @@ void main() {
       // genuine encrypted bundle, not hand-rolled ciphertext.
       Uint8List? uploaded;
       final pushService = buildService((request) async {
+        if (request.method == 'PROPFIND') return http.Response('', 404);
         uploaded = request.bodyBytes;
         return http.Response('', 201);
       });
       await credentialStore.write(SyncService.passwordRef, 'server-password');
       await pushService.push('shared passphrase');
 
-      final pullService = buildService((request) async => http.Response.bytes(uploaded!, 200));
+      // pull() also PROPFINDs, after the GET, to record the confirmed
+      // remote state — see the "conflict protection" group below.
+      final pullService = buildService((request) async {
+        if (request.method == 'PROPFIND') return http.Response('', 404);
+        return http.Response.bytes(uploaded!, 200);
+      });
       final bundle = await pullService.pull('shared passphrase');
 
       expect(bundle.dbVersion, isNotNull);
@@ -186,6 +197,159 @@ void main() {
 ''', 207));
 
       expect(await service.remoteNewerThanLastPush(), remoteTime);
+    });
+  });
+
+  group('SyncService.push — conflict protection', () {
+    // Regression coverage: push() used to PUT unconditionally, so Device A
+    // pushing after Device B's newer push landed would silently overwrite
+    // B's data — the "server has a newer copy" banner was purely advisory.
+
+    String propfindWithEtag(String etag, {DateTime? lastModified}) => '''
+<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:"><D:response><D:propstat><D:prop>
+${lastModified != null ? '<D:getlastmodified>${HttpDate.format(lastModified)}</D:getlastmodified>' : ''}
+<D:getetag>$etag</D:getetag>
+</D:prop></D:propstat></D:response></D:multistatus>
+''';
+
+    test('throws WebDavSyncConflictException and never PUTs when the remote ETag has moved on', () async {
+      await settings.setLastSyncEtag('"old-etag"');
+      var putCalled = false;
+      final service = buildService((request) async {
+        if (request.method == 'PROPFIND') {
+          return http.Response(propfindWithEtag('"new-etag-from-another-device"'), 207);
+        }
+        putCalled = true;
+        return http.Response('', 201);
+      });
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      await expectLater(service.push('a passphrase'), throwsA(isA<WebDavSyncConflictException>()));
+      expect(putCalled, isFalse, reason: 'a detected conflict must never reach the PUT');
+    });
+
+    test('proceeds when the remote ETag matches what this device last confirmed', () async {
+      await settings.setLastSyncEtag('"same-etag"');
+      http.Request? putRequest;
+      final service = buildService((request) async {
+        if (request.method == 'PROPFIND') {
+          return http.Response(propfindWithEtag('"same-etag"'), 207);
+        }
+        putRequest = request;
+        return http.Response('', 201);
+      });
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      await service.push('a passphrase');
+
+      expect(putRequest, isNotNull);
+      expect(putRequest!.headers['If-Match'], '"same-etag"');
+    });
+
+    test('force: true overwrites despite a conflicting ETag', () async {
+      await settings.setLastSyncEtag('"old-etag"');
+      var putCalled = false;
+      final service = buildService((request) async {
+        if (request.method == 'PROPFIND') {
+          return http.Response(propfindWithEtag('"new-etag-from-another-device"'), 207);
+        }
+        putCalled = true;
+        return http.Response('', 201);
+      });
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      await service.push('a passphrase', force: true);
+
+      expect(putCalled, isTrue);
+    });
+
+    test('falls back to a timestamp comparison when the server has no ETag', () async {
+      await settings.setLastKnownRemoteAt(DateTime.utc(2026, 1, 1));
+      final newerRemoteTime = DateTime.utc(2026, 6, 1);
+      final service = buildService((request) async {
+        if (request.method == 'PROPFIND') {
+          return http.Response('''
+<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:"><D:response><D:propstat><D:prop>
+<D:getlastmodified>${HttpDate.format(newerRemoteTime)}</D:getlastmodified>
+</D:prop></D:propstat></D:response></D:multistatus>
+''', 207);
+        }
+        return http.Response('', 201);
+      });
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      await expectLater(service.push('a passphrase'), throwsA(isA<WebDavSyncConflictException>()));
+    });
+
+    test('conflicts when the server already has a file but this device has never confirmed any state', () async {
+      // A first sync from a device that has never pushed or pulled, onto a
+      // server another device already populated — silently overwriting it
+      // would be exactly the bug this whole check exists to prevent.
+      final service = buildService((request) async {
+        if (request.method == 'PROPFIND') {
+          return http.Response(propfindWithEtag('"someone-elses-etag"', lastModified: DateTime.utc(2026, 1, 1)), 207);
+        }
+        return http.Response('', 201);
+      });
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      await expectLater(service.push('a passphrase'), throwsA(isA<WebDavSyncConflictException>()));
+    });
+
+    test('pull records the remote state so this device\'s next push does not self-conflict', () async {
+      final remoteBytes = Uint8List.fromList([1, 2, 3]);
+      final service = buildService((request) async {
+        if (request.method == 'PROPFIND') {
+          return http.Response(propfindWithEtag('"remote-etag"', lastModified: DateTime.utc(2026, 3, 1)), 207);
+        }
+        return http.Response.bytes(remoteBytes, 200);
+      });
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      // The bytes aren't a real encrypted bundle, so decrypt() throws —
+      // irrelevant here, only the state recorded before that matters.
+      await expectLater(service.pull('a passphrase'), throwsA(anything));
+
+      expect(settings.lastSyncEtag, '"remote-etag"');
+      expect(settings.lastKnownRemoteAt, DateTime.utc(2026, 3, 1));
+    });
+  });
+
+  group('SyncService.testConnection', () {
+    test('checks the given URL/username without persisting them', () async {
+      http.Request? captured;
+      final service = buildService((request) async {
+        captured = request;
+        return http.Response('', 404);
+      });
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+      final urlBefore = settings.webdavUrl;
+      final usernameBefore = settings.webdavUsername;
+
+      await service.testConnection('https://other.example.com/dav/files/bob', 'bob');
+
+      expect(captured!.url.toString(), 'https://other.example.com/dav/files/bob/rescripto-sync.rescriptobackup');
+      expect(settings.webdavUrl, urlBefore, reason: 'testConnection must never write settings');
+      expect(settings.webdavUsername, usernameBefore, reason: 'testConnection must never write settings');
+    });
+
+    test('rejects a malformed server URL with a typed exception instead of an uncaught FormatException', () async {
+      final service = buildService((_) async => http.Response('', 200));
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      await expectLater(service.testConnection('not a url', 'bob'), throwsA(isA<WebDavException>()));
+    });
+  });
+
+  group('SyncService — malformed server URL', () {
+    test('push throws WebDavException instead of an uncaught FormatException', () async {
+      await settings.setWebdavUrl('not a valid url');
+      final service = buildService((_) async => http.Response('', 200));
+      await credentialStore.write(SyncService.passwordRef, 'server-password');
+
+      await expectLater(service.push('a passphrase'), throwsA(isA<WebDavException>()));
     });
   });
 }

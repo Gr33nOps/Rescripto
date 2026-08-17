@@ -19,7 +19,7 @@ abstract final class AppConstants {
   static const String issuesUrl =
       'https://github.com/Gr33nOps/Rescripto/issues';
   // Keep in step with `version:` in pubspec.yaml.
-  static const String versionName = '1.2.7';
+  static const String versionName = '1.2.8';
 
   // Storage keys (shared_preferences).
   static const String keySelectedModel = 'selected_model_id';
@@ -45,6 +45,8 @@ abstract final class AppConstants {
   static const String keyWebdavUrl = 'webdav_url';
   static const String keyWebdavUsername = 'webdav_username';
   static const String keyLastSyncPushAt = 'last_sync_push_at';
+  static const String keyLastSyncEtag = 'last_sync_etag';
+  static const String keyLastKnownRemoteAt = 'last_known_remote_at';
   static const String keySyncIncludeSettings = 'sync_include_settings';
   static const String keySyncIncludePresets = 'sync_include_presets';
   static const String keySyncIncludeWorkflows = 'sync_include_workflows';

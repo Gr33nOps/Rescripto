@@ -23,12 +23,23 @@ class WebDavClient {
 
   final http.Client _client;
 
-  Future<void> put(Uri url, String username, String password, Uint8List bytes) async {
+  /// [ifMatchEtag], when given, makes this a conditional PUT: the server is
+  /// asked to reject the write (412) rather than accept it if the file's
+  /// current ETag no longer matches — see [SyncService]'s conflict check for
+  /// why a caller passes this rather than just PUTting unconditionally.
+  Future<void> put(
+    Uri url,
+    String username,
+    String password,
+    Uint8List bytes, {
+    String? ifMatchEtag,
+  }) async {
     final response = await _client.put(
       url,
       headers: {
         'Authorization': _basicAuth(username, password),
         'Content-Type': 'application/octet-stream',
+        'If-Match': ?ifMatchEtag,
       },
       body: bytes,
     );
@@ -55,15 +66,27 @@ class WebDavClient {
   /// there yet. What [SyncService] compares against the last push this
   /// device made to decide whether the server is ahead.
   Future<DateTime?> lastModified(Uri url, String username, String password) async {
+    return (await stat(url, username, password)).lastModified;
+  }
+
+  /// `getlastmodified` and `getetag` for [url] in one PROPFIND, or both null
+  /// if nothing exists there yet. `getetag` isn't guaranteed by every WebDAV
+  /// server — [SyncService]'s conflict check falls back to the timestamp
+  /// when it's absent.
+  Future<({DateTime? lastModified, String? etag})> stat(
+    Uri url,
+    String username,
+    String password,
+  ) async {
     final request = http.Request('PROPFIND', url)
       ..headers['Authorization'] = _basicAuth(username, password)
       ..headers['Depth'] = '0'
       ..headers['Content-Type'] = 'application/xml; charset=utf-8'
       ..body = '<?xml version="1.0" encoding="utf-8" ?>'
-          '<D:propfind xmlns:D="DAV:"><D:prop><D:getlastmodified/></D:prop></D:propfind>';
+          '<D:propfind xmlns:D="DAV:"><D:prop><D:getlastmodified/><D:getetag/></D:prop></D:propfind>';
 
     final streamed = await _client.send(request);
-    if (streamed.statusCode == 404) return null;
+    if (streamed.statusCode == 404) return (lastModified: null, etag: null);
     if (streamed.statusCode >= 400) {
       throw WebDavException(streamed.statusCode, streamed.reasonPhrase);
     }
@@ -73,13 +96,16 @@ class WebDavClient {
     try {
       document = XmlDocument.parse(body);
     } catch (_) {
-      return null;
+      return (lastModified: null, etag: null);
     }
     // namespace: '*' matches by local name regardless of the server's
     // chosen prefix — Nextcloud uses `d:`, some servers `D:` or `DAV:`.
-    final elements = document.findAllElements('getlastmodified', namespace: '*');
-    if (elements.isEmpty) return null;
-    return _parseHttpDate(elements.first.innerText.trim());
+    final modified = document.findAllElements('getlastmodified', namespace: '*');
+    final etag = document.findAllElements('getetag', namespace: '*');
+    return (
+      lastModified: modified.isEmpty ? null : _parseHttpDate(modified.first.innerText.trim()),
+      etag: etag.isEmpty ? null : etag.first.innerText.trim(),
+    );
   }
 
   String _basicAuth(String username, String password) =>

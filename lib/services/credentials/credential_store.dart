@@ -43,16 +43,34 @@ class CredentialStore {
     }
   }
 
+  /// Writes the secret to the Keystore, then indexes it in SQLite.
+  ///
+  /// If the index write fails — a locked database, a full disk — the secret
+  /// written just before it is rolled back rather than left in the
+  /// Keystore. Without that, the two stores diverge: [has] and [listRefs]
+  /// only ever look at the index, so they would report this ref as "not
+  /// configured" while its actual secret sat in the Keystore unreachable by
+  /// normal means — not deleted, just invisible to the app that wrote it.
   Future<void> write(CredentialRef ref, String secret, {String? label}) async {
     await _storage.write(ref.storageKey, secret);
-    final db = await _database.db;
-    await db.insert('credential_ref', {
-      'provider_id': ref.providerId,
-      'account_id': ref.accountId,
-      'kind': ref.kind.name,
-      'label': label,
-      'created_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    try {
+      final db = await _database.db;
+      await db.insert('credential_ref', {
+        'provider_id': ref.providerId,
+        'account_id': ref.accountId,
+        'kind': ref.kind.name,
+        'label': label,
+        'created_at': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (_) {
+      try {
+        await _storage.delete(ref.storageKey);
+      } catch (_) {
+        // Best-effort rollback — if the Keystore can't be cleaned up either,
+        // there is nothing more this call can do about it.
+      }
+      rethrow;
+    }
   }
 
   Future<void> delete(CredentialRef ref) async {

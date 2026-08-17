@@ -381,7 +381,7 @@ class RewriteController extends ChangeNotifier {
       // worth the wait and a second failure is a real signal about the model
       // rather than luck. See RefusalDetector for why this is deliberately
       // conservative about what counts.
-      if (_looksLikeRefusal(variants)) {
+      if (RefusalDetector.looksLikeRefusal(variants)) {
         _streamingText = '';
         // The discarded refusal must not count as visible partial output, or
         // `_offerFallbackIfEligible` would suppress the cloud fallback that
@@ -394,7 +394,7 @@ class RewriteController extends ChangeNotifier {
           output.text,
           expected: request.variantCount,
         );
-        if (_looksLikeRefusal(variants)) {
+        if (RefusalDetector.looksLikeRefusal(variants)) {
           throw const ModelRefusedException();
         }
       }
@@ -442,15 +442,6 @@ class RewriteController extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  /// True when the model answered in prose instead of rewriting.
-  ///
-  /// Only ever applied to a single-variant response: with more than one
-  /// variant parsed the model clearly understood the task, and a multi-part
-  /// answer that merely opens with a refusal-shaped clause is far more
-  /// likely to be a rewrite of a draft that said so.
-  static bool _looksLikeRefusal(List<String> variants) =>
-      variants.length == 1 && RefusalDetector.isRefusal(variants.first);
 
   /// Surfaces [fallback] as [pendingFallback] when it's safe to.
   ///

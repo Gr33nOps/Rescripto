@@ -15,6 +15,9 @@ String describeEngineError(EngineException error) => switch (error) {
         ? 'Couldn’t load the AI model. Try again. If it keeps happening, '
               'restart the app.'
         : reason,
+  ModelCorruptedException() =>
+    'This model file appears damaged and has been removed. Download it '
+        'again from the Models tab.',
   ContextOverflowException(contextSize: final size) =>
     size == null
         ? 'This text is too long for the model’s context window. Shorten it '

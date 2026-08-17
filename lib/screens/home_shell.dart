@@ -33,15 +33,17 @@ class _HomeShellState extends State<HomeShell> {
   /// [ShareIntentBridge] as pending state, not a callback — [build] reacts
   /// to it and schedules the actual mutation ([RewriteController.setSource]
   /// plus the tab switch) for after the frame, since neither belongs inside
-  /// `build()` itself. Scheduling this more than once before [consume]
-  /// clears [ShareIntentBridge.pending] is harmless: every extra callback
-  /// before the first one runs is a no-op repeat of the same assignment.
-  void _applyPendingIncomingText(BuildContext context, ShareIntentBridge bridge, String text) {
+  /// `build()` itself. Scheduling this more than once for the *same*
+  /// [incoming] before [ShareIntentBridge.consume] runs is harmless — see
+  /// its own doc for why passing the specific instance back is what makes
+  /// that safe now that pending intents are a real queue, not one field a
+  /// second arrival could silently overwrite.
+  void _applyPendingIncomingText(BuildContext context, ShareIntentBridge bridge, IncomingText incoming) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<RewriteController>().setSource(text);
+      context.read<RewriteController>().setSource(incoming.text);
       _goToTab(AppTab.rewrite);
-      bridge.consume();
+      bridge.consume(incoming);
     });
   }
 
@@ -50,7 +52,7 @@ class _HomeShellState extends State<HomeShell> {
     final bridge = context.watch<ShareIntentBridge>();
     final pending = bridge.pending;
     if (pending != null) {
-      _applyPendingIncomingText(context, bridge, pending.text);
+      _applyPendingIncomingText(context, bridge, pending);
     }
 
     return TabNavigator(

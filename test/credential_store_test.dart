@@ -78,6 +78,21 @@ void main() {
       expect(await store.read(openAiKey), 'second');
       expect(await store.listRefs(), hasLength(1));
     });
+
+    test('rolls back the Keystore write if indexing it fails', () async {
+      // Regression coverage: write() used to leave the Keystore write in
+      // place even when the index insert that follows it failed — the
+      // secret existed but every read() and has() call (which only look at
+      // the index) reported the ref as "not configured", making the secret
+      // permanently unreachable through the app's own API without ever
+      // being deleted.
+      final db = await database.db;
+      await db.execute('DROP TABLE credential_ref');
+
+      await expectLater(store.write(openAiKey, 'sk-orphan-risk'), throwsA(anything));
+
+      expect(storage.values, isEmpty, reason: 'the Keystore write must be rolled back');
+    });
   });
 
   group('CredentialStore degrades gracefully on a broken Keystore', () {

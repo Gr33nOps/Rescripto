@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -23,10 +25,18 @@ class IncomingText {
 /// tile entry points into the running app.
 ///
 /// One channel, one bridge, no second Flutter engine — see
-/// `MainActivity.kt`'s own doc for why. [pending] is a one-shot queue: a
-/// listener applies it (usually to `RewriteController.setSource`) and calls
-/// [consume], the same "queue with a single reader" shape already used for
-/// the mic transcript and the model-missing banner's tab switch.
+/// `MainActivity.kt`'s own doc for why. [pending] is the front of a FIFO
+/// queue: a listener applies it (usually to `RewriteController.setSource`)
+/// and calls [consume], the same "queue with a single reader" shape already
+/// used for the mic transcript and the model-missing banner's tab switch.
+///
+/// A single nullable field used to hold this instead of a real queue — any
+/// second arrival before a consumer read and consumed the first silently
+/// replaced it, losing that text entirely. Two rapid shares can do this;
+/// so can a live `incomingText` call from `_onMethodCall` landing while the
+/// async `getInitialIntent` lookup [_loadInitialIntent] kicks off from the
+/// constructor is still in flight — whichever resolved second used to win,
+/// unconditionally, no matter which one actually arrived first.
 class ShareIntentBridge extends ChangeNotifier {
   ShareIntentBridge({MethodChannel? channel}) : _channel = channel ?? const MethodChannel(_channelName) {
     _channel.setMethodCallHandler(_onMethodCall);
@@ -37,8 +47,10 @@ class ShareIntentBridge extends ChangeNotifier {
 
   final MethodChannel _channel;
 
-  IncomingText? _pending;
-  IncomingText? get pending => _pending;
+  final Queue<IncomingText> _queue = Queue<IncomingText>();
+
+  /// The oldest not-yet-consumed intent, if any.
+  IncomingText? get pending => _queue.isEmpty ? null : _queue.first;
 
   /// True once a PROCESS_TEXT request has arrived and hasn't been answered
   /// yet — what the rewrite screen's "Insert & return" action watches for.
@@ -65,7 +77,7 @@ class ShareIntentBridge extends ChangeNotifier {
   }
 
   void _apply(IncomingText incoming) {
-    _pending = incoming;
+    _queue.add(incoming);
     _awaitingProcessTextResult = incoming.source == IncomingTextSource.processText && !incoming.readOnly;
     notifyListeners();
   }
@@ -83,11 +95,24 @@ class ShareIntentBridge extends ChangeNotifier {
     );
   }
 
-  /// Call once [pending] has been applied (to `RewriteController.setSource`,
-  /// typically) so it isn't reapplied on the next rebuild.
-  void consume() {
-    _pending = null;
-    notifyListeners();
+  /// Call once [incoming] (read from [pending]) has been applied (to
+  /// `RewriteController.setSource`, typically), so it isn't reapplied and
+  /// the next queued intent, if any, becomes [pending].
+  ///
+  /// Only removes [incoming] if it is still the front of the queue —
+  /// `HomeShell` can schedule more than one post-frame callback for the
+  /// same pending intent before the first one runs (harmless when this was
+  /// a single field: consuming twice was just setting null twice). Under a
+  /// real queue, an unconditional pop would be wrong: the second callback
+  /// would consume whatever arrived *after* the one it actually applied,
+  /// silently dropping it the same way the single field used to. Comparing
+  /// against the specific instance makes a stale, already-applied call a
+  /// no-op instead.
+  void consume(IncomingText incoming) {
+    if (_queue.isNotEmpty && identical(_queue.first, incoming)) {
+      _queue.removeFirst();
+      notifyListeners();
+    }
   }
 
   /// Returns [resultText] to whatever app sent the PROCESS_TEXT request and

@@ -5,6 +5,7 @@ import '../core/app_messenger.dart';
 import '../engine/engine_capabilities.dart';
 import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
+import '../engine/engine_registry.dart';
 import '../engine/engine_stage.dart';
 import '../engine/workflow_runner.dart';
 import '../models/rewrite_output.dart';
@@ -154,6 +155,7 @@ class _StepProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final configStore = context.watch<ConfigStore>();
+    final registry = context.read<EngineRegistry>();
 
     return Card(
       child: Padding(
@@ -171,6 +173,17 @@ class _StepProgress extends StatelessWidget {
                     ? (runner.isRunning ? _StepState.running : _StepState.done)
                     : _StepState.pending,
                 stage: i == runner.currentStepIndex ? runner.stage : null,
+                // The engine this step actually runs on — a cloud step used
+                // to show local-looking copy ("Rewriting on your device…")
+                // because the stage label here was always built from a
+                // hardcoded EngineCapabilities(false, false) regardless of
+                // what the step's own target resolved to.
+                capabilities:
+                    registry.maybeResolve(workflow.steps[i].target)?.capabilities ??
+                    const EngineCapabilities(
+                      needsLocalInstall: false,
+                      requiresNetwork: false,
+                    ),
                 output: i < runner.stepOutputs.length
                     ? runner.stepOutputs[i]
                     : null,
@@ -207,6 +220,7 @@ class _StepRow extends StatelessWidget {
     required this.toneName,
     required this.state,
     required this.stage,
+    required this.capabilities,
     required this.output,
     required this.streamingText,
   });
@@ -215,6 +229,7 @@ class _StepRow extends StatelessWidget {
   final String toneName;
   final _StepState state;
   final EngineStage? stage;
+  final EngineCapabilities capabilities;
   final String? output;
   final String streamingText;
 
@@ -245,13 +260,7 @@ class _StepRow extends StatelessWidget {
               ),
               if (state == _StepState.running)
                 Text(
-                  stageLabel(
-                    stage ?? EngineStage.preparing,
-                    const EngineCapabilities(
-                      needsLocalInstall: false,
-                      requiresNetwork: false,
-                    ),
-                  ),
+                  stageLabel(stage ?? EngineStage.preparing, capabilities),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
