@@ -5,6 +5,20 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.8] - 2026-08-18
+
+### Fixed
+
+- Fixed the on-device Llama and Qwen models answering a question- or
+  request-shaped draft instead of rewriting it (for example, a draft asking
+  for restaurant suggestions coming back as an answer instead of a
+  rewritten draft). Every local model family now restates the rewrite task
+  right next to the draft text, the way the Gemma models already did.
+- Reinforced this with a worked example in the rewrite instructions and a
+  clearer retry prompt when a first attempt doesn't come back as a rewrite.
+- Existing voice models, rewrite models, settings, history, and backups are
+  unaffected.
+
 ## [1.2.6] - 2026-08-15
 
 ### Changed

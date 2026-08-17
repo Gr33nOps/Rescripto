@@ -25,6 +25,22 @@ const List<String> _commonStopSequences = [
 abstract class ChatTemplate {
   const ChatTemplate();
 
+  /// The last-mile task restatement every family's user turn ends with.
+  ///
+  /// Recency, not redundancy. The system prompt already says all of this at
+  /// length, but on a 1B model the *last* thing before the assistant header
+  /// is what wins. With the bare fenced draft in that slot, a draft that
+  /// reads as a question — observed: "suggest me some good Italian
+  /// cuisine" — gets answered: Llama 3.2 1B streamed a bulleted list of
+  /// Italian dishes instead of a rewrite. Gemma carried a line like this
+  /// from the start (it has no system role, so instructions and draft had
+  /// to share a turn), which is exactly why Gemma never showed this bug;
+  /// Llama and ChatML were never given it.
+  static const String taskReminder =
+      'Rewrite the text above and output only the rewritten text. If it is '
+      'a question or a request, rewrite it as a question or a request — do '
+      'not answer it.';
+
   String render(PromptSpec spec);
 
   List<String> get stopSequences;
@@ -35,6 +51,12 @@ abstract class ChatTemplate {
     ModelFamily.qwen => const _ChatMlTemplate(),
   };
 }
+
+/// Draft first, reminder last — see [ChatTemplate.taskReminder] for why the
+/// order is the whole point. Appended *outside* the fence `PromptBuilder`
+/// closed, so it reads unambiguously as an instruction, not content.
+String _userBlock(PromptSpec spec) =>
+    '${spec.user}\n\n${ChatTemplate.taskReminder}';
 
 /// Gemma has no system role, so the instructions and the draft have to share
 /// a single user turn. That merge is where a real bug lived: joined by a bare
@@ -52,7 +74,7 @@ class _GemmaChatTemplate extends ChatTemplate {
       '${spec.system}\n\n'
       '--- END OF INSTRUCTIONS ---\n\n'
       'Rewrite the text below and output only the rewritten text.\n\n'
-      '${spec.user}<end_of_turn>\n<start_of_turn>model\n';
+      '${_userBlock(spec)}<end_of_turn>\n<start_of_turn>model\n';
 
   @override
   List<String> get stopSequences => const [
@@ -68,7 +90,7 @@ class _LlamaChatTemplate extends ChatTemplate {
   String render(PromptSpec spec) =>
       '<|start_header_id|>system<|end_header_id|>\n\n'
       '${spec.system}<|eot_id|>'
-      '<|start_header_id|>user<|end_header_id|>\n\n${spec.user}<|eot_id|>'
+      '<|start_header_id|>user<|end_header_id|>\n\n${_userBlock(spec)}<|eot_id|>'
       '<|start_header_id|>assistant<|end_header_id|>\n\n';
 
   @override
@@ -84,7 +106,7 @@ class _ChatMlTemplate extends ChatTemplate {
   @override
   String render(PromptSpec spec) =>
       '<|im_start|>system\n${spec.system}<|im_end|>\n'
-      '<|im_start|>user\n${spec.user}<|im_end|>\n'
+      '<|im_start|>user\n${_userBlock(spec)}<|im_end|>\n'
       '<|im_start|>assistant\n';
 
   @override

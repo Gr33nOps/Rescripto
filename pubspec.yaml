@@ -1,7 +1,7 @@
 name: rescripto
 description: "Rescripto - private on-device AI rewriting with locally stored content and downloadable models."
 publish_to: 'none'
-version: 1.2.7+15
+version: 1.2.8+16
 
 environment:
   sdk: ^3.12.2

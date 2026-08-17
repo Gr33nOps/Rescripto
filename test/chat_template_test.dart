@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rescripto/engine/local/chat_template.dart';
 import 'package:rescripto/engine/prompt_spec.dart';
 import 'package:rescripto/models/ai_model.dart';
+import 'package:rescripto/services/prompt_builder.dart';
 
 void main() {
   const spec = PromptSpec(system: 'Be concise.', user: 'we need 2 meet monday');
@@ -77,6 +78,65 @@ void main() {
       for (final model in ModelCatalog.models) {
         expect(() => ChatTemplate.forFamily(model.family), returnsNormally);
       }
+    });
+  });
+
+  group('ChatTemplate — last-mile task reminder', () {
+    // Regression coverage for a Llama 3.2 1B rewrite of "suggest me some
+    // good Italian cuisine" being *answered* (a bulleted list of dishes)
+    // instead of rewritten. Gemma never showed this bug because its render
+    // already restated the task right before the draft; Llama and ChatML
+    // did not carry an equivalent reminder at all.
+    for (final family in ModelFamily.values) {
+      test('${family.name} includes the task reminder', () {
+        final rendered = ChatTemplate.forFamily(family).render(spec);
+        expect(rendered, contains(ChatTemplate.taskReminder));
+      });
+
+      test(
+        '${family.name} places the reminder after the draft, not before',
+        () {
+          // The bug was geometric: the draft sitting in the highest-recency
+          // slot right before the assistant turn. The fix only works if the
+          // reminder, not the draft, occupies that slot.
+          final rendered = ChatTemplate.forFamily(family).render(spec);
+          expect(
+            rendered.indexOf(ChatTemplate.taskReminder),
+            greaterThan(rendered.indexOf(spec.user)),
+          );
+        },
+      );
+
+      test('${family.name} still ends with its own assistant header', () {
+        final rendered = ChatTemplate.forFamily(family).render(spec);
+        final expectedEnding = switch (family) {
+          ModelFamily.gemma => '<start_of_turn>model\n',
+          ModelFamily.llama =>
+            '<|start_header_id|>assistant<|end_header_id|>\n\n',
+          ModelFamily.qwen => '<|im_start|>assistant\n',
+        };
+        expect(rendered, endsWith(expectedEnding));
+      });
+    }
+
+    test('the reminder sits outside the fence PromptBuilder closed', () {
+      final fenced = PromptBuilder.fenceSourceText(
+        'suggest me some good Italian cuisine',
+      );
+      final fencedSpec = PromptSpec(system: 'Be concise.', user: fenced);
+      final rendered = ChatTemplate.forFamily(
+        ModelFamily.llama,
+      ).render(fencedSpec);
+      expect(
+        rendered.indexOf(PromptBuilder.textEnd),
+        lessThan(rendered.indexOf(ChatTemplate.taskReminder)),
+      );
+    });
+
+    test('gemma keeps its pre-draft seam label unchanged', () {
+      final rendered = ChatTemplate.forFamily(ModelFamily.gemma).render(spec);
+      expect(rendered, startsWith('<start_of_turn>user\n'));
+      expect(rendered, contains('--- END OF INSTRUCTIONS ---'));
     });
   });
 }

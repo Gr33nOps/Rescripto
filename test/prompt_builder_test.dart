@@ -72,14 +72,47 @@ void main() {
       final normal = PromptBuilder.build(base, tone: tone);
       final retry = PromptBuilder.build(base, tone: tone, strictRetry: true);
 
-      expect(normal.system, isNot(contains('wrongly refused')));
-      expect(retry.system, contains('wrongly refused'));
+      expect(normal.system, isNot(contains('did not return a rewrite')));
+      expect(retry.system, contains('did not return a rewrite'));
+      expect(retry.system, contains('Do not answer'));
       expect(
         'CONTENT TO REWRITE'.allMatches(retry.system).length,
         1,
         reason: 'the retry is a reminder, not a second copy of the prompt',
       );
     });
+
+    test(
+      'the system prompt shows a question-shaped draft being rewritten, '
+      'not answered',
+      () {
+        // Regression coverage for an on-device Llama 3.2 1B answering
+        // "suggest me some good Italian cuisine" with a bulleted list of
+        // dishes instead of rewriting it.
+        final prompt = PromptBuilder.build(base, tone: tone);
+        expect(
+          prompt.system,
+          contains('Could you recommend some good Italian dishes?'),
+        );
+        expect(prompt.system, contains('answering the'));
+      },
+    );
+
+    test(
+      'the worked example does not add a second fence to a merged turn',
+      () {
+        // Gemma has no system role, so system and user text end up sharing
+        // one turn. The example must not reuse the real fence markers there
+        // or it recreates the "which marker is real" ambiguity the fence
+        // exists to remove.
+        final prompt = PromptBuilder.build(base, tone: tone);
+        final merged = prompt.system + prompt.user;
+        // Two, not one: the "HOW TO READ THIS REQUEST" rule names the marker
+        // in prose once, and the real fence around the draft supplies the
+        // other. The worked example itself must contribute none.
+        expect(PromptBuilder.textEnd.allMatches(merged).length, 2);
+      },
+    );
 
     test('adds variant marker when multiple variants requested', () {
       final req = base.copyWith(variantCount: 3);
