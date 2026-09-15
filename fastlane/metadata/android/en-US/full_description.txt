@@ -1,0 +1,27 @@
+<p>Paste a rough message, pick a tone, and Rescripto rewrites it into something you'd actually send. Your facts, names, numbers and dates stay as you wrote them, and the result doesn't get padded with greetings, filler or hype.</p>
+
+<p>Rewriting runs on your phone. Download a model once (Gemma 3 1B, Llama 3.2 1B or 3B, or Qwen 2.5 1.5B) and it works offline, with no account.</p>
+
+<p><b>What you can do</b></p>
+<ul>
+<li>Rewrite in 14 tones, from Professional and Casual to Diplomatic and Technical, or write your own tone.</li>
+<li>In Pro mode, set how much to change, shorter or longer, who it's for, extra instructions, and up to three versions.</li>
+<li>Dictate with whisper.cpp running on the phone.</li>
+<li>Chain rewrite steps into workflows.</li>
+<li>Rewrite selected text from any app's text menu, share text in, or start from a Quick Settings tile.</li>
+<li>Search and reuse past rewrites. History stays on the phone.</li>
+<li>Export encrypted backups, keep automatic weekly backups, or sync an encrypted copy to your own WebDAV server.</li>
+</ul>
+
+<p><b>Cloud is optional</b></p>
+<p>If you want a larger model, you can connect OpenAI, Anthropic, Google Gemini, Groq, xAI, OpenRouter, Mistral, Together AI, an Ollama server on your network, or any OpenAI-compatible endpoint with your own API key. Cloud rewriting is off until you turn it on, and Hybrid mode asks before sending a failed on-device rewrite anywhere.</p>
+
+<p><b>Privacy controls</b></p>
+<ul>
+<li>A network kill switch and a separate switch for each network feature.</li>
+<li>A log of every request the app made or blocked.</li>
+<li>A lockdown button that cuts network access and deletes saved API keys.</li>
+<li>No analytics, ads, crash reporting or update checks. Android cloud backup is disabled.</li>
+</ul>
+
+<p>Rescripto needs a 64-bit ARM phone running Android 7.0 or newer. Models are downloaded from Hugging Face and come with their publishers' licenses.</p>

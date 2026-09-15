@@ -9,39 +9,34 @@
 
 <p align="center">
   <strong>Clearer writing, on your terms.</strong><br>
-  Rewrite and dictate privately on Android with local models or a cloud provider you choose.
+  An Android app that rewrites and dictates text on your phone, or through a cloud provider you pick.
 </p>
 
 <p align="center">
   <a href="https://github.com/Gr33nOps/Rescripto/actions/workflows/ci.yml"><img src="https://github.com/Gr33nOps/Rescripto/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="https://github.com/Gr33nOps/Rescripto/releases"><img src="https://img.shields.io/github/v/release/Gr33nOps/Rescripto?label=release" alt="Latest release"></a>
-  <a href="#license"><img src="https://img.shields.io/badge/license-Apache%202.0%20%2B%20restrictions-blue.svg" alt="License"></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
 </p>
 
 <p align="center">
-  <a href="#install">Get the app</a> · <a href="#features">Explore features</a> · <a href="#development">Build from source</a> · <a href=".github/CONTRIBUTING.md">Contribute</a>
+  <a href="#install">Install</a> · <a href="#features">Features</a> · <a href="#development">Build from source</a> · <a href=".github/CONTRIBUTING.md">Contribute</a>
 </p>
 
 ---
 
-Rescripto turns rough notes into clear, natural writing without requiring an
-account. Download a model once for private on-device rewrites, or connect a
-cloud provider you trust.
-
-## At a glance
-
-| Private by default | Flexible rewriting | Built for your phone |
-| :--- | :--- | :--- |
-| Local rewrites and dictation stay on-device. | Set tone, intensity, length, audience, and instructions. | Android 7.0+ on 64-bit ARM, with CPU acceleration chosen for your phone. |
+Paste a rough message, pick a tone, and get back something you'd actually send.
+Rescripto keeps your facts, names and numbers as they are and doesn't pad the
+text with filler. There's no account. Download a model once and rewriting works
+offline, or connect a cloud provider with your own API key.
 
 ## Contents
 
 - [Features](#features)
 - [How processing works](#how-processing-works)
-- [Privacy & network activity](#privacy--network-activity)
+- [Privacy and network activity](#privacy-and-network-activity)
 - [Install](#install)
 - [Platform support](#platform-support)
-- [Storage & downloads](#storage--downloads)
+- [Storage and downloads](#storage-and-downloads)
 - [Development](#development)
 - [Architecture](#architecture)
 - [Contributing](#contributing)
@@ -49,108 +44,109 @@ cloud provider you trust.
 
 ## Features
 
-- **Private local rewriting** with GGUF models through llama.cpp: tone,
-  intensity, length, audience, free-form instructions, and up to three
-  variants per request.
-- **Optional cloud writing** using your own API key for OpenAI, Anthropic,
-  Gemini, Groq, OpenRouter, Mistral, Together AI, Ollama, or a custom
-  OpenAI-compatible endpoint.
-- **Voice dictation** through whisper.cpp on your device, with optional cloud
-  transcription through OpenAI or Groq.
-- **Workflows** that chain rewrite steps, feeding each result into the next.
-- **Reliable model downloads** from Hugging Face: resumable and
-  checksum-verified.
-- **Local history and sharing** backed by SQLite, with copy and share built
-  in.
-- **Encrypted backup and optional WebDAV sync**. A self-hosted sync server
-  only receives ciphertext.
-- **Transparent privacy controls**: a network kill switch, per-feature
-  network toggles, and a log of every request allowed or blocked by the app.
-- **Useful Android integration**: share text into Rescripto, use the Quick
-  Settings tile, and choose light, dark, or system theme.
+- **On-device rewriting** with GGUF models running through llama.cpp. Choose
+  from 14 tones or write your own, and in Pro mode set intensity, length,
+  audience, extra instructions and up to three versions per request.
+- **Writing that sounds like a person wrote it.** Every tone shares one set of
+  rules: keep the meaning, keep numbers and names exact, don't add greetings,
+  filler or hype, and don't answer a question that was meant to be rewritten.
+- **Optional cloud rewriting** with your own key for OpenAI, Anthropic, Google
+  Gemini, Groq, xAI, OpenRouter, Mistral, Together AI, Ollama on your network,
+  or any OpenAI-compatible endpoint.
+- **Voice dictation** with whisper.cpp on the phone, or cloud transcription
+  through OpenAI, Groq or xAI.
+- **Workflows** that run several rewrite steps in a row.
+- **Model downloads** from Hugging Face that resume after a dropped connection
+  and are checked against a SHA-256 hash.
+- **History** stored in SQLite on the phone, with search, copy and share.
+- **Encrypted backups**, automatic weekly local backups, and optional WebDAV
+  sync. The sync server only ever receives encrypted data.
+- **Privacy controls**: a network kill switch, a switch per network feature,
+  and a log of every request the app made or blocked.
+- **Android integration**: rewrite selected text from any app's text menu,
+  share text into Rescripto, or open it from a Quick Settings tile.
 
 ## How processing works
 
-Select a mode during onboarding, then change it any time in **Settings →
+You pick a mode during setup and can change it any time in **Settings →
 Processing mode**.
 
 | Mode | Where rewrites run | When text can leave your phone |
 | --- | --- | --- |
-| **Local** (default) | On your device | Never for a rewrite. Model downloads are a separate, one-time action. |
-| **Cloud** | Your configured provider | Every rewrite is sent only to the provider and model you chose. |
-| **Hybrid** | On-device first | Only for long input (about 1,500+ characters) or after you approve a failed local attempt going to the cloud. |
+| **Local** (default) | On your phone | Never for a rewrite. Downloading a model is a separate step. |
+| **Cloud** | The provider you set up | Every rewrite goes to the provider and model you chose. |
+| **Hybrid** | On your phone first | For long text (about 1,500 characters or more), or when a local rewrite fails and you agree to send it. |
 
-The app bar always shows the selected route. Hybrid mode may fall back from a
-cloud failure to your device without asking, because that route brings the
-text back to the phone rather than sending it elsewhere.
+The chip in the app bar always shows where the next rewrite will run. In Hybrid
+mode, a failed cloud rewrite can fall back to the phone without asking, because
+that keeps the text on the device.
 
-## Privacy & network activity
+## Privacy and network activity
 
-| Feature | What is sent | Destination | Recorded in the network log? |
+| Feature | What is sent | Where | In the network log? |
 | --- | --- | --- | --- |
-| Local rewriting | Nothing | None | No |
-| Model download | Model file only | Hugging Face | Yes |
-| Cloud / Hybrid rewrite | The text being rewritten | Your configured provider | Yes |
-| Cloud speech-to-text | Voice recording | Your configured provider | Yes |
+| Local rewriting | Nothing | Nowhere | No |
+| Model download | A request for the model file | Hugging Face | Yes |
+| Cloud or Hybrid rewrite | The text being rewritten | Your provider | Yes |
+| Cloud speech-to-text | The voice recording | Your provider | Yes |
+| WebDAV sync | An encrypted backup | Your server | Yes |
 
-Every request made by the app's Dart layer goes through `NetworkGuard`, which
-checks the current policy before logging the host and path. It never logs
-headers, request bodies, query strings, or credentials. **Settings → Privacy &
-network** also includes a panic button that turns on the kill switch, cancels
-work in flight, disables providers, and deletes saved API keys.
+Every request from the app's Dart code goes through `NetworkGuard`, which
+checks the current policy first and then logs the host and path. Headers,
+request bodies, query strings and credentials are never logged. **Settings →
+Privacy & network** also has a lockdown button that turns on the kill switch,
+cancels running requests, disables providers and deletes saved API keys.
+
+Rescripto has no analytics, crash reporting, ads or update checks.
 
 ## Install
 
-For direct installation, download the signed **APK** from the
-[latest release](https://github.com/Gr33nOps/Rescripto/releases/latest).
-The **AAB** is included for Android store publishing and cannot be installed
-directly like an APK. Release builds package `arm64-v8a` only, so review
-[Platform support](#platform-support) before installing.
+Download the APK from the
+[latest release](https://github.com/Gr33nOps/Rescripto/releases/latest). The
+AAB in the same release is for app stores and can't be installed directly.
+Releases contain `arm64-v8a` code only, so check
+[Platform support](#platform-support) first.
 
-To build the project yourself, continue with [Development](#development).
+The app builds from source with no proprietary dependencies. An F-Droid build
+is being prepared; [docs/FDROID.md](docs/FDROID.md) tracks what's done and
+what's left.
 
 ## Platform support
 
 | Platform | Text rewriting | Voice dictation |
 | --- | --- | --- |
-| Android `arm64-v8a`, API 24+ | Supported | Supported |
-| Android `armeabi-v7a` / `x86_64` | Not packaged | Not packaged |
-| iOS | Source integration present; needs macOS/Xcode verification | Not implemented |
+| Android `arm64-v8a`, Android 7.0 (API 24) or newer | Supported | Supported |
+| Android `armeabi-v7a` or `x86_64` | Not built | Not built |
+| iOS | Not supported | Not supported |
 
-Only 64-bit ARM Android builds are distributed. The native engines include a
-portable ARMv8-A CPU backend and load more capable CPU variants at runtime when
-the phone supports them. Dot-product instructions improve speed, but they are
-**not** required for compatibility.
+The on-device engines run on the CPU. The APK carries four builds of the llama.cpp
+CPU backend, and the app loads the one that matches the phone's processor
+features, from plain ARMv8.0 up to ARMv8.6 with int8 matrix multiplication.
+Older phones get the baseline build instead of crashing on instructions they
+don't have.
 
-### GPU acceleration
+There is no GPU acceleration. The llama.cpp Vulkan backend needs system
+libraries that Android 7 doesn't have, and the 1B to 3B models in the catalog
+run about as fast on a phone's CPU.
 
-Vulkan support is compiled in but disabled by default. Initializing it can take
-minutes on some Android drivers, and the 1B to 3B catalog models are usually
-faster on CPU. Build with `-DFLUTTER_LLAMA_VULKAN=OFF` to omit the backend
-entirely.
+## Storage and downloads
 
-## Storage & downloads
+Rewrite models take about 769 MB to 1.9 GB each. Voice models range from about
+74 MB (Tiny) to 2.9 GB (Large), and the default Base model is about 141 MB. It
+downloads the first time you use the microphone. All models come from Hugging
+Face. Recordings are deleted once transcription finishes or is cancelled.
 
-Text models range from roughly **769 MiB to 1.93 GiB**. Voice models range from
-about **74 MiB** (Tiny) to **2.88 GiB** (Large v3); the default Base model is
-about **141 MiB** and downloads when you first use the microphone. All models
-come from Hugging Face. Temporary recordings are deleted after transcription
-finishes or is cancelled.
-
-Android automatic backup is intentionally disabled. Your history and settings
-will not be silently copied to Google Drive or transferred to another phone by
-the setup wizard. Use Rescripto's encrypted export or WebDAV sync when you
-decide to move data.
+Android's automatic backup is turned off for Rescripto, so your history and
+settings aren't copied to Google Drive or moved by the new-phone setup wizard.
+Use the encrypted export or WebDAV sync when you want to move data.
 
 ## Development
 
 ### Requirements
 
-- Flutter 3.44.9 / Dart 3.12.2, or the project-pinned compatible toolchain
+- Flutter 3.44.9 with Dart 3.12.2
 - Java 17
-- Android SDK and NDK `28.2.13676358`
-- CMake and Ninja from Android SDK tools
-- For iOS work: macOS, Xcode, CocoaPods, and a device or simulator
+- Android SDK with NDK `28.2.13676358` and CMake 3.22.1
 
 ### Quick start
 
@@ -158,69 +154,75 @@ decide to move data.
 flutter pub get
 flutter analyze
 flutter test
-flutter build apk --debug
+flutter build apk --debug --target-platform android-arm64
 ```
 
-The vendored native plugins sit outside root analysis, so verify them too:
+The two local plugins have their own checks:
 
 ```sh
-cd third_party/flutter_llama
-flutter analyze lib
+cd packages/rescripto_llama
+flutter pub get
+flutter analyze
 flutter test
 
-cd ../flutter_whisper
+cd ../../third_party/flutter_whisper
+flutter pub get
 flutter analyze lib
 flutter test
 ```
 
-### CI & releases
+A release build without signing variables produces an unsigned APK, which is
+what F-Droid and other build services expect. See
+[docs/FDROID.md](docs/FDROID.md) for the exact build steps.
 
-- Pushes and pull requests to `main` run analysis, the full test suite, and
-  an Android debug build in [CI](.github/workflows/ci.yml).
-- A `vX.Y.Z` tag matching `pubspec.yaml` builds signed APK and AAB artifacts,
-  then publishes a GitHub release with generated notes.
+### CI and releases
 
-When you change dependencies, model paths, or platform support, update this
-README and the in-app About screen together.
+- Pushes and pull requests to `main` run analysis, the full test suite, an
+  Android lint pass and a debug build ([CI](.github/workflows/ci.yml)).
+- Pushing a `vX.Y.Z` tag that matches `pubspec.yaml` builds a signed APK and
+  AAB and publishes a GitHub release. The release notes come from that
+  version's section in [CHANGELOG.md](CHANGELOG.md).
+
+When you change what the app downloads or sends, or which devices it supports,
+update this README and the in-app Privacy text in the same change.
 
 ## Architecture
 
-| Area | Responsibility |
+| Area | What it does |
 | --- | --- |
-| `lib/engine` | `RewriteEngine`, local llama.cpp, and cloud protocol adapters |
-| `lib/speech` | Local whisper.cpp and optional cloud transcription |
-| `lib/state` | UI operation state and controllers |
-| `lib/services` | Settings, SQLite, downloads, network policy/logging, credentials, routing, and prompts |
-| `lib/models` | Immutable application and domain models |
-| `third_party/flutter_llama` | Vendored llama.cpp Flutter/native bridge |
-| `third_party/flutter_whisper` | Vendored whisper.cpp Flutter/native bridge |
+| `lib/engine` | The `RewriteEngine` interface, the local engine, cloud protocol adapters and workflow runner |
+| `lib/speech` | On-device whisper.cpp and cloud transcription |
+| `lib/services` | Prompts, routing, settings, SQLite, downloads, network policy and logging, credentials, backup and sync |
+| `lib/state` | Controllers that hold UI state |
+| `lib/models` | Plain data types: tones, providers, requests, results |
+| `packages/rescripto_llama` | Rescripto's Flutter plugin for llama.cpp (Kotlin and C++ JNI) |
+| `third_party/llama.cpp` | llama.cpp source, build b6500 |
+| `third_party/flutter_whisper` | whisper.cpp plugin, adapted for this app |
 
-For the best starting points in the codebase, read
-`lib/services/routing/target_router.dart` and
-`lib/services/network/network_guard.dart`.
+Good places to start reading: `lib/services/prompt_builder.dart` for how a
+rewrite is asked for, `lib/services/routing/target_router.dart` for where it
+runs, and `lib/services/network/network_guard.dart` for what may leave the
+phone.
 
 ## Contributing
 
-Contributions and bug reports are welcome. Read
-[CONTRIBUTING.md](.github/CONTRIBUTING.md) for the local workflow and coding
-conventions. For security issues, follow [SECURITY.md](.github/SECURITY.md)
-instead of opening a public issue.
+Bug reports and pull requests are welcome.
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) covers the local setup and what a
+good change looks like. Please report security problems through
+[SECURITY.md](.github/SECURITY.md) rather than a public issue.
 
 ## License
 
-Rescripto's own source code, everything outside `third_party/`, is licensed
-under the [Apache License 2.0](LICENSE).
+Rescripto, including `packages/rescripto_llama`, is licensed under the
+[Apache License 2.0](LICENSE).
 
-Two additional terms matter when building or distributing the app:
+Bundled third-party code keeps its own license:
 
-- `third_party/flutter_llama`, the on-device llama.cpp bridge included in
-  every build, is licensed under
-  [NativeMindNONC](third_party/flutter_llama/LICENSE). It is free for
-  personal, educational, and research use; commercial use of the built app
-  requires written permission from that license's copyright holder.
-  `third_party/flutter_whisper` is Apache 2.0.
-- Downloadable Gemma, Llama, Qwen, and Whisper models each have their own
-  publisher license. They are fetched from Hugging Face at runtime, not bundled
-  in the repository.
+- [llama.cpp](third_party/llama.cpp/LICENSE) and
+  [whisper.cpp](third_party/flutter_whisper/third_party/whisper.cpp/LICENSE):
+  MIT
+- [flutter_whisper](third_party/flutter_whisper/LICENSE): Apache 2.0
 
-Please read the linked terms before any commercial use.
+The Gemma, Llama, Qwen and Whisper models are not part of this repository.
+They're downloaded from Hugging Face when you choose them, and each comes with
+its publisher's license.

@@ -5,6 +5,59 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-09-15
+
+### Changed
+
+- Rewrites read more like a person wrote them, in every tone and in Local,
+  Cloud and Hybrid mode. All tones now share one set of writing rules: no
+  added greetings, sign-offs, filler phrases, hype or em dashes, and no new
+  facts or apologies the draft didn't have. Tones still sound different from
+  each other.
+- Rewrote the 14 built-in tone instructions. Persuasive and Marketing no
+  longer invent claims or reach for words like "seamless". Academic keeps
+  claims as certain as you wrote them. Confident drops "I think" and "maybe".
+  Longer means fuller wording, not made-up detail. Tones you edited yourself
+  are not changed.
+- Small on-device models turn plain statements into "Could you…" questions
+  much less often, and extra versions that a model labels "Variant 1:" are
+  split properly.
+- If a model hands your draft back unchanged, Rescripto asks it once more
+  before showing the result. Light polish is left alone, since correct text
+  can fairly come back the same.
+- The on-device engine is now Rescripto's own llama.cpp plugin. It runs on the
+  same llama.cpp release and CPU backends as before. The previous plugin was
+  under a non-commercial license that ruled out F-Droid and other stores; the
+  whole app is now Apache 2.0.
+- Clearer wording across the app: errors say where to fix the problem, dates
+  in backup and sync read normally, and several descriptions were corrected.
+
+### Added
+
+- Ollama and custom endpoint providers have a Models field. Before, they could
+  be saved but never used, because there was nowhere to enter a model name.
+  Other providers can list extra models there too.
+- Release builds without signing keys now produce an unsigned APK, and APKs
+  no longer carry Google's encrypted dependency block. Both are needed for
+  F-Droid.
+
+### Fixed
+
+- WebDAV server passwords shorter than 8 characters were rejected, so those
+  servers couldn't sync at all.
+- Exporting or restoring a backup, and syncing, could fail without any
+  message.
+- Stopping a workflow showed "Cancelled." in red as if it had failed, and a
+  failed workflow showed its error twice.
+- Stopping a rewrite while the on-device model was still loading now stops it
+  before generation starts.
+- Removed the GPU acceleration switch. The engine has been CPU-only for a
+  while, so it changed nothing.
+- Removed the "Update checks" privacy switch for a feature the app doesn't
+  have.
+- "Get an Groq API key" and similar button labels, and a workflow example
+  that mentioned a Proofread tone that doesn't exist.
+
 ## [1.2.10] - 2026-08-18
 
 ### Fixed
@@ -194,6 +247,10 @@ app architecture) predates this changelog. See `git log` or the
 [commit history](https://github.com/Gr33nOps/Rescripto/commits/main) for
 the full record.
 
+[1.3.0]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.3.0
+[1.2.10]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.10
+[1.2.9]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.9
+[1.2.8]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.8
 [1.1.2]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.1.2
 [1.2.6]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.6
 [1.2.5]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.5

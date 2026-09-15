@@ -55,7 +55,7 @@ jobs:
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{ runner.os }}-${{ hashFiles('third_party/flutter_llama/llama.cpp/src/**', 'third_party/flutter_llama/llama.cpp/ggml/**', 'third_party/flutter_whisper/third_party/whisper.cpp/src/**', 'third_party/flutter_whisper/third_party/whisper.cpp/ggml/**') }}
+          key: ccache-${{ runner.os }}-${{ hashFiles('third_party/llama.cpp/src/**', 'third_party/llama.cpp/ggml/**', 'packages/rescripto_llama/android/src/main/cpp/**', 'third_party/flutter_whisper/third_party/whisper.cpp/src/**', 'third_party/flutter_whisper/third_party/whisper.cpp/ggml/**') }}
           restore-keys: |
             ccache-${{ runner.os }}-
 
@@ -68,11 +68,11 @@ jobs:
       - name: Test application
         run: flutter test
 
-      - name: Verify flutter_llama
-        working-directory: third_party/flutter_llama
+      - name: Verify rescripto_llama
+        working-directory: packages/rescripto_llama
         run: |
           flutter pub get
-          flutter analyze lib
+          flutter analyze
           flutter test
 
       - name: Verify flutter_whisper
@@ -84,7 +84,7 @@ jobs:
 
       - name: Lint Android debug build
         # AGP does not verify a manifest-declared class (an <activity> or
-        # <service> name) against the compiled classpath — that only fails
+        # <service> name) against the compiled classpath. That only fails
         # at install time on a device. This is the one check that catches it
         # in CI, before a full APK build.
         working-directory: android

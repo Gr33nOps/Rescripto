@@ -9,8 +9,8 @@
 ## Checklist
 
 - [ ] `flutter analyze` and `flutter test` pass locally
-- [ ] `third_party/flutter_llama` and `third_party/flutter_whisper` still
-      analyze/test clean if this PR touches them
+- [ ] `packages/rescripto_llama` and `third_party/flutter_whisper` still
+      pass analyze and test if this PR touches them
 - [ ] README updated if this changes what leaves the device, a Privacy
       toggle's behavior, or platform/model support
 - [ ] Added a regression test if this fixes a deterministic bug

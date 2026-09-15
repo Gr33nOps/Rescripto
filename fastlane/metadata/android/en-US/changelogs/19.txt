@@ -1,0 +1,5 @@
+- Rewrites sound more natural in every tone: no added greetings, filler, hype or invented detail
+- Rewritten tone instructions; your own edited tones are untouched
+- New on-device engine plugin, same llama.cpp as before, now fully Apache 2.0
+- Ollama and custom endpoints can finally be given a model name
+- Fixed short WebDAV passwords being rejected and silent backup and sync failures

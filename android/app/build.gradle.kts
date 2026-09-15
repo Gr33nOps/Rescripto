@@ -15,7 +15,12 @@ val requestedReleaseBuild = gradle.startParameter.taskNames.any {
     it.substringAfterLast(':') in setOf("assembleRelease", "bundleRelease")
 }
 
-if (requestedReleaseBuild && !hasReleaseSigning) {
+// Without signing variables a release build is left unsigned, which is what
+// F-Droid and other reproducible-build pipelines expect: they sign the APK
+// themselves. The GitHub release workflow sets RESCRIPTO_REQUIRE_SIGNING so a
+// missing secret fails the build instead of publishing an unsigned APK.
+val requireSigning = providers.environmentVariable("RESCRIPTO_REQUIRE_SIGNING").orNull == "true"
+if (requestedReleaseBuild && requireSigning && !hasReleaseSigning) {
     throw GradleException(
         "Release signing requires ANDROID_KEYSTORE_PATH, " +
             "ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD.",
@@ -80,6 +85,13 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+    }
+
+    // AGP otherwise embeds a dependency list encrypted with a Google Play
+    // key. Nobody else can read it, and F-Droid rejects APKs that carry it.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 }
 

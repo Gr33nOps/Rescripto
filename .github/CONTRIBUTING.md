@@ -1,17 +1,17 @@
 # Contributing to Rescripto
 
-Thanks for being here. This guide explains how to get the app running, what
-the checks cover, and how to make a pull request easy to review.
+Thanks for helping. This guide covers getting the app running, what the
+checks do, and how to make a pull request easy to review.
 
 ## Before you start
 
-- For anything larger than a small fix, please open an issue first. A quick
-  conversation early on often saves everyone time later.
+- For anything bigger than a small fix, please open an issue first so we can
+  agree on the approach before you spend time on it.
 - Read the [README](../README.md), especially
   [Architecture](../README.md#architecture) and
   [How processing works](../README.md#how-processing-works), before touching
-  routing, network policy, or the engine abstractions. Those areas have
-  non-obvious invariants that are easy to quietly break.
+  routing, network policy, prompts or the engine code. Those areas have rules
+  that are easy to break without noticing.
 - Security issues go through [SECURITY.md](SECURITY.md), not a public issue
   or PR.
 
@@ -27,16 +27,15 @@ flutter test
 flutter build apk --debug
 ```
 
-The two vendored packages under `third_party/` are excluded from root
-analysis and need their own check:
+The two native plugins have their own checks:
 
 ```sh
-cd third_party/flutter_llama && flutter analyze lib && flutter test
-cd ../flutter_whisper && flutter analyze lib && flutter test
+cd packages/rescripto_llama && flutter pub get && flutter analyze && flutter test
+cd ../../third_party/flutter_whisper && flutter pub get && flutter analyze lib && flutter test
 ```
 
-These are the same checks CI runs on every push and pull request. If they pass
-locally, CI should be straightforward too.
+CI runs the same checks on every push and pull request, so if they pass
+locally, CI should too.
 
 ## Making a change
 
@@ -50,21 +49,26 @@ locally, CI should be straightforward too.
   the existing ones in `test/` following that file's own style. See
   `test/rewrite_controller_test.dart` or `test/config_store_test.dart` for
   the shape of a good one.
-- If your change affects what leaves the device, a Privacy toggle, or
-  model/platform support, update the README too. The privacy table is a
-  promise to people who use the app, not just a reference page.
+- If your change affects what leaves the device, a Privacy switch, or
+  model or platform support, update the README too. The privacy table is a
+  promise to the people using the app.
+- If you change the prompt or a built-in tone, run a few real drafts through
+  a local and a cloud model before and after, and bump
+  `ConfigSeeder.seedVersion` when a built-in tone's text changes so existing
+  installs pick it up.
+- Write user-facing text the way you'd say it to someone: short, specific,
+  and naming the screen where a problem can be fixed.
 - Semantics identifiers (`Semantics(identifier: '...')`) on interactive
   widgets are load-bearing for accessibility and for the project's mobile
   QA tooling. Don't remove one without checking what depends on it.
 
 ## Testing on a device
 
-`testing/mobile/` has scripts and a QA plan for exercising the app on a
-  real emulator or device end to end (`MOBILE_TEST_PLAN.md`), beyond what unit
-  and widget tests cover. It is not required for every pull request, but it is
-  worth using when you touch a user-facing flow: Rewrite, onboarding, backup/sync, or
-the Android system integrations (`PROCESS_TEXT`, share target, Quick
-Settings tile).
+`testing/mobile/` has scripts and a QA plan (`MOBILE_TEST_PLAN.md`) for
+testing the app end to end on an emulator or phone. You don't need it for
+every pull request, but it's worth running when you change a user-facing flow:
+rewriting, onboarding, backup and sync, or the Android integrations (text
+selection menu, share target, Quick Settings tile).
 
 ## Submitting a pull request
 
@@ -72,8 +76,7 @@ Settings tile).
 - Describe *why* the change is needed, not only what changed. The diff already
   shows the mechanics.
 - Link the issue it closes, if any.
-- Please wait for CI to pass before asking for review. A maintainer will take
-  a look once it is green.
+- Wait for CI to pass before asking for review.
 
 ## License of contributions
 

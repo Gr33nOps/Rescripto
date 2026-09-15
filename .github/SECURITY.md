@@ -1,8 +1,8 @@
 # Security Policy
 
-Rescripto is built around a simple promise: your text stays on your device
-unless you choose otherwise. We take anything that could break that promise,
-or any other security issue, seriously.
+Rescripto promises that your text stays on your phone unless you choose
+otherwise. If you find something that breaks that promise, or any other
+security problem, please tell us privately.
 
 ## Reporting a vulnerability
 
@@ -34,14 +34,11 @@ we'll follow up.
 
 - Vulnerabilities in a third-party cloud provider you've configured
   yourself (OpenAI, Anthropic, Groq, etc.). Report those to the provider
-- Issues that require a rooted/compromised device or physical access with
-  the device unlocked
-- The known, disclosed licensing/commercial-use restriction on
-  `third_party/flutter_llama` (see the [README](../README.md#license)).
-  That's a licensing matter, not a vulnerability
+- Issues that require a rooted or compromised device, or physical access to
+  an unlocked phone
 
 ## Response
 
-We will acknowledge your report as soon as we can and keep you updated while
-we investigate it. Please give us a reasonable window to ship a fix before
-sharing details publicly.
+We'll reply as soon as we can and keep you updated while we look into it.
+Please give us reasonable time to ship a fix before sharing details
+publicly.
