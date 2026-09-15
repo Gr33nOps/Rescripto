@@ -190,13 +190,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
-  flutter_llama:
-    dependency: "direct main"
-    description:
-      path: "third_party/flutter_llama"
-      relative: true
-    source: path
-    version: "1.1.2"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -614,6 +607,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.0"
+  rescripto_llama:
+    dependency: "direct main"
+    description:
+      path: "packages/rescripto_llama"
+      relative: true
+    source: path
+    version: "1.0.0"
   share_plus:
     dependency: "direct main"
     description:

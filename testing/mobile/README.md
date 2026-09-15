@@ -8,7 +8,7 @@ hierarchy, and read logs. The app does not need any test-only code paths.
 
 ## Why x86_64, and the arm64-only native libs
 
-Rescripto's native LLM/Whisper stack (`third_party/flutter_llama`,
+Rescripto's native LLM/Whisper stack (`packages/rescripto_llama`,
 `third_party/flutter_whisper`) is built **arm64-v8a only**, see
 `android/app/build.gradle.kts`'s `ndk { abiFilters += listOf("arm64-v8a") }`.
 The natural instinct is to test on a matching arm64-v8a emulator. That was
@@ -20,26 +20,28 @@ FATAL | Avd's CPU Architecture 'arm64' is not supported by the QEMU2
         architecture.
 ```
 
-Current Android Emulator releases (this one: 37.1.11.0) have dropped
-cross-ISA QEMU emulation entirely. An arm64 *system image* cannot boot on
-an x86_64 host at all anymore, full stop, regardless of CPU vendor. (This is
-different from ARM *app* translation, a separate, narrower feature for
-running arm-only app code inside an x86_64 *system image*, see below.)
+Current Android Emulator releases have dropped cross-ISA emulation, so an
+arm64 system image can't boot on an x86_64 host. The x86_64 Android 15 image
+does include Android's ARM translation layer, and the arm64-only APK installs
+and runs on it: the UI, cloud rewriting, backup and sync all work.
 
-So `Rescripto_Test` runs `google_apis` **x86_64**, Android 15 (API 35),
-Pixel 7 profile, WHPX-accelerated. Empirically on this AMD Ryzen host: the
-arm64-v8a-only debug APK **does install and launch successfully** on this
-x86_64 image. Android's ABI matching didn't block it, and the app reached
-the main UI with no native-load crash. That's more permissive than expected
-going in (the assumption was this needed an Intel host's ARM-translation
-feature, which wouldn't exist on AMD). What is **not** yet verified is
-whether an actual **Local-mode rewrite** (which dlopen's `libllama.so`)
-succeeds, since a UI smoke test doesn't exercise that path. Treat local on-device
-generation as unverified until a QA pass actually runs one; if it fails with
-an `UnsatisfiedLinkError`/`dlopen failed`, that confirms the native library
-genuinely can't run here and Local-mode tests should be marked Blocked on
-this specific machine, not Failed (Cloud/Hybrid and everything else are
-unaffected).
+**On-device rewriting does not.** Tested in September 2026 with Gemma 3 1B:
+the native library loads, the CPU backend is chosen, the model and context
+load, and then the process dies with `SIGILL` inside
+`libndk_translation.so` (`ConvertF16F32`) as soon as ggml runs its first
+quantized matrix multiply. The translator doesn't implement an instruction
+every real ARMv8 phone has. Mark local generation on this emulator as
+Blocked, not Failed.
+
+To test the on-device engine code itself on this machine, build an x86_64
+APK, which runs without translation. Temporarily add `"x86_64"` to the
+`abiFilters` in `android/app/build.gradle.kts` and
+`packages/rescripto_llama/android/build.gradle`, remove `lib/x86_64/**` from
+the app's packaging excludes, and run
+`flutter build apk --release --target-platform android-x64`. The plugin
+builds a single generic CPU backend for x86_64. Voice input isn't available in
+that build, because the whisper plugin stays arm64-only. Don't commit those
+edits.
 
 If this setup ever moves to real arm64 hardware or an arm64 host (e.g.
 Apple Silicon, or a physical Android phone), that would be the way to get
@@ -49,7 +51,7 @@ guaranteed-correct native-code coverage.
 
 - Android SDK: `D:\Android\Sdk` (cmdline-tools, platform-tools, build-tools
   36.0.0, emulator binary, NDK).
-- System image: `system-images;android-35;google_apis;arm64-v8a` (Android 15).
+- System image: `system-images;android-35;google_apis;x86_64` (Android 15).
 - AVD `Rescripto_Test` created from that image (see `start_test_device.ps1`
   if it ever needs recreating; the exact `avdmanager create avd` command is
   in this repo's setup history / the final setup report).

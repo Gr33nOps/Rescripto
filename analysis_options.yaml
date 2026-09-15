@@ -11,8 +11,8 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
-    # The vendored flutter_llama plugin is an unmodified upstream dependency:
-    # we do not maintain its sources, so exclude all of it from analysis.
+    # Vendored code (llama.cpp, flutter_whisper) is checked on its own in CI,
+    # not as part of the app.
     - third_party/**
 
 linter:

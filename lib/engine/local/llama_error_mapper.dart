@@ -2,9 +2,8 @@ import 'package:flutter/services.dart';
 
 import '../engine_exception.dart';
 
-/// Maps whatever the native channel throws that
-/// `LocalLlmService`/`FlutterLlama` didn't already turn into a typed
-/// [EngineException] at the source.
+/// Maps whatever the native channel throws that `LocalLlmService` didn't
+/// already turn into a typed [EngineException] at the source.
 ///
 /// This is the one place substring matching on an error message survives —
 /// deliberately narrow, scoped to a single channel's `PlatformException`,
@@ -27,8 +26,10 @@ class LlamaErrorMapper {
     }
     return switch (error.code) {
       'MODEL_NOT_FOUND' => ModelNotInstalledException(error.message ?? ''),
+      'CONTEXT_OVERFLOW' => const ContextOverflowException(),
       'MODEL_NOT_LOADED' ||
       'MODEL_LOAD_FAILED' ||
+      'NATIVE_LIBRARY_UNAVAILABLE' ||
       'CPU_BACKEND_UNAVAILABLE' => ModelLoadFailedException(error.message),
       _ => UnknownEngineException(error.message),
     };

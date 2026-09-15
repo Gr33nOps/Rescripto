@@ -6,7 +6,7 @@ import 'package:rescripto/services/local_llm_service.dart';
 
 void main() {
   group('LocalEngineHost.withEngine', () {
-    // LocalLlmService's constructor only looks up the FlutterLlama.instance
+    // LocalLlmService's constructor only looks up the LlamaEngine.instance
     // singleton — it does not touch the platform channel until a method is
     // called — so a real instance is safe to construct here as long as the
     // test bodies below never call anything on it.

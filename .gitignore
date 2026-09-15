@@ -38,6 +38,7 @@ migrate_working_dir/
 # say nothing about what the app actually builds against.
 /third_party/*/pubspec.lock
 /third_party/*/example/pubspec.lock
+/packages/*/pubspec.lock
 
 # Symbolication related
 app.*.symbols

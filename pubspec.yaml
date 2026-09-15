@@ -10,11 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # On-device LLM inference (llama.cpp). GGUF models, Metal/Vulkan GPU acceleration.
-  # Vendored because the published package expects llama.cpp checked out at a
-  # fixed path; see third_party/llama.cpp (pinned b6500).
-  flutter_llama:
-    path: third_party/flutter_llama
+  # On-device LLM inference over llama.cpp (GGUF models, CPU only). Rescripto's
+  # own plugin, Apache-2.0; llama.cpp itself is vendored at
+  # third_party/llama.cpp (MIT, b6500).
+  rescripto_llama:
+    path: packages/rescripto_llama
 
   # On-device speech-to-text (whisper.cpp). No cloud, no API keys.
   # Vendored because the published package ships without whisper.cpp's

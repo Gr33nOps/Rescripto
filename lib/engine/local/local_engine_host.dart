@@ -2,13 +2,12 @@ import '../../services/local_llm_service.dart';
 
 /// Sole owner of the native llama.cpp engine, serialising every call onto it.
 ///
-/// `FlutterLlama.instance` is a process-wide singleton, and its token stream
-/// (`EventChannel('flutter_llama/stream')`) is a *broadcast* channel with no
-/// request id — two concurrent `generateStream` calls would interleave
-/// tokens into one stream with no way to tell them apart, and
-/// `stopGeneration()` is itself global rather than per-request. Routing every
-/// call through [withEngine] means there is only ever one call in flight,
-/// which is what makes those two facts safe rather than a race.
+/// `LlamaEngine.instance` is a process-wide singleton over one native model
+/// and context. Two generations cannot share that context, and
+/// `stopGeneration()` stops everything started so far rather than one
+/// request. Routing every call through [withEngine] means there is only ever
+/// one call in flight, which is what makes those two facts safe rather than
+/// a race.
 ///
 /// Only local↔local access needs this; a cloud engine has no such shared
 /// resource and does not go through it. Every caller that can mutate the

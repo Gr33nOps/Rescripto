@@ -102,8 +102,13 @@ class LocalLlmEngine implements RewriteEngine {
             model,
             _settings.contextSize,
           ),
-          useGpu: _settings.useGpu,
         );
+
+        // Loading a model takes seconds. A stop tapped during it has nothing
+        // native to cancel yet, so honour it here before generating.
+        if (handle.isCancelled) {
+          throw const GenerationCancelledException();
+        }
 
         final template = ChatTemplate.forFamily(model.family);
         final prompt = template.render(request.prompt);

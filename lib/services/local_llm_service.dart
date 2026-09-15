@@ -4,9 +4,9 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter_llama/flutter_llama.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:rescripto_llama/rescripto_llama.dart';
 
 import '../core/constants.dart';
 import '../engine/engine_exception.dart';
@@ -15,15 +15,15 @@ import '../engine/local/stop_sequence_emitter.dart';
 import '../models/ai_model.dart';
 import '../models/rewrite_output.dart';
 
-/// Wraps the native llama.cpp engine (via flutter_llama).
+/// Wraps the native llama.cpp engine (via `packages/rescripto_llama`).
 ///
 /// Handles model loading, generation and unloading. All inference is
-/// on-device. Owned exclusively by `LocalEngineHost`
+/// on-device and CPU-only. Owned exclusively by `LocalEngineHost`
 /// (`lib/engine/local/local_engine_host.dart`), which serialises access to
 /// the singleton native engine underneath — nothing here does that itself.
 class LocalLlmService {
-  final FlutterLlama _llama = FlutterLlama.instance;
-  ({String path, int threads, int contextSize, bool useGpu})? _loadedConfig;
+  final LlamaEngine _llama = LlamaEngine.instance;
+  ({String path, int threads, int contextSize})? _loadedConfig;
 
   bool get isModelLoaded => _llama.isModelLoaded;
 
@@ -55,36 +55,23 @@ class LocalLlmService {
     AiModel model, {
     required int threads,
     required int contextSize,
-    required bool useGpu,
   }) async {
     final path = await filePathFor(model);
     if (!File(path).existsSync()) {
       throw ModelNotInstalledException(model.id);
     }
-    final requested = (
-      path: path,
-      threads: threads,
-      contextSize: contextSize,
-      useGpu: useGpu,
-    );
+    final requested = (path: path, threads: threads, contextSize: contextSize);
     if (isModelLoaded && _loadedConfig == requested) return;
 
     if (isModelLoaded) {
       await unloadModel();
     }
 
-    final config = LlamaConfig(
-      modelPath: path,
-      nThreads: threads,
-      // 999 is llama.cpp's "offload every layer". -1 silently offloads nothing.
-      nGpuLayers: useGpu ? 999 : 0,
+    final ok = await _llama.loadModel(
+      path: path,
+      threads: threads,
       contextSize: contextSize,
-      batchSize: 512,
-      useGpu: useGpu,
-      verbose: false,
     );
-
-    final ok = await _llama.loadModel(config);
     if (!ok) {
       // A load failure on a file that exists (the only thing checked above)
       // can mean the file is corrupted rather than the engine being at
@@ -156,7 +143,7 @@ class LocalLlmService {
       options.maxOutputTokens,
       availableOutputTokens,
     );
-    final params = GenerationParams(
+    final request = LlamaGenerationRequest(
       prompt: prompt,
       temperature: options.temperature,
       topP: options.topP,
@@ -169,7 +156,7 @@ class LocalLlmService {
     final emitter = StopSequenceEmitter(options.stopSequences);
     final stopwatch = Stopwatch()..start();
 
-    await for (final token in _llama.generateStream(params)) {
+    await for (final token in _llama.generate(request)) {
       final delta = emitter.append(token);
       if (delta.isNotEmpty) onDelta?.call(delta);
       // The native side already stops on these sequences; this is a safety
