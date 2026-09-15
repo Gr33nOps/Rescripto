@@ -89,6 +89,21 @@ void main() {
     });
   });
 
+  group('ProviderModelEntry.parseList', () {
+    test('splits on commas and new lines, trimming blanks', () {
+      final models = ProviderModelEntry.parseList(' llama3.2, qwen2.5:3b\n\nmistral ,');
+      expect(models.map((m) => m.modelRef), ['llama3.2', 'qwen2.5:3b', 'mistral']);
+    });
+
+    test('drops repeats and names the preset already lists', () {
+      final models = ProviderModelEntry.parseList(
+        'gpt-4o, my-model, my-model',
+        known: const ['gpt-4o'],
+      );
+      expect(models.map((m) => m.modelRef), ['my-model']);
+    });
+  });
+
   group('ProviderConfig.normalizeBaseUrl', () {
     test('accepts https for a hosted preset', () {
       final preset = ProviderPresetCatalog.byId('openai')!;

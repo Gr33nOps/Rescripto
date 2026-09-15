@@ -66,7 +66,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Clear all history?'),
         content: const Text(
-          'This deletes every saved rewrite from this device. This cannot be undone.',
+          'Every saved rewrite on this device will be deleted. You can’t undo '
+          'this.',
         ),
         actions: [
           TextButton(
@@ -290,7 +291,7 @@ class _HistoryCard extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete this rewrite?'),
-        content: const Text('This saved rewrite will be removed from this device.'),
+        content: const Text('It will be removed from this device.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -361,7 +362,8 @@ class _EmptyHistory extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Completed rewrites will appear here and stay on this device.',
+              'Finished rewrites show up here. They’re stored only on this '
+              'device.',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,

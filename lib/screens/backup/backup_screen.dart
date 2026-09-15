@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_messenger.dart';
 import '../../core/app_routes.dart';
+import '../../core/formatting.dart';
 import '../../models/backup_bundle.dart';
 import '../../services/backup/backup_exception.dart';
 import '../../services/backup/backup_scheduler.dart';
@@ -84,9 +85,9 @@ class _BackupScreenState extends State<BackupScreen> {
             Text('Export', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              'Saves your tones, audiences, workflows, cloud provider setup, '
-              'and settings to one encrypted file. Anyone who gets the file '
-              'still needs the passphrase below to open it.',
+              'Saves your tones, audiences, workflows, cloud provider setup '
+              'and settings to one encrypted file. Nobody can open it without '
+              'the passphrase.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -100,7 +101,9 @@ class _BackupScreenState extends State<BackupScreen> {
                 decoration: InputDecoration(
                   labelText: 'Passphrase',
                   helperText:
-                      'You will need this again to restore the backup. Forgotten passphrases cannot be recovered.',
+                      'You’ll need it to restore. There’s no way to recover '
+                      'a forgotten passphrase.',
+                  helperMaxLines: 2,
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     tooltip: _passphraseVisible
@@ -157,8 +160,8 @@ class _BackupScreenState extends State<BackupScreen> {
                     setState(() => _includeCredentials = v ?? false),
                 title: const Text('Include cloud provider keys'),
                 subtitle: const Text(
-                  'Stores your API keys in the file, protected only by the '
-                  'passphrase above. Leave off unless you specifically need it.',
+                  'Puts your API keys in the file, protected only by the '
+                  'passphrase. Leave this off unless you need it.',
                 ),
               ),
             ),
@@ -179,8 +182,8 @@ class _BackupScreenState extends State<BackupScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'A weak passphrase is the only thing standing between '
-                        'this file and your API keys.',
+                        'Use a strong passphrase. It’s the only thing '
+                        'protecting the API keys in this file.',
                         style: TextStyle(
                           color: scheme.onErrorContainer,
                           fontSize: 13,
@@ -336,6 +339,11 @@ class _BackupScreenState extends State<BackupScreen> {
       await SharePlus.instance.share(
         ShareParams(files: [XFile(file.path)], subject: 'Rescripto backup'),
       );
+    } catch (_) {
+      // Used to have no catch at all: a failed write or share left the
+      // button spinning back to idle with no word about what happened.
+      if (!context.mounted) return;
+      showAppSnackBar('Couldn’t create the backup file. Try again.');
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -376,15 +384,19 @@ class _BackupScreenState extends State<BackupScreen> {
       });
     } on BackupWrongPassphraseException {
       if (!context.mounted) return;
-      showAppSnackBar('Wrong passphrase, or the file is corrupted.');
+      showAppSnackBar('That passphrase didn’t work, or the file is damaged.');
     } on BackupNewerFormatException {
       if (!context.mounted) return;
       showAppSnackBar(
-        'This backup was made by a newer version of Rescripto. Update the app first.',
+        'This backup is from a newer version of Rescripto. Update the app, '
+        'then try again.',
       );
     } on BackupException {
       if (!context.mounted) return;
-      showAppSnackBar('This file isn\'t a valid backup.');
+      showAppSnackBar('This file isn’t a Rescripto backup.');
+    } catch (_) {
+      if (!context.mounted) return;
+      showAppSnackBar('Couldn’t open this backup. Try again.');
     } finally {
       if (mounted) setState(() => _previewing = false);
     }
@@ -450,8 +462,12 @@ class _BackupScreenState extends State<BackupScreen> {
     } on BackupOlderSchemaException {
       if (!context.mounted) return;
       showAppSnackBar(
-        'This backup was made by a newer version of Rescripto. Update the app first.',
+        'This backup is from a newer version of Rescripto. Update the app, '
+        'then try again.',
       );
+    } catch (_) {
+      if (!context.mounted) return;
+      showAppSnackBar('Couldn’t finish restoring this backup. Try again.');
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -503,7 +519,7 @@ class _RestorePreviewCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Made ${preview.createdAt.toLocal()} · Rescripto ${preview.appVersion}',
+              'Made ${formatDateTime(preview.createdAt)} · Rescripto ${preview.appVersion}',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -525,8 +541,10 @@ class _RestorePreviewCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'This file contains ${preview.credentialCount} cloud provider '
-                        'key(s).',
+                        preview.credentialCount == 1
+                            ? 'This file contains a cloud provider API key.'
+                            : 'This file contains ${preview.credentialCount} '
+                                  'cloud provider API keys.',
                         style: TextStyle(
                           color: scheme.onErrorContainer,
                           fontSize: 13,
@@ -681,9 +699,9 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
         const SizedBox(height: 4),
         Text(
           'About once a week, Rescripto saves an encrypted backup when you '
-          'open the app. It keeps the latest ${BackupScheduler.retentionCount} '
-          'copies in private app storage. Export a backup if you want a copy '
-          'outside this device.',
+          'open the app, keeping the latest ${BackupScheduler.retentionCount} '
+          'in private app storage. They stay on this phone, so use Export for '
+          'a copy you can keep elsewhere.',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -699,7 +717,7 @@ class _ScheduledBackupsSectionState extends State<_ScheduledBackupsSection> {
             subtitle: Text(
               lastBackup == null
                   ? 'No backup yet'
-                  : 'Last backup: ${lastBackup.toLocal()}',
+                  : 'Last backup: ${formatDateTime(lastBackup)}',
             ),
           ),
         ),
@@ -806,9 +824,8 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'This passphrase is stored in the secure Android Keystore and is '
-            'used only for automatic backups on this device. Manual exports '
-            'use the passphrase you enter above.',
+            'Saved in the Android Keystore and used for automatic backups and '
+            'WebDAV sync. Exports ask for their own passphrase.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),

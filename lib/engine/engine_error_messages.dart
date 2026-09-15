@@ -7,67 +7,71 @@ import 'engine_exception.dart';
 /// switch below is exhaustive over [EngineException]'s subtypes — the
 /// compiler rejects it if a new subtype is added without a case here, where
 /// a substring check would just silently fall through to the generic message.
+///
+/// Every message says what happened and, where there is one, where to fix
+/// it, using the screen names the app actually shows.
 String describeEngineError(EngineException error) => switch (error) {
   ModelNotInstalledException() =>
-    'No on-device model is installed. Open Models to download one.',
+    'No on-device model is installed yet. Download one in the Models tab.',
   ModelLoadFailedException(nativeReason: final reason) =>
     reason == null || reason.isEmpty
-        ? 'Couldn’t load the AI model. Try again. If it keeps happening, '
-              'restart the app.'
+        ? 'Couldn’t load the model. Try again, and restart the app if it '
+              'keeps happening.'
         : reason,
   ModelCorruptedException() =>
-    'This model file appears damaged and has been removed. Download it '
-        'again from the Models tab.',
+    'The model file was damaged, so Rescripto removed it. Download it again '
+        'in the Models tab.',
   ContextOverflowException(contextSize: final size) =>
     size == null
-        ? 'This text is too long for the model’s context window. Shorten it '
-              'or increase Context size in Settings.'
-        : 'This text is too long for the $size-token context. Shorten it or '
-              'increase Context size in Settings.',
+        ? 'This text is too long for the model. Shorten it, or raise Context '
+              'size in Settings > Performance.'
+        : 'This text is too long for a $size-token context. Shorten it, or '
+              'raise Context size in Settings > Performance.',
   EmptyResponseException() =>
-    'The model did not return any text. Try another intensity or model.',
+    'The model didn’t return any text. Try again, or pick a different model.',
   ModelRefusedException() =>
-    'This model declined to rewrite that text, even after a retry. Small '
-        'on-device models sometimes refuse ordinary writing. Try a different '
-        'model in the Models tab, or a lighter intensity.',
+    'The model wouldn’t rewrite this text, even on a second try. Small '
+        'on-device models sometimes do that with ordinary writing. A '
+        'different model in the Models tab usually helps.',
   OutOfMemoryException() =>
-    'Not enough memory on this device. Try a smaller model or lower '
-        'context size in Settings.',
+    'There isn’t enough memory for this model. Try a smaller model, or a '
+        'smaller context size in Settings > Performance.',
   // Cancellation is a user action, not a failure — nothing calls this for it.
-  GenerationCancelledException() => 'Cancelled.',
+  GenerationCancelledException() => 'Stopped.',
   EngineNotAvailableException() =>
-    'That processing target isn’t available right now. Check your '
-        'processing mode in Settings.',
+    'Nothing is set up to run this rewrite yet. Check Processing mode in '
+        'Settings.',
   CloudAccessBlockedException(reason: final reason) => switch (reason) {
     CloudBlockReason.killSwitch =>
-      'Network access is off (Privacy kill switch). Turn it back on to use '
+      'The network kill switch is on. Turn it off in Privacy settings to use '
           'cloud rewriting.',
     CloudBlockReason.featureDisabled =>
-      'Cloud rewriting is turned off. Enable it in Privacy settings to send '
+      'Cloud rewriting is turned off. Turn it on in Privacy settings to send '
           'text to a provider.',
     CloudBlockReason.secretInUrl =>
-      'Rescripto blocked this request before it left your device because it '
-          'was not built safely. Please report the issue.',
+      'Rescripto stopped this request because it would have put your API key '
+          'in the web address. Please report this as a bug.',
   },
   ProviderNotConfiguredException() =>
-    'This provider isn’t set up yet. Add an API key in Providers to use it.',
+    'This provider has no API key yet. Add one in Settings > Cloud providers.',
   ProviderAuthException() =>
-    'The provider rejected the saved API key. Check it in Providers.',
+    'The provider rejected the saved API key. Check it in Settings > Cloud '
+        'providers.',
   RateLimitedException(retryAfter: final retryAfter) =>
     retryAfter == null
-        ? 'The provider is rate-limiting requests. Try again shortly.'
-        : 'The provider is rate-limiting requests. Try again in '
-              '${retryAfter.inSeconds}s.',
+        ? 'The provider is limiting requests right now. Try again in a moment.'
+        : 'The provider is limiting requests right now. Try again in '
+              '${retryAfter.inSeconds} seconds.',
   QuotaExhaustedException() =>
-    'The provider account is out of quota or balance. Check your plan with '
+    'This provider account is out of credit or quota. Check your plan with '
         'the provider.',
   ProviderUnavailableException() =>
-    'The provider is having trouble right now. Try again shortly.',
+    'The provider is having problems right now. Try again in a few minutes.',
   NetworkUnavailableException() =>
     'Couldn’t reach the provider. Check your internet connection.',
   ContentFilteredException() =>
-    'The provider declined to generate a response for this text.',
+    'The provider’s content filter blocked this text.',
   UnknownEngineException() =>
-    'Couldn’t complete the rewrite. Try again. If it keeps happening, '
-        'restart the app.',
+    'Couldn’t finish the rewrite. Try again, and restart the app if it keeps '
+        'happening.',
 };

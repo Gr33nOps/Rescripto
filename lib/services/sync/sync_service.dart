@@ -50,6 +50,10 @@ class SyncService {
   static const passwordRef = CredentialRef(providerId: 'webdav', kind: CredentialKind.webdavPassword);
   static const _remoteFileName = 'rescripto-sync.rescriptobackup';
 
+  /// Carried by the 401 [WebDavException] thrown when no server password is
+  /// saved, so the sync screen can say that instead of "wrong password".
+  static const missingPasswordMessage = 'Set the server password first.';
+
   bool get isConfigured => settings.webdavUrl != null && settings.webdavUrl!.isNotEmpty;
 
   Uri get _remoteUrl => _resolveRemoteUrl(settings.webdavUrl!);
@@ -226,7 +230,7 @@ class SyncService {
   Future<String> _password() async {
     final password = await credentialStore.read(passwordRef);
     if (password == null) {
-      throw const WebDavException(401, 'No WebDAV password configured.');
+      throw const WebDavException(401, missingPasswordMessage);
     }
     return password;
   }

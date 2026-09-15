@@ -18,7 +18,10 @@ class ConfigSeeder {
   /// user has edited (`user_modified = 1`) is never touched regardless of
   /// this — editing a built-in is meant to detach it from the seed, not to
   /// be silently reverted on the next launch.
-  static const int seedVersion = 1;
+  ///
+  /// 2: rewrote every built-in tone's instruction and description for
+  /// natural, human-sounding output.
+  static const int seedVersion = 2;
 
   Future<void> sync(DatabaseExecutor db) async {
     for (var i = 0; i < ToneLibrary.builtIns.length; i++) {

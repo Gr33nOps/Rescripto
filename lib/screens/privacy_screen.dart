@@ -60,9 +60,9 @@ class PrivacyScreen extends StatelessWidget {
             Card(
               child: Column(
                 children: [
-                  for (final feature in NetworkFeature.values) ...[
+                  for (final feature in _FeatureSwitch.shown) ...[
                     _FeatureSwitch(feature: feature, policy: policy),
-                    if (feature != NetworkFeature.values.last)
+                    if (feature != _FeatureSwitch.shown.last)
                       const Divider(height: 1),
                   ],
                 ],
@@ -151,7 +151,7 @@ class PrivacyScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     showAppSnackBar(
-      'Rescripto is locked down. Network access is off and saved API keys were deleted.',
+      'Locked down. Network access is off and saved API keys are deleted.',
     );
   }
 }
@@ -162,30 +162,34 @@ class _FeatureSwitch extends StatelessWidget {
   final NetworkFeature feature;
   final NetworkPolicy policy;
 
+  /// Every feature with a real caller. `updateCheck` has none, and a switch
+  /// for something the app never does only raises the question of what it
+  /// is quietly doing.
+  static final List<NetworkFeature> shown = NetworkFeature.values
+      .where((f) => f != NetworkFeature.updateCheck)
+      .toList();
+
   static const _titles = {
-    NetworkFeature.modelDownload: 'AI model downloads',
+    NetworkFeature.modelDownload: 'Rewrite model downloads',
     NetworkFeature.voiceModelDownload: 'Voice model downloads',
     NetworkFeature.cloudRewrite: 'Cloud rewriting',
     NetworkFeature.cloudSpeech: 'Cloud speech-to-text',
     NetworkFeature.sync: 'Backup sync',
-    NetworkFeature.updateCheck: 'Update checks',
   };
 
   // What leaves the device — never "allow network access".
   static const _descriptions = {
     NetworkFeature.modelDownload:
-        'The on-device AI model files you choose to download.',
+        'Downloads the rewrite models you pick. Nothing you write is sent.',
     NetworkFeature.voiceModelDownload:
-        'The on-device voice model files you choose to download.',
+        'Downloads the voice model you pick. Nothing you say is sent.',
     NetworkFeature.cloudRewrite:
-        'The text you\'re rewriting, only when you use a cloud provider.',
+        'Sends the text you’re rewriting, only when a cloud provider is used.',
     NetworkFeature.cloudSpeech:
-        'Your voice recording, only when you use cloud speech-to-text.',
+        'Sends your recording, only when you use cloud speech-to-text.',
     NetworkFeature.sync:
-        'An encrypted backup file, only when you sync to a WebDAV server you '
-        'set up. The server never sees your text unencrypted.',
-    NetworkFeature.updateCheck:
-        'A check for a new app version. Not available yet.',
+        'Sends an encrypted backup to the WebDAV server you set up. The '
+        'server can’t read it.',
   };
 
   @override

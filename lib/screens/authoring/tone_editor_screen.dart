@@ -106,9 +106,9 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'This tone comes with Rescripto. If you edit it, future '
-                        'updates will not replace your version. Use "Reset to '
-                        'default" whenever you want the latest built-in version.',
+                        'This tone comes with Rescripto. Once you edit it, app '
+                        'updates won’t change it. Reset to default brings back '
+                        'the latest built-in version.',
                         style: TextStyle(
                           color: scheme.onTertiaryContainer,
                           fontSize: 13,
@@ -151,7 +151,10 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
                 maxLines: 6,
                 decoration: const InputDecoration(
                   labelText: 'Instruction',
-                  hintText: 'How should the model rewrite text in this tone?',
+                  hintText: 'Warm but brief, like a note to a neighbor',
+                  helperText: 'Describe how it should sound. Rescripto still '
+                      'keeps your facts and meaning.',
+                  helperMaxLines: 2,
                   alignLabelWithHint: true,
                   border: OutlineInputBorder(),
                 ),
@@ -197,8 +200,8 @@ class _ToneEditorScreenState extends State<ToneEditorScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'These controls change how the selected engine writes in this '
-                'tone. Controls that do not apply are disabled.',
+                'Sampling settings for this tone. Settings your current engine '
+                'ignores are greyed out.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),

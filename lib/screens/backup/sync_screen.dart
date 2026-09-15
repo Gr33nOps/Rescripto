@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_messenger.dart';
+import '../../core/formatting.dart';
 import '../../services/backup/backup_exception.dart';
 import '../../services/backup/backup_scheduler.dart';
 import '../../services/backup/backup_service.dart';
@@ -211,7 +212,7 @@ class _SyncScreenState extends State<SyncScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'The server has a newer copy (${_remoteNewerThan!.toLocal()}).',
+                            'The server has a newer copy (${formatDateTime(_remoteNewerThan!)}).',
                             style: TextStyle(color: scheme.onTertiaryContainer),
                           ),
                           const SizedBox(height: 8),
@@ -247,7 +248,7 @@ class _SyncScreenState extends State<SyncScreen> {
             if (settingsController.lastSyncPushAt != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Last pushed: ${settingsController.lastSyncPushAt!.toLocal()}',
+                'Last synced: ${formatDateTime(settingsController.lastSyncPushAt!)}',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -306,8 +307,8 @@ class _SyncScreenState extends State<SyncScreen> {
       builder: (dialogContext) => _SinglePasswordDialog(
         title: 'Server password',
         helperText:
-            'Stored in the secure Android Keystore and sent only to '
-            'the WebDAV server above.',
+            'Saved in the Android Keystore and sent only to the WebDAV '
+            'server above.',
       ),
     );
     if (password == null || !context.mounted) return;
@@ -347,8 +348,9 @@ class _SyncScreenState extends State<SyncScreen> {
       builder: (dialogContext) => _SinglePasswordDialog(
         title: 'Sync passphrase',
         helperText:
-            'Encrypts the backup before it is sent. The same '
-            'passphrase is used for scheduled local backups.',
+            'Encrypts your data before it leaves the phone. Automatic local '
+            'backups use the same passphrase. You’ll need it on every device '
+            'you sync.',
         confirm: true,
       ),
     );
@@ -393,6 +395,9 @@ class _SyncScreenState extends State<SyncScreen> {
     } on NetworkBlockedByPolicyException {
       if (!context.mounted) return;
       showAppSnackBar('Backup sync is turned off in Privacy settings.');
+    } catch (_) {
+      if (!context.mounted) return;
+      showAppSnackBar('Couldn’t sync. Check the server details and try again.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -412,7 +417,7 @@ class _SyncScreenState extends State<SyncScreen> {
         title: const Text('The server copy has changed'),
         content: Text(
           'Another device has synced since this one last checked'
-          '${error.remoteModifiedAt != null ? ' (${error.remoteModifiedAt!.toLocal()})' : ''}. '
+          '${error.remoteModifiedAt != null ? ' (${formatDateTime(error.remoteModifiedAt!)})' : ''}. '
           'Pushing now would overwrite it.',
         ),
         actions: [
@@ -460,7 +465,7 @@ class _SyncScreenState extends State<SyncScreen> {
         builder: (dialogContext) => AlertDialog(
           title: const Text('Apply the server\'s copy?'),
           content: Text(
-            'Made ${preview.createdAt.toLocal()}. Restored items are added to '
+            'Made ${formatDateTime(preview.createdAt)}. Restored items are added to '
             'what is already on this device. Nothing currently here will be '
             'deleted.${preview.containsSecrets ? '\n\nThis copy includes cloud provider keys.' : ''}',
           ),
@@ -494,23 +499,37 @@ class _SyncScreenState extends State<SyncScreen> {
       showAppSnackBar(_describe(e));
     } on BackupException {
       if (!context.mounted) return;
-      showAppSnackBar('Wrong passphrase, or the remote file is corrupted.');
+      showAppSnackBar(
+        'That passphrase didn’t work, or the server’s copy is damaged.',
+      );
     } on NetworkBlockedByPolicyException {
       if (!context.mounted) return;
       showAppSnackBar('Backup sync is turned off in Privacy settings.');
+    } catch (_) {
+      if (!context.mounted) return;
+      showAppSnackBar(
+        'Couldn’t apply the server’s copy. Check the server details and try '
+        'again.',
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   String _describe(WebDavException e) {
-    if (e.isAuthFailure) return 'Server rejected the username/password.';
+    if (e.message == SyncService.missingPasswordMessage) return e.message!;
+    if (e.isAuthFailure) {
+      return 'The server didn’t accept that username or password.';
+    }
     if (e.isNotFound) return 'Nothing has been synced to this server yet.';
     // A null statusCode with a message is a local validation failure (e.g.
     // an invalid server URL) rather than a real HTTP response — the message
     // is the useful part, not a status code that doesn't exist.
     if (e.statusCode == null && e.message != null) return e.message!;
-    return 'Sync failed (${e.statusCode ?? 'connection error'}).';
+    if (e.statusCode == null) {
+      return 'Couldn’t reach the server. Check the URL and your connection.';
+    }
+    return 'The server returned an error (HTTP ${e.statusCode}). Try again.';
   }
 }
 
@@ -620,12 +639,21 @@ class _SinglePasswordDialogState extends State<_SinglePasswordDialog> {
           child: FilledButton(
             onPressed: () {
               final value = _controller.text;
-              if (value.length < 8) {
+              // The 8-character minimum is for the sync passphrase this app
+              // creates. A WebDAV server password is whatever the server
+              // already uses, so it only has to be non-empty. Applying the
+              // minimum to both blocked people with shorter server passwords
+              // from syncing at all.
+              if (value.isEmpty) {
+                setState(() => _error = 'Enter the password.');
+                return;
+              }
+              if (widget.confirm && value.length < 8) {
                 setState(() => _error = 'Use at least 8 characters.');
                 return;
               }
               if (widget.confirm && value != _confirmController.text) {
-                setState(() => _error = 'Doesn\'t match.');
+                setState(() => _error = 'The two entries don’t match.');
                 return;
               }
               Navigator.pop(context, value);

@@ -96,8 +96,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       icon: Icons.lock_outline,
                       title: 'On-device',
                       description:
-                          'Rewrite privately without an account. Your text '
-                          'stays on this phone.',
+                          'Your text stays on this phone. You download a '
+                          'model once, then it works offline.',
                       recommended: true,
                     ),
                   ),
@@ -109,8 +109,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       icon: Icons.cloud_outlined,
                       title: 'Cloud',
                       description:
-                          'Use a provider you configure with your own API key. '
-                          'There is no local model download.',
+                          'Rewrites go to a provider you set up with your own '
+                          'API key. No model download.',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -121,9 +121,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       icon: Icons.swap_horiz_outlined,
                       title: 'Hybrid',
                       description:
-                          'Prefer this phone, with cloud available for long '
-                          'text. Rescripto asks before sending a failed local '
-                          'rewrite to your provider.',
+                          'Short text stays on this phone and long text goes '
+                          'to your provider. If a local rewrite fails, '
+                          'Rescripto asks before sending it.',
                     ),
                   ),
                 ],
@@ -148,8 +148,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      'Rewrites will be sent to the provider you configure. '
-                      'You can turn this off in Privacy settings.',
+                      'Text can be sent to the provider you set up. You can '
+                      'turn this off later in Privacy settings.',
                       style: TextStyle(color: scheme.onTertiaryContainer),
                     ),
                   ),

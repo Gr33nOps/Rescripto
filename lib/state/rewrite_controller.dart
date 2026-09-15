@@ -333,12 +333,16 @@ class RewriteController extends ChangeNotifier {
         stopSequences: tone.stopSequences,
       );
 
-      Future<RewriteOutput> attempt({required bool strictRetry}) async {
+      Future<RewriteOutput> attempt({
+        bool strictRetry = false,
+        bool unchangedRetry = false,
+      }) async {
         final prompt = PromptBuilder.build(
           request,
           tone: tone,
           audienceLabels: audienceLabels,
           strictRetry: strictRetry,
+          unchangedRetry: unchangedRetry,
         );
         final started = engine.start(
           EngineRequest(target: target, prompt: prompt, options: options),
@@ -369,7 +373,7 @@ class RewriteController extends ChangeNotifier {
         }
       }
 
-      var output = await attempt(strictRetry: false);
+      var output = await attempt();
       var variants = PromptBuilder.parseVariants(
         output.text,
         expected: request.variantCount,
@@ -396,6 +400,33 @@ class RewriteController extends ChangeNotifier {
         );
         if (RefusalDetector.looksLikeRefusal(variants)) {
           throw const ModelRefusedException();
+        }
+      }
+
+      // A draft handed back word for word is not a rewrite. One retry with
+      // a pointed reminder; if that fails or refuses, the unchanged text is
+      // still shown rather than an error, since it is at least the user's
+      // own writing. Skipped at light intensity, where a correct draft can
+      // legitimately come back as it was.
+      if (request.intensity != RewriteIntensity.light &&
+          PromptBuilder.returnedDraftUnchanged(variants, request.sourceText)) {
+        _streamingText = '';
+        emittedAnyText = false;
+        notifyListeners();
+
+        try {
+          final retryOutput = await attempt(unchangedRetry: true);
+          final retried = PromptBuilder.parseVariants(
+            retryOutput.text,
+            expected: request.variantCount,
+          );
+          if (retried.isNotEmpty &&
+              !RefusalDetector.looksLikeRefusal(retried)) {
+            output = retryOutput;
+            variants = retried;
+          }
+        } on EmptyResponseException {
+          // Keep the unchanged text.
         }
       }
 

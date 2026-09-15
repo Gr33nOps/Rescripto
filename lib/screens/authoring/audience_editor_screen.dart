@@ -70,9 +70,9 @@ class _AudienceEditorScreenState extends State<AudienceEditorScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'This is a built-in audience. Renaming it detaches it '
-                        'from future app updates to its wording. "Reset to '
-                        'default" always undoes this.',
+                        'This audience comes with Rescripto. Once you rename '
+                        'it, app updates won’t change it. Reset to default '
+                        'brings back the original.',
                         style: TextStyle(color: scheme.onTertiaryContainer, fontSize: 13),
                       ),
                     ),
@@ -88,8 +88,10 @@ class _AudienceEditorScreenState extends State<AudienceEditorScreen> {
                 autofocus: isNew,
                 decoration: const InputDecoration(
                   labelText: 'Label',
-                  hintText: 'e.g. coworkers, a teacher, customers',
-                  helperText: 'Tell Rescripto who this rewrite is for, such as “My manager”.',
+                  hintText: 'my team, a landlord, new customers',
+                  // The label is dropped into the prompt as "written for
+                  // <label>", which is why lowercase phrases read best.
+                  helperText: 'Who the text is for. It completes “Written for …”.',
                   border: OutlineInputBorder(),
                 ),
               ),

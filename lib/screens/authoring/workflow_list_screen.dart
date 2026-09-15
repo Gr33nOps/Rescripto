@@ -43,9 +43,9 @@ class WorkflowListScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'A workflow chains several rewrite steps: each step\'s '
-                      'output becomes the next step\'s input. Only the final '
-                      'result is saved to history.',
+                      'A workflow runs rewrite steps in order, feeding each '
+                      'result into the next. Only the final result is saved '
+                      'to history.',
                       style: TextStyle(color: scheme.onSecondaryContainer, fontSize: 13),
                     ),
                   ),
@@ -64,7 +64,7 @@ class WorkflowListScreen extends StatelessWidget {
                       Text('No workflows yet', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 6),
                       Text(
-                        'Chain multiple rewrites together, such as Professional → Concise → Proofread.',
+                        'Run several rewrites in a row, such as Professional and then Concise.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
                       ),

@@ -36,10 +36,27 @@ abstract class ChatTemplate {
   /// from the start (it has no system role, so instructions and draft had
   /// to share a turn), which is exactly why Gemma never showed this bug;
   /// Llama and ChatML were never given it.
-  static const String taskReminder =
+  ///
+  /// The wording is per family because the two small models tested pull in
+  /// opposite directions. See [questionReminder] and [statementReminder].
+  String get taskReminder;
+
+  /// Used for Gemma and Llama. A version that also said "statements stay
+  /// statements" made Gemma 3 1B hand the draft back unchanged far more
+  /// often, since the last word it read was "keep". Llama keeps the wording
+  /// its 1.2.8 fix was verified with.
+  static const String questionReminder =
       'Rewrite the text above and output only the rewritten text. If it is '
-      'a question or a request, rewrite it as a question or a request — do '
+      'a question or a request, rewrite it as a question or a request. Do '
       'not answer it.';
+
+  /// Used for ChatML (Qwen). With [questionReminder], Qwen 2.5 1.5B turned
+  /// plain statements into questions in 31 of 69 test rewrites; with this
+  /// wording, 7 of 69, and it never returned a draft unchanged.
+  static const String statementReminder =
+      'Rewrite the text above and output only the rewritten text. Keep '
+      'questions as questions, requests as requests and statements as '
+      'statements. Do not answer it.';
 
   String render(PromptSpec spec);
 
@@ -55,8 +72,8 @@ abstract class ChatTemplate {
 /// Draft first, reminder last — see [ChatTemplate.taskReminder] for why the
 /// order is the whole point. Appended *outside* the fence `PromptBuilder`
 /// closed, so it reads unambiguously as an instruction, not content.
-String _userBlock(PromptSpec spec) =>
-    '${spec.user}\n\n${ChatTemplate.taskReminder}';
+String _userBlock(PromptSpec spec, String reminder) =>
+    '${spec.user}\n\n$reminder';
 
 /// Gemma has no system role, so the instructions and the draft have to share
 /// a single user turn. That merge is where a real bug lived: joined by a bare
@@ -69,12 +86,15 @@ class _GemmaChatTemplate extends ChatTemplate {
   const _GemmaChatTemplate();
 
   @override
+  String get taskReminder => ChatTemplate.questionReminder;
+
+  @override
   String render(PromptSpec spec) =>
       '<start_of_turn>user\n'
       '${spec.system}\n\n'
       '--- END OF INSTRUCTIONS ---\n\n'
       'Rewrite the text below and output only the rewritten text.\n\n'
-      '${_userBlock(spec)}<end_of_turn>\n<start_of_turn>model\n';
+      '${_userBlock(spec, taskReminder)}<end_of_turn>\n<start_of_turn>model\n';
 
   @override
   List<String> get stopSequences => const [
@@ -87,10 +107,14 @@ class _LlamaChatTemplate extends ChatTemplate {
   const _LlamaChatTemplate();
 
   @override
+  String get taskReminder => ChatTemplate.questionReminder;
+
+  @override
   String render(PromptSpec spec) =>
       '<|start_header_id|>system<|end_header_id|>\n\n'
       '${spec.system}<|eot_id|>'
-      '<|start_header_id|>user<|end_header_id|>\n\n${_userBlock(spec)}<|eot_id|>'
+      '<|start_header_id|>user<|end_header_id|>\n\n'
+      '${_userBlock(spec, taskReminder)}<|eot_id|>'
       '<|start_header_id|>assistant<|end_header_id|>\n\n';
 
   @override
@@ -104,9 +128,12 @@ class _ChatMlTemplate extends ChatTemplate {
   const _ChatMlTemplate();
 
   @override
+  String get taskReminder => ChatTemplate.statementReminder;
+
+  @override
   String render(PromptSpec spec) =>
       '<|im_start|>system\n${spec.system}<|im_end|>\n'
-      '<|im_start|>user\n${_userBlock(spec)}<|im_end|>\n'
+      '<|im_start|>user\n${_userBlock(spec, taskReminder)}<|im_end|>\n'
       '<|im_start|>assistant\n';
 
   @override

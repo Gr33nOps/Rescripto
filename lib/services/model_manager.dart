@@ -235,9 +235,9 @@ class ModelManager extends ChangeNotifier {
         // below would send someone chasing a problem that doesn't exist.
         final reason = (error.error as NetworkBlockedByPolicyException).reason;
         return reason == NetworkBlockReason.killSwitch
-            ? 'Network access is turned off. Turn it back on in Settings to '
+            ? 'The network kill switch is on. Turn it off in Privacy settings to '
                   'download this model.'
-            : 'Model downloads are turned off in Settings.';
+            : 'Model downloads are turned off in Privacy settings.';
       }
       switch (error.type) {
         case DioExceptionType.connectionTimeout:

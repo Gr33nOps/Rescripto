@@ -106,6 +106,10 @@ class WorkflowRunner extends ChangeNotifier {
 
       await _saveToHistory(definition, sourceText, text);
       return text;
+    } on GenerationCancelledException {
+      // Stopping is the user's choice, not a failure, so nothing is shown in
+      // red. RewriteController treats a stopped rewrite the same way.
+      rethrow;
     } on EngineException catch (e) {
       _lastError = describeEngineError(e);
       rethrow;
@@ -146,12 +150,16 @@ class WorkflowRunner extends ChangeNotifier {
       stopSequences: tone.stopSequences,
     );
 
-    Future<List<String>> attempt({required bool strictRetry}) async {
+    Future<List<String>> attempt({
+      bool strictRetry = false,
+      bool unchangedRetry = false,
+    }) async {
       final prompt = PromptBuilder.build(
         request,
         tone: tone,
         audienceLabels: audienceLabels,
         strictRetry: strictRetry,
+        unchangedRetry: unchangedRetry,
       );
       final handle = engine.start(
         EngineRequest(target: step.target, prompt: prompt, options: options),
@@ -180,7 +188,7 @@ class WorkflowRunner extends ChangeNotifier {
       }
     }
 
-    var variants = await attempt(strictRetry: false);
+    var variants = await attempt();
 
     // A refusal arrives as a perfectly normal completion — without this a
     // step's "I can't assist with that…" would flow into the next step as
@@ -194,6 +202,21 @@ class WorkflowRunner extends ChangeNotifier {
       variants = await attempt(strictRetry: true);
       if (RefusalDetector.looksLikeRefusal(variants)) {
         throw const ModelRefusedException();
+      }
+    }
+
+    // Same one retry as RewriteController when a step hands its input back
+    // unchanged; see that class for why the unchanged text is kept if the
+    // retry doesn't help.
+    if (step.intensity != RewriteIntensity.light &&
+        PromptBuilder.returnedDraftUnchanged(variants, inputText)) {
+      _currentStreamingText = '';
+      notifyListeners();
+      try {
+        final retried = await attempt(unchangedRetry: true);
+        if (!RefusalDetector.looksLikeRefusal(retried)) variants = retried;
+      } on EmptyResponseException {
+        // Keep the unchanged text.
       }
     }
 

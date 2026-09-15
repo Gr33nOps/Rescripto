@@ -84,16 +84,18 @@ void main() {
     );
   }
 
-  WorkflowDefinition oneStepWorkflow() {
+  WorkflowDefinition oneStepWorkflow({
+    RewriteIntensity intensity = RewriteIntensity.light,
+  }) {
     final now = DateTime.now();
     return WorkflowDefinition(
       id: 'workflow_solo',
       name: 'Polish',
-      steps: const [
+      steps: [
         WorkflowStep(
           id: 'step_1',
           toneId: 'casual',
-          intensity: RewriteIntensity.light,
+          intensity: intensity,
           length: RewriteLength.same,
           target: EngineTarget(engineId: 'local.llama', modelRef: 'gemma'),
         ),
@@ -209,6 +211,11 @@ void main() {
       localEngine.lastHandle!.completeError(const GenerationCancelledException());
       await expectLater(future, throwsA(isA<GenerationCancelledException>()));
       expect(activeRequests.activeCount, 0);
+      expect(
+        runner.lastError,
+        isNull,
+        reason: 'stopping a workflow is not an error and must not show as one',
+      );
     });
 
     group('refusal detection', () {
@@ -250,6 +257,53 @@ void main() {
 
         await expectLater(future, throwsA(isA<ModelRefusedException>()));
         expect(await storage.getHistory(), isEmpty);
+      });
+    });
+
+    group('unchanged output', () {
+      // Observed: Gemma 3 1B handing the draft back word for word. That is
+      // not a rewrite, so a step gets one retry before it is accepted.
+
+      test('a step that returns its input unchanged is retried once', () async {
+        final future = runner.run(
+          oneStepWorkflow(intensity: RewriteIntensity.moderate),
+          'rough draft',
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        localEngine.lastHandle!.complete(const RewriteOutput(text: ' rough  draft '));
+
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          localEngine.lastRequest!.prompt.system,
+          contains('returned the draft unchanged'),
+        );
+        localEngine.lastHandle!.complete(const RewriteOutput(text: 'A rough draft.'));
+
+        expect(await future, 'A rough draft.');
+      });
+
+      test('if the retry is unchanged too, the text is kept instead of failing', () async {
+        final future = runner.run(
+          oneStepWorkflow(intensity: RewriteIntensity.moderate),
+          'rough draft',
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        localEngine.lastHandle!.complete(const RewriteOutput(text: 'rough draft'));
+        await Future<void>.delayed(Duration.zero);
+        localEngine.lastHandle!.complete(const RewriteOutput(text: 'rough draft'));
+
+        expect(await future, 'rough draft');
+      });
+
+      test('light polish accepts unchanged text without a retry', () async {
+        final future = runner.run(oneStepWorkflow(), 'rough draft');
+
+        await Future<void>.delayed(Duration.zero);
+        localEngine.lastHandle!.complete(const RewriteOutput(text: 'rough draft'));
+
+        expect(await future, 'rough draft');
       });
     });
   });

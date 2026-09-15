@@ -173,6 +173,35 @@ void main() {
       },
     );
 
+    test('a rewrite that returns the draft unchanged is retried once', () async {
+      // Observed on Gemma 3 1B: the draft handed back word for word.
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(const RewriteOutput(text: 'please rewrite this'));
+
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        localEngine.lastRequest!.prompt.system,
+        contains('returned the draft unchanged'),
+      );
+      localEngine.lastHandle!.complete(const RewriteOutput(text: 'Please rewrite this.'));
+
+      final result = await future;
+      expect(result.primary.text, 'Please rewrite this.');
+    });
+
+    test('light polish keeps an unchanged draft without retrying', () async {
+      controller.setIntensity(RewriteIntensity.light);
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      final firstHandle = localEngine.lastHandle;
+      firstHandle!.complete(const RewriteOutput(text: 'please rewrite this'));
+
+      final result = await future;
+      expect(result.primary.text, 'please rewrite this');
+      expect(identical(localEngine.lastHandle, firstHandle), isTrue);
+    });
+
     test('surfaces EngineNotAvailableException for an unregistered engine target', () async {
       final orphanController = RewriteController(
         registry: EngineRegistry(const []),

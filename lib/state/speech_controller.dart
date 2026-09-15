@@ -277,11 +277,11 @@ class SpeechController extends ChangeNotifier {
       // that doesn't exist.
       final cloud = _settings.speechEngine == SpeechEngineResolver.cloudId;
       return error.reason == NetworkBlockReason.killSwitch
-          ? 'Network access is turned off. Turn it back on in Settings to '
+          ? 'The network kill switch is on. Turn it off in Privacy settings to '
                 '${cloud ? 'use cloud voice input' : 'download the voice model'}.'
           : cloud
-          ? 'Cloud voice input is turned off in Settings.'
-          : 'Voice model downloads are turned off in Settings.';
+          ? 'Cloud speech-to-text is turned off in Privacy settings.'
+          : 'Voice model downloads are turned off in Privacy settings.';
     }
 
     if (error is WhisperError) {
@@ -297,9 +297,9 @@ class SpeechController extends ChangeNotifier {
           // recognising the wrapped cause here once it does surface.
           if (error.message.contains('NetworkBlockedByPolicyException')) {
             return error.message.contains('killSwitch')
-                ? 'Network access is turned off. Turn it back on in Settings '
+                ? 'The network kill switch is on. Turn it off in Privacy settings '
                       'to download the voice model.'
-                : 'Voice model downloads are turned off in Settings.';
+                : 'Voice model downloads are turned off in Privacy settings.';
           }
           return 'The voice model couldn’t be downloaded. Check your '
               'connection and free storage, then tap the mic again. The '

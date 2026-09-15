@@ -89,8 +89,8 @@ void main() {
     // did not carry an equivalent reminder at all.
     for (final family in ModelFamily.values) {
       test('${family.name} includes the task reminder', () {
-        final rendered = ChatTemplate.forFamily(family).render(spec);
-        expect(rendered, contains(ChatTemplate.taskReminder));
+        final template = ChatTemplate.forFamily(family);
+        expect(template.render(spec), contains(template.taskReminder));
       });
 
       test(
@@ -99,9 +99,10 @@ void main() {
           // The bug was geometric: the draft sitting in the highest-recency
           // slot right before the assistant turn. The fix only works if the
           // reminder, not the draft, occupies that slot.
-          final rendered = ChatTemplate.forFamily(family).render(spec);
+          final template = ChatTemplate.forFamily(family);
+          final rendered = template.render(spec);
           expect(
-            rendered.indexOf(ChatTemplate.taskReminder),
+            rendered.indexOf(template.taskReminder),
             greaterThan(rendered.indexOf(spec.user)),
           );
         },
@@ -124,12 +125,28 @@ void main() {
         'suggest me some good Italian cuisine',
       );
       final fencedSpec = PromptSpec(system: 'Be concise.', user: fenced);
-      final rendered = ChatTemplate.forFamily(
-        ModelFamily.llama,
-      ).render(fencedSpec);
+      final template = ChatTemplate.forFamily(ModelFamily.llama);
+      final rendered = template.render(fencedSpec);
       expect(
         rendered.indexOf(PromptBuilder.textEnd),
-        lessThan(rendered.indexOf(ChatTemplate.taskReminder)),
+        lessThan(rendered.indexOf(template.taskReminder)),
+      );
+    });
+
+    test('gemma and llama use the question reminder, chatml the statement one', () {
+      // Measured: the statement wording made Gemma 3 1B echo drafts, and the
+      // question wording made Qwen 2.5 1.5B turn statements into questions.
+      expect(
+        ChatTemplate.forFamily(ModelFamily.gemma).taskReminder,
+        ChatTemplate.questionReminder,
+      );
+      expect(
+        ChatTemplate.forFamily(ModelFamily.llama).taskReminder,
+        ChatTemplate.questionReminder,
+      );
+      expect(
+        ChatTemplate.forFamily(ModelFamily.qwen).taskReminder,
+        ChatTemplate.statementReminder,
       );
     });
 

@@ -149,6 +149,86 @@ void main() {
       final prompt = PromptBuilder.build(base, tone: tone);
       expect(prompt.system, isNot(contains(PromptBuilder.variantMarker)));
     });
+
+    test('pairs the question example with a statement that stays a statement', () {
+      // Observed: with only the question example, Qwen 2.5 1.5B turned a
+      // plain bug report into "Could you suggest ways to validate...?".
+      final prompt = PromptBuilder.build(base, tone: tone);
+      expect(prompt.system, contains('turns a'));
+      expect(prompt.system, contains('statement into a question'));
+    });
+
+    test('every tone gets the shared natural-writing rules', () {
+      for (final builtIn in ToneLibrary.builtIns) {
+        final prompt = PromptBuilder.build(
+          base.copyWith(toneId: builtIn.id),
+          tone: builtIn,
+        );
+        expect(
+          prompt.system,
+          contains('WRITE LIKE A PERSON'),
+          reason: '${builtIn.id} must not skip the shared writing rules',
+        );
+        expect(prompt.system, contains('Tone: ${builtIn.instruction}'));
+      }
+    });
+
+    test('the writing rules do not name the buzzwords they forbid', () {
+      // Listing "seamless" and "effortless" as banned made a 1.5B model use
+      // them. The rule has to describe the habit instead.
+      final prompt = PromptBuilder.build(base, tone: tone).system.toLowerCase();
+      for (final word in ['seamless', 'effortless', 'leverage', 'delve']) {
+        expect(prompt, isNot(contains(word)));
+      }
+    });
+
+    test('tells the model not to hand the draft back unchanged', () {
+      final prompt = PromptBuilder.build(base, tone: tone);
+      expect(prompt.system, contains('Never return the draft unchanged'));
+      // "Keep the writer's own words" made Gemma 3 1B echo drafts.
+      expect(prompt.system, isNot(contains('own words')));
+      expect(prompt.system, isNot(contains('returned the draft unchanged')));
+
+      final retry = PromptBuilder.build(base, tone: tone, unchangedRetry: true);
+      expect(retry.system, contains('returned the draft unchanged'));
+    });
+
+    test('returnedDraftUnchanged ignores whitespace but nothing else', () {
+      const draft = 'we need 2 meet  monday';
+      expect(PromptBuilder.returnedDraftUnchanged([' we need 2 meet monday\n'], draft), isTrue);
+      expect(PromptBuilder.returnedDraftUnchanged(['We need to meet Monday.'], draft), isFalse);
+      expect(
+        PromptBuilder.returnedDraftUnchanged([draft, 'We need to meet Monday.'], draft),
+        isFalse,
+        reason: 'several versions means the model did produce alternatives',
+      );
+    });
+
+    test('longer output is fuller wording, not new facts', () {
+      // Observed: "expand with relevant detail" produced "my child is ill and
+      // requires my care" from a draft that only said the kid was sick.
+      final prompt = PromptBuilder.build(
+        base.copyWith(length: RewriteLength.longer),
+        tone: tone,
+      );
+      expect(prompt.system, contains('Do not add new'));
+      expect(prompt.system, isNot(contains('relevant detail')));
+    });
+  });
+
+  group('ToneLibrary.builtIns', () {
+    test('no instruction asks the model to invent or inflate', () {
+      // The old Persuasive tone asked for "confident claims" and Humorous
+      // for "a clever twist", which read to models as permission to add
+      // content. Each instruction now fences that off instead.
+      for (final tone in ToneLibrary.builtIns) {
+        final text = tone.instruction.toLowerCase();
+        expect(text, isNot(contains('confident claims')), reason: tone.id);
+        expect(text, isNot(contains('add a')), reason: tone.id);
+        expect(text, isNot(contains('cautious hedging')), reason: tone.id);
+        expect(text, isNot(contains('—')), reason: tone.id);
+      }
+    });
   });
 
   group('PromptBuilder.parseVariants', () {
@@ -184,6 +264,40 @@ void main() {
     test('returns no variant for empty model output', () {
       final parts = PromptBuilder.parseVariants('');
       expect(parts, isEmpty);
+    });
+
+    test('splits inline "- Variant N:" labels when the marker is missing', () {
+      // Real Qwen 2.5 1.5B output for a two-variant request.
+      const raw =
+          'Hey, I won\'t be able to make it tomorrow. Can we move it to '
+          'Thursday? - Variant 1: Hey, I\'m sorry but I can\'t make it '
+          'tomorrow. - Variant 2: I will not be able to attend tomorrow.';
+      final parts = PromptBuilder.parseVariants(raw, expected: 2);
+      expect(parts, hasLength(2));
+      expect(parts.first, startsWith('Hey, I won\'t'));
+      expect(parts[1], startsWith('Hey, I\'m sorry'));
+      expect(parts.join(), isNot(contains('Variant')));
+    });
+
+    test('splits on bare --- lines when the marker is missing', () {
+      const raw = 'First version.\n\n---\n\nVARIANT 2:\n\nSecond version.';
+      final parts = PromptBuilder.parseVariants(raw, expected: 2);
+      expect(parts, ['First version.', 'Second version.']);
+    });
+
+    test('a --- line inside a marked variant still separates versions', () {
+      // Real Qwen 2.5 1.5B output: it used "---" first, then the marker.
+      const raw =
+          'Version one.\n\n---\n\nVersion two.\n'
+          '${PromptBuilder.variantMarker}\nVersion three.';
+      final parts = PromptBuilder.parseVariants(raw, expected: 2);
+      expect(parts, ['Version one.', 'Version two.']);
+    });
+
+    test('leaves a single rewrite that mentions an option alone', () {
+      const raw = 'We picked option 2: the cheaper plan.';
+      expect(PromptBuilder.parseVariants(raw, expected: 1), [raw]);
+      expect(PromptBuilder.parseVariants(raw), [raw]);
     });
   });
 }

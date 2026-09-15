@@ -68,7 +68,7 @@ class ProvidersScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
                   child: Text(
-                    'No providers configured yet.\nTap "Add provider" to get started.',
+                    'No cloud providers yet.\nTap Add provider to connect one.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
@@ -147,10 +147,10 @@ class _ActiveCloudModelCard extends StatelessWidget {
 
     final subtitle = switch ((provider, modelRef)) {
       (null, _) when registry.enabledConfigs.isEmpty =>
-        'No provider is enabled. Choose one below to use cloud rewriting.',
+        'No provider is turned on. Switch one on below to use it.',
       (null, _) => 'No provider selected.',
       (final p?, null) =>
-        'No model available for ${p.displayName}. Add one when editing it.',
+        '${p.displayName} has no model yet. Tap it below to add one.',
       (final p?, final m?) => '${p.displayName} · $m',
     };
 
@@ -202,7 +202,7 @@ class _ActiveCloudModelCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
-                        'No models listed. Add one when editing this provider.',
+                        'No models yet. Add one on this provider’s screen.',
                         style: Theme.of(sheetContext).textTheme.bodySmall,
                       ),
                     )

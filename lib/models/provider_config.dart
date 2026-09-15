@@ -25,6 +25,21 @@ class ProviderModelEntry {
         displayName: row['display_name'] as String,
       );
 
+  /// Parses the provider screen's "Models" field: names separated by commas
+  /// or new lines. Blank entries, repeats, and names already in [known]
+  /// (the preset's built-in list) are dropped, keeping the typed order.
+  static List<ProviderModelEntry> parseList(
+    String raw, {
+    Iterable<String> known = const [],
+  }) {
+    final seen = {...known};
+    return [
+      for (final name in raw.split(RegExp(r'[,\n]')).map((n) => n.trim()))
+        if (name.isNotEmpty && seen.add(name))
+          ProviderModelEntry(modelRef: name, displayName: name),
+    ];
+  }
+
   @override
   bool operator ==(Object other) =>
       other is ProviderModelEntry &&
@@ -146,7 +161,9 @@ class ProviderConfig {
     final trimmed = raw.trim();
     final uri = Uri.tryParse(trimmed);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      throw ArgumentError('"$raw" is not a valid base URL.');
+      throw ArgumentError(
+        'Enter a full base URL, such as http://192.168.1.20:11434/v1.',
+      );
     }
     final schemeOk =
         uri.scheme == 'https' ||
@@ -154,8 +171,8 @@ class ProviderConfig {
     if (!schemeOk) {
       throw ArgumentError(
         preset.allowsPlainHttp
-            ? '"$raw" must use http:// or https://.'
-            : '"$raw" must use https://.',
+            ? 'The base URL must start with http:// or https://.'
+            : 'The base URL must start with https://.',
       );
     }
     return uri;

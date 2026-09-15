@@ -9,11 +9,10 @@ import 'dart:convert';
 /// [topP], [topK], [repeatPenalty], [maxOutputTokens], and [stopSequences]
 /// mirror `GenerationOptions`' fields, letting Pro mode tune sampling per
 /// tone rather than only via the hardcoded defaults every tone used to
-/// share. There is no `seed` field to go with them: the vendored
-/// `flutter_llama` plugin's `GenerationParams` has no seed parameter to pass
-/// one through to, so exposing a seed slider here would be a control that
-/// silently does nothing on-device. Left out rather than shipped broken;
-/// adding it needs a change to the vendored plugin, not this class.
+/// share. There is no `seed` field to go with them: the on-device plugin
+/// (`packages/rescripto_llama`) seeds each generation itself and takes no
+/// seed parameter, so a seed slider here would silently do nothing locally.
+/// Adding one needs a change to that plugin first.
 class TonePreset {
   const TonePreset({
     required this.id,
@@ -124,145 +123,171 @@ class TonePreset {
 /// the app reads from — kept here verbatim because a `static const` list is
 /// still the right shape for content that ships with the app.
 class ToneLibrary {
+  // Each instruction says what the tone should sound like and, where the
+  // tone invites it, what it must not add. The shared rules in
+  // `PromptBuilder` keep every tone from sliding into filler or hype; these
+  // lines keep the tones from sounding the same.
+  //
+  // Marketing and Persuasive name the buzzwords outright. Over four samples
+  // each, that took them from 5 of 8 outputs to 0 of 8 on gpt-oss-120b and
+  // from 5 of 8 to 2 of 8 on Qwen 2.5 1.5B.
   static const List<TonePreset> builtIns = [
     TonePreset(
       id: 'professional',
       name: 'Professional',
       iconToken: 'business_center_outlined',
-      description: 'Polished, competent and workplace-ready.',
+      description: 'Clear and polished, ready for work.',
       instruction:
-          'Rewrite in a professional, competent tone suitable for work. '
-          'Be clear, confident, and well-organized. Remove casual filler.',
+          'Professional, the way a capable colleague writes at work: clear, '
+          'direct and polite. Fix slang and sloppy spelling, but keep it '
+          'human. Contractions are fine. No corporate filler or buzzwords.',
       temperature: 0.4,
     ),
     TonePreset(
       id: 'casual',
       name: 'Casual',
       iconToken: 'waving_hand_outlined',
-      description: 'Relaxed, everyday, friendly conversation.',
+      description: 'Relaxed, like a message to a friend.',
       instruction:
-          'Rewrite in a casual, relaxed, everyday tone as if texting a friend. '
-          'Keep it light and natural. Contractions are fine.',
+          'Casual and relaxed, like a text to a friend. Contractions and '
+          'short sentences are good. Do not add slang, emoji or jokes the '
+          'draft does not have.',
       temperature: 0.7,
     ),
     TonePreset(
       id: 'friendly',
       name: 'Friendly',
       iconToken: 'sentiment_satisfied_alt_outlined',
-      description: 'Warm, approachable and positive.',
+      description: 'Warm and approachable.',
       instruction:
-          'Rewrite in a warm, friendly, approachable tone. Sound positive and '
-          'encouraging, like a helpful acquaintance.',
+          'Warm and friendly, like someone who is glad to help. Kind without '
+          'gushing: no extra praise, exclamation marks or excitement the '
+          'draft does not have.',
       temperature: 0.6,
     ),
     TonePreset(
       id: 'formal',
       name: 'Formal',
       iconToken: 'account_balance_outlined',
-      description: 'Proper, official and structured.',
+      description: 'Proper and official.',
       instruction:
-          'Rewrite in a formal, official register with complete sentences, '
-          'no contractions, and a respectful, structured style.',
+          'Formal and respectful, with complete sentences and no '
+          'contractions or slang. Plain and direct rather than stiff or '
+          'wordy.',
       temperature: 0.3,
     ),
     TonePreset(
       id: 'academic',
       name: 'Academic',
       iconToken: 'school_outlined',
-      description: 'Scholarly, precise and well-reasoned.',
+      description: 'Precise and well reasoned.',
       instruction:
-          'Rewrite in an academic register: precise terminology, logical '
-          'structure, cautious hedging, and objective reasoning.',
+          'Academic: precise terms, clear logical links and an objective '
+          'voice. Keep each claim exactly as certain as the draft makes it. '
+          'Plain academic English, not inflated vocabulary.',
       temperature: 0.3,
     ),
     TonePreset(
       id: 'creative',
       name: 'Creative',
       iconToken: 'palette_outlined',
-      description: 'Imaginative, vivid and expressive.',
+      description: 'Vivid and expressive.',
       instruction:
-          'Rewrite with creativity: vivid language, imagery, and fresh word '
-          'choices while keeping the same core meaning.',
+          'Creative: rework the wording with vivid, concrete, surprising '
+          'word choices that make it more enjoyable to read. Keep every fact. '
+          'Avoid cliches and stock imagery.',
       temperature: 0.9,
     ),
     TonePreset(
       id: 'concise',
       name: 'Concise',
       iconToken: 'compress_outlined',
-      description: 'Short, punchy and to the point.',
+      description: 'Short and to the point.',
       instruction:
-          'Rewrite more concisely. Cut fluff and redundancy. Keep it as short '
-          'as possible without losing key information.',
+          'Concise: as short as it can be while keeping every fact, request '
+          'and deadline. Cut filler and repetition, but keep natural '
+          'sentences, not a telegram.',
       temperature: 0.4,
     ),
     TonePreset(
       id: 'persuasive',
       name: 'Persuasive',
       iconToken: 'trending_up_outlined',
-      description: 'Convincing, compelling and action-oriented.',
+      description: 'Makes a clear case.',
       instruction:
-          'Rewrite persuasively to convince the reader. Use confident claims, '
-          'strong reasoning, and a call to action where appropriate.',
+          'Persuasive: lead with the strongest point and make the ask clear. '
+          'Use only the reasons and facts in the draft. No hype, invented '
+          'benefits or pressure tactics, and avoid words like "seamless", '
+          '"effortless" and "powerful".',
       temperature: 0.6,
     ),
     TonePreset(
       id: 'empathetic',
       name: 'Empathetic',
       iconToken: 'favorite_outline',
-      description: 'Kind, caring and understanding.',
+      description: 'Kind and understanding.',
       instruction:
-          'Rewrite with empathy and sensitivity. Acknowledge the reader\'s '
-          'feelings and perspective. Be gentle and supportive.',
+          'Empathetic: kind, gentle and understanding. Soften blunt wording '
+          'and show care, without adding apologies, promises or feelings the '
+          'draft does not express.',
       temperature: 0.6,
     ),
     TonePreset(
       id: 'humorous',
       name: 'Humorous',
       iconToken: 'sentiment_very_satisfied_outlined',
-      description: 'Light, witty and playful.',
+      description: 'Light and witty.',
       instruction:
-          'Rewrite with light humor and wit. Add a playful, clever twist '
-          'without being mean or off-topic.',
-      temperature: 0.9,
+          'Humorous: a light, witty turn of phrase in the wording itself, at '
+          'about the same length. Keep every fact and request clear. Never '
+          'mean, and no jokes about things the draft does not mention.',
+      // 0.9 sent Qwen 2.5 1.5B off into a five-times-longer ramble about a
+      // "festive period". Still loose enough for wordplay on cloud models.
+      temperature: 0.75,
     ),
     TonePreset(
       id: 'confident',
       name: 'Confident',
       iconToken: 'bolt_outlined',
-      description: 'Strong, assertive and decisive.',
+      description: 'Direct and decisive.',
       instruction:
-          'Rewrite with confidence and authority. Be assertive and decisive. '
-          'Remove hesitation and uncertainty.',
+          'Confident and direct. Drop timid hedges and filler such as "I '
+          'think", "maybe", "just" and "sorry to bother you". Keep a doubt '
+          'only when the facts themselves are unsure.',
       temperature: 0.5,
     ),
     TonePreset(
       id: 'diplomatic',
       name: 'Diplomatic',
       iconToken: 'handshake_outlined',
-      description: 'Tactful, polite and balanced.',
+      description: 'Tactful and balanced.',
       instruction:
-          'Rewrite diplomatically: tactful, polite, balanced. Acknowledge '
-          'other viewpoints and soften potential disagreements.',
+          'Diplomatic: tactful and balanced. Soften criticism and '
+          'disagreement so it is easy to hear, while keeping the actual point '
+          'clear.',
       temperature: 0.5,
     ),
     TonePreset(
       id: 'technical',
       name: 'Technical',
       iconToken: 'memory_outlined',
-      description: 'Precise, factual and jargon-friendly.',
+      description: 'Exact and factual.',
       instruction:
-          'Rewrite in a technical style: precise, factual, using appropriate '
-          'technical terminology. Be specific and unambiguous.',
+          'Technical: exact, specific and unambiguous, using the right '
+          'technical terms. Keep identifiers, numbers and units exactly as '
+          'written. No marketing language.',
       temperature: 0.3,
     ),
     TonePreset(
       id: 'marketing',
       name: 'Marketing',
       iconToken: 'campaign_outlined',
-      description: 'Energetic, benefit-focused and appealing.',
+      description: 'Upbeat and benefit-focused.',
       instruction:
-          'Rewrite in a marketing style: energetic, benefit-focused, and '
-          'engaging. Highlight value and appeal to the reader.',
+          'Marketing: upbeat and benefit-focused, showing the reader what '
+          'the product does for them. Only benefits the draft states. No '
+          'superlatives or invented claims, and avoid words like "seamless", '
+          '"effortless" and "powerful".',
       temperature: 0.8,
     ),
   ];

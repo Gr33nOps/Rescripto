@@ -270,7 +270,7 @@ class _RewriteScreenState extends State<RewriteScreen> {
       await controller.rewrite();
     } on EmptySourceError {
       if (!mounted) return;
-      showAppSnackBar('Nothing to rewrite yet.');
+      showAppSnackBar('Type or paste some text first.');
     } on ModelNotInstalledException {
       if (!mounted) return;
       TabNavigator.of(context).goToTab(AppTab.models);
@@ -311,13 +311,13 @@ class _RewriteScreenState extends State<RewriteScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Try this rewrite in the cloud?'),
         content: Text(
-          'The on-device rewrite did not finish. Send this text to $label for '
-          'this attempt?',
+          'The on-device rewrite didn’t finish. Send this text to $label '
+          'instead? This applies to this rewrite only.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Not now'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -614,8 +614,8 @@ class _StreamingPanel extends StatelessWidget {
                 capabilities.needsLocalInstall) ...[
               const SizedBox(height: 8),
               Text(
-                'The first rewrite after opening the app may take longer while '
-                'the model loads. Later rewrites will start faster.',
+                'The first rewrite after opening the app takes longer while '
+                'the model loads.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -690,17 +690,17 @@ class _TargetNotReadyBanner extends StatelessWidget {
   (String, String, IconData) get _copy => switch (blocker) {
     RoutingBlocker.noLocalModel => (
       'Download an on-device model',
-      'Choose a model in the Models tab before your first local rewrite.',
+      'Pick one in the Models tab to start rewriting on this phone.',
       Icons.download_done_outlined,
     ),
     RoutingBlocker.noCloudProvider => (
       'Add a cloud provider',
-      'Cloud rewriting needs at least one provider set up with an API key.',
+      'Cloud rewriting needs a provider with an API key and a model.',
       Icons.cloud_outlined,
     ),
     RoutingBlocker.cloudDisabledByPolicy => (
       'Cloud rewriting is turned off',
-      'Enable it in Privacy settings, or switch to Local mode.',
+      'Turn it on in Privacy settings, or switch to Local mode.',
       Icons.privacy_tip_outlined,
     ),
   };

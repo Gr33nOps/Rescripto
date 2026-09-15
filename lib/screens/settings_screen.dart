@@ -146,7 +146,7 @@ class SettingsScreen extends StatelessWidget {
                       leading: const Icon(Icons.style_outlined),
                       title: const Text('Tones'),
                       subtitle: const Text(
-                        'Edit, reorder, add, or remove tone presets',
+                        'Add, edit and reorder tones',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () =>
@@ -160,7 +160,7 @@ class SettingsScreen extends StatelessWidget {
                       leading: const Icon(Icons.groups_outlined),
                       title: const Text('Audiences'),
                       subtitle: const Text(
-                        'Edit, reorder, add, or remove audience tags',
+                        'Add, edit and reorder audiences',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () =>
@@ -174,7 +174,7 @@ class SettingsScreen extends StatelessWidget {
                       leading: const Icon(Icons.route_outlined),
                       title: const Text('Workflows'),
                       subtitle: const Text(
-                        'Chain multiple rewrite steps together',
+                        'Run several rewrite steps in a row',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () =>
@@ -192,7 +192,7 @@ class SettingsScreen extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.tune_outlined),
                   title: const Text('Performance'),
-                  subtitle: const Text('Tune model speed and memory use'),
+                  subtitle: const Text('Threads and context size for on-device rewriting'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () =>
                       Navigator.of(context).pushNamed(AppRoutes.advanced),
@@ -242,8 +242,8 @@ class SettingsScreen extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                         child: Text(
-                          'The selected voice model downloads the first time you '
-                          'dictate.',
+                          'The voice model downloads the first time you use the '
+                          'mic.',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: scheme.onSurfaceVariant),
                         ),
@@ -264,7 +264,7 @@ class SettingsScreen extends StatelessWidget {
                       leading: const Icon(Icons.privacy_tip_outlined),
                       title: const Text('Privacy & network'),
                       subtitle: const Text(
-                        'Control and review network activity',
+                        'Choose what can go online and see what did',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () =>
@@ -297,7 +297,7 @@ class SettingsScreen extends StatelessWidget {
                   leading: const Icon(Icons.backup_outlined),
                   title: const Text('Backup'),
                   subtitle: const Text(
-                    'Export, restore, or sync an encrypted copy',
+                    'Export, restore or sync an encrypted copy',
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () =>
@@ -424,13 +424,11 @@ class _SpeechEngineCard extends StatelessWidget {
                     title: const Text('Cloud'),
                     subtitle: Text(
                       cloudAvailable
-                          ? 'Your recording is transcribed by '
-                                '${speechProvider ?? 'a speech provider'}, then '
-                                'the transcript goes to your selected cloud '
-                                'model.'
-                          : 'Needs a provider that supports transcription '
-                                '(OpenAI, Groq, or xAI/Grok) enabled in Cloud '
-                                'providers.',
+                          ? 'Sends your recording to '
+                                '${speechProvider ?? 'your speech provider'} to '
+                                'turn it into text.'
+                          : 'Turn on an OpenAI, Groq or xAI provider in Cloud '
+                                'providers first.',
                     ),
                   ),
                 ),
@@ -441,11 +439,10 @@ class _SpeechEngineCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
-                'Cloud transcription sends the whole recording to your '
-                'speech provider. The transcript is then sent to the selected '
-                'cloud model. Both requests appear in the Network log. The '
-                'provider connection test checks text access; voice access is '
-                'checked when you record.',
+                'Each recording is uploaded to your speech provider and shows '
+                'up in the Network log. The text lands in the editor like '
+                'anything you type. Test connection only checks text access, '
+                'so voice access is checked the first time you record.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../core/app_messenger.dart';
 import '../engine/engine_capabilities.dart';
-import '../engine/engine_error_messages.dart';
 import '../engine/engine_exception.dart';
 import '../engine/engine_registry.dart';
 import '../engine/engine_stage.dart';
@@ -121,7 +120,7 @@ class _WorkflowRunScreenState extends State<WorkflowRunScreen> {
   Future<void> _run(BuildContext context) async {
     final text = _textController.text.trim();
     if (text.isEmpty) {
-      showAppSnackBar('Enter some text first.');
+      showAppSnackBar('Type or paste some text first.');
       return;
     }
     setState(() {
@@ -133,9 +132,11 @@ class _WorkflowRunScreenState extends State<WorkflowRunScreen> {
     try {
       final result = await runner.run(widget.workflow, text);
       if (mounted) setState(() => _finalOutput = result);
-    } on EngineException catch (e) {
-      if (!context.mounted) return;
-      showAppSnackBar(describeEngineError(e));
+    } on GenerationCancelledException {
+      // Stopped by the user. The step list already shows where it stopped.
+    } on EngineException {
+      // WorkflowRunner.lastError already shows this under the steps; a
+      // snackbar with the same sentence would just repeat it.
     } catch (_) {
       if (!context.mounted) return;
       showAppSnackBar(

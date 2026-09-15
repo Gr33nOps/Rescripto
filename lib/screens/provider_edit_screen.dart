@@ -52,6 +52,9 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         (_preset.editableBaseUrl ? _preset.baseUrl : ''),
   );
   final _keyController = TextEditingController();
+  late final _modelsController = TextEditingController(
+    text: widget.existing?.models.map((m) => m.modelRef).join(', ') ?? '',
+  );
 
   bool _hasStoredKey = false;
   bool _saving = false;
@@ -70,6 +73,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
     _nameController.dispose();
     _baseUrlController.dispose();
     _keyController.dispose();
+    _modelsController.dispose();
     super.dispose();
   }
 
@@ -178,10 +182,42 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
                 child: TextButton.icon(
                   onPressed: () => launchUrl(Uri.parse(_preset.docsUrl!)),
                   icon: const Icon(Icons.open_in_new, size: 16),
-                  label: Text('Get an ${_preset.displayName} API key'),
+                  label: Text(
+                    _preset.requiresKey
+                        ? 'Get an API key from ${_preset.displayName}'
+                        : 'Setup instructions',
+                  ),
                 ),
               ),
             ],
+            const SizedBox(height: 16),
+            // Ollama and a custom endpoint ship with no model list, so
+            // without this field they could be saved but never used:
+            // routing had no model to send, and the app said to "add one
+            // when editing", which was not possible.
+            Semantics(
+              identifier: 'provider_edit_models',
+              child: TextField(
+                controller: _modelsController,
+                minLines: 1,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: _preset.knownModels.isEmpty
+                      ? 'Models'
+                      : 'Extra models (optional)',
+                  hintText: _preset.knownModels.isEmpty
+                      ? 'llama3.2, qwen2.5:3b'
+                      : null,
+                  helperText: _preset.knownModels.isEmpty
+                      ? 'Model names as your server knows them. Separate '
+                            'them with commas.'
+                      : 'Built in: ${_preset.knownModels.join(', ')}. Add '
+                            'others separated by commas.',
+                  helperMaxLines: 3,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             Semantics(
               identifier: 'provider_edit_save',
@@ -247,7 +283,14 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
           : null;
       if (_preset.editableBaseUrl &&
           (baseUrlOverride == null || baseUrlOverride.isEmpty)) {
-        throw ArgumentError('Base URL is required for this provider.');
+        throw ArgumentError('Enter the base URL for this provider.');
+      }
+      final models = ProviderModelEntry.parseList(
+        _modelsController.text,
+        known: _preset.knownModels,
+      );
+      if (_preset.knownModels.isEmpty && models.isEmpty) {
+        throw ArgumentError('Add at least one model name.');
       }
 
       final config = ProviderConfig(
@@ -257,7 +300,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         credential: credential,
         baseUrlOverride: baseUrlOverride,
         enabled: existing?.enabled ?? true,
-        models: existing?.models ?? const [],
+        models: models,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       );
@@ -277,6 +320,12 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pop();
+    } on ArgumentError catch (e) {
+      // Validation messages (a missing base URL, "http://" on a hosted
+      // provider) are written for people, so show them instead of a vague
+      // "check the details".
+      if (!mounted) return;
+      showAppSnackBar('${e.message}');
     } catch (_) {
       if (!mounted) return;
       showAppSnackBar(
