@@ -182,6 +182,11 @@ what F-Droid and other build services expect. See
 - Pushing a `vX.Y.Z` tag that matches `pubspec.yaml` builds a signed APK and
   AAB and publishes a GitHub release. The release notes come from that
   version's section in [CHANGELOG.md](CHANGELOG.md).
+- The release APK is built so F-Droid can reproduce it byte for byte. Running
+  the [Release](.github/workflows/release.yml) workflow by hand builds the
+  same APK unsigned and uploads it as an artifact, without publishing.
+  [docs/FDROID.md](docs/FDROID.md) explains what the build has to keep the
+  same.
 
 When you change what the app downloads or sends, or which devices it supports,
 update this README and the in-app Privacy text in the same change.

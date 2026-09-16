@@ -1,0 +1,2 @@
+- Built reproducibly: this F-Droid build matches the developer's signed release byte for byte
+- No changes to how the app works

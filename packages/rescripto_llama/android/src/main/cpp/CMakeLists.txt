@@ -39,6 +39,12 @@ set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
 set(GGML_OPENCL OFF CACHE BOOL "" FORCE)
 
+# Fixed version stamps. llama.cpp otherwise asks git for a commit count and
+# hash, which differ between GitHub's shallow checkout and F-Droid's full
+# clone and would stop F-Droid reproducing the release APK.
+set(LLAMA_BUILD_NUMBER 0)
+set(LLAMA_BUILD_COMMIT "rescripto")
+
 add_subdirectory("${LLAMA_CPP_DIR}" llama_cpp)
 
 add_library(rescripto_llama SHARED rescripto_llama_jni.cpp)

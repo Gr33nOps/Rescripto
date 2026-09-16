@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+  # A manual run builds the same APK without signing or publishing it and
+  # uploads it as an artifact, to check it against F-Droid's build.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,7 +21,10 @@ jobs:
       NDK_CCACHE: ccache
       # Fail the build instead of publishing an unsigned APK if a signing
       # secret is missing. See android/app/build.gradle.kts.
-      RESCRIPTO_REQUIRE_SIGNING: 'true'
+      RESCRIPTO_REQUIRE_SIGNING: ${{ github.ref_type == 'tag' }}
+      # F-Droid keeps the pub cache inside the source tree. Native code from
+      # pub packages records where it was built, so the release does the same.
+      PUB_CACHE: ${{ github.workspace }}/.pub-cache
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -47,7 +53,9 @@ jobs:
           # sqflite itself needs a device.
           sudo apt-get install -y ccache libsqlite3-dev
           ccache --max-size=6G
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358"
+
+      - name: Install Android SDK where F-Droid has it
+        run: bash .github/scripts/setup-android-sdk.sh
 
       - name: Cache ccache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
@@ -58,9 +66,10 @@ jobs:
             ccache-${{ runner.os }}-
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Validate release tag
+        if: github.ref_type == 'tag'
         run: |
           APP_VERSION="$(awk '/^version:/{print $2; exit}' pubspec.yaml)"
           APP_VERSION="${APP_VERSION%%+*}"
@@ -86,6 +95,7 @@ jobs:
           flutter test
 
       - name: Configure release signing
+        if: github.ref_type == 'tag'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -106,9 +116,20 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release --target-platform android-arm64
+        # Same command as F-Droid's recipe, which needs the per-ABI APK and
+        # its version code (versionCode * 10 + 2 for arm64-v8a).
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+
+      - name: Upload unsigned APK
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: unsigned-apk
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          if-no-files-found: error
 
       - name: Build release App Bundle
+        if: github.ref_type == 'tag'
         timeout-minutes: 120
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -117,6 +138,7 @@ jobs:
         run: flutter build appbundle --release --target-platform android-arm64
 
       - name: Extract release notes
+        if: github.ref_type == 'tag'
         # Uses this version's section of CHANGELOG.md, so the release page
         # says what changed in words rather than a list of commit titles.
         run: |
@@ -129,10 +151,11 @@ jobs:
           test -s "$RUNNER_TEMP/release_notes.md"
 
       - name: Publish release
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: Rescripto ${{ github.ref_name }}
           body_path: ${{ runner.temp }}/release_notes.md
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             build/app/outputs/bundle/release/app-release.aab

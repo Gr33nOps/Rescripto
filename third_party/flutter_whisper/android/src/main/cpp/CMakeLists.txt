@@ -17,6 +17,11 @@ set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_METAL OFF CACHE BOOL "" FORCE)
 set(GGML_ACCELERATE OFF CACHE BOOL "" FORCE)
 
+# Fixed version stamp. ggml otherwise asks git for the commit and whether the
+# tree is dirty, which differs between GitHub's checkout and F-Droid's build
+# and would stop F-Droid reproducing the release APK.
+set(GGML_BUILD_COMMIT "rescripto")
+
 # Whisper is statically linked into libwhisper.so to avoid colliding with the
 # llama.cpp ggml libraries. Keep that one copy on the ARMv8-A baseline so every
 # arm64-v8a Android phone supported by the APK can load and run it.

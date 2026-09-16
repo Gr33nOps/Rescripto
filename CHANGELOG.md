@@ -5,6 +5,17 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-09-16
+
+### Changed
+
+- The APK is now built exactly the way F-Droid builds it, so F-Droid can
+  check that its copy matches this one byte for byte. The app itself works
+  the same as 1.3.0.
+- The release APK is now `app-arm64-v8a-release.apk` and its version code is
+  202 (the app's build number times ten, plus two for 64-bit ARM). It still
+  runs on the same phones and installs over 1.3.0.
+
 ## [1.3.0] - 2026-09-15
 
 ### Changed
@@ -247,6 +258,7 @@ app architecture) predates this changelog. See `git log` or the
 [commit history](https://github.com/Gr33nOps/Rescripto/commits/main) for
 the full record.
 
+[1.3.1]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.3.0
 [1.2.10]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.10
 [1.2.9]: https://github.com/Gr33nOps/Rescripto/releases/tag/v1.2.9

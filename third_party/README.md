@@ -12,9 +12,9 @@
 
 - Removed files the app never builds that F-Droid's scanner would flag as
   binaries or prebuilt code: `models/ggml-vocab-*.gguf`, `media/`,
-  `tools/server/` (including a prebuilt web UI), `examples/llama.android/`
-  (it carried a Gradle wrapper JAR), and test fixtures in `tools/mtmd/` and
-  `docs/`. With the library-only build options set in
+  `tools/server/` (including a prebuilt web UI), all of `examples/` (it
+  carried a Gradle wrapper JAR and npm packages), and test fixtures in
+  `tools/mtmd/` and `docs/`. With the library-only build options set in
   `packages/rescripto_llama/android/src/main/cpp/CMakeLists.txt`, none of
   them are referenced.
 - A CI fix to the Vulkan shader generator (commit `57df8ec`). The Vulkan
@@ -24,3 +24,7 @@
 it can't clash with llama.cpp's ggml, an ARMv8.0 CPU baseline, JNI and R8
 fixes, and a native library loader that uses Android's extracted library
 folder. `git log -- third_party/flutter_whisper` has the details.
+
+`flutter_whisper/third_party/whisper.cpp`: `ggml/CMakeLists.txt` only asks
+git for the commit when `GGML_BUILD_COMMIT` isn't already set. The plugin sets
+it to a fixed value so the build is reproducible.

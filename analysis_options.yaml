@@ -14,6 +14,8 @@ analyzer:
     # Vendored code (llama.cpp, flutter_whisper) is checked on its own in CI,
     # not as part of the app.
     - third_party/**
+    # The release build keeps the pub cache here, like F-Droid does.
+    - .pub-cache/**
 
 linter:
   # The lint rules applied to this project can be customized in the
