@@ -55,11 +55,15 @@ AutoName: Rescripto
 
 RepoType: git
 Repo: https://github.com/Gr33nOps/Rescripto.git
+Binaries: https://github.com/Gr33nOps/Rescripto/releases/download/v%v/app-arm64-v8a-release.apk
 
 Builds:
-  - versionName: 1.3.0
-    versionCode: 192
-    commit: <full commit hash, not the tag name>
+  - versionName: 1.3.1
+    versionCode: 202
+    commit: <full commit hash of the v1.3.1 tag>
+    sudo:
+      - mkdir -p /home/runner/work/Rescripto
+      - chown -R vagrant /home/runner
     output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
     srclibs:
       - flutter@stable
@@ -69,23 +73,37 @@ Builds:
       - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" .github/workflows/release.yml)
       - '[[ $flutterVersion ]]'
       - git -C $$flutter$$ checkout -f $flutterVersion
+      - export repo=/home/runner/work/Rescripto/Rescripto
+      - cd ..
+      - mv com.rescripto.rescripto $repo
+      - pushd $repo
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter config --no-analytics
       - $$flutter$$/bin/flutter pub get --enforce-lockfile
+      - popd
+      - mv $repo com.rescripto.rescripto
     scandelete:
       - .pub-cache
     build:
+      - export repo=/home/runner/work/Rescripto/Rescripto
+      - cd ..
+      - mv com.rescripto.rescripto $repo
+      - pushd $repo
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-arm64"
+      - popd
+      - mv $repo com.rescripto.rescripto
     ndk: 28.2.13676358
+
+AllowedAPKSigningKeys: 831777242bc27b13dcc0176d972ceb8757c30ba8d01d19d880131a80c294f922
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
 VercodeOperation:
   - 10 * %c + 2
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 1.3.0
-CurrentVersionCode: 192
+CurrentVersion: 1.3.1
+CurrentVersionCode: 202
 ```
 
 Notes on fields above:
@@ -99,14 +117,19 @@ Notes on fields above:
   single quotes, and bumping Flutter for a release needs no fdroiddata change.
 - `--split-per-abi` makes `android/app/build.gradle.kts` set the version code
   to `versionCode * 10 + ABI` (1 = armeabi-v7a, 2 = arm64-v8a, 3 = x86_64), so
-  1.3.0+19 becomes 192 for arm64. `VercodeOperation` tells F-Droid's auto
+  1.3.1+20 becomes 202 for arm64. `VercodeOperation` tells F-Droid's auto
   update the same thing. Only arm64 is built, so it has one entry. The GitHub
-  release isn't split and keeps the plain version code.
+  release runs the same split build.
 - `--enforce-lockfile` fails the build if `pubspec.lock` is out of date, so
   commit it after every dependency change.
-- There's no `Binaries:` or `AllowedAPKSigningKeys` yet. Those turn on
-  reproducible-build verification against the GitHub release APK, which fails
-  unless the build is byte-for-byte reproducible. That hasn't been set up.
+- `Binaries:` and `AllowedAPKSigningKeys` turn on reproducible-build
+  verification: F-Droid compares its build with the signed APK from the GitHub
+  release and, if they match, publishes that APK with your signature. The
+  fingerprint comes from `apksigner verify --print-certs`. See
+  [Reproducible builds](#reproducible-builds) for what keeps the two builds
+  identical.
+- The `sudo`, `cd ..` and `mv` lines move the source to
+  `/home/runner/work/Rescripto/Rescripto`, where GitHub Actions builds it.
 - `UpdateCheckData` takes exactly four `|`-separated fields:
   `<vercode-location>|<vercode-regex>|<versionName-location>|<versionName-regex>`.
   The third field is a literal `.`, meaning "same file as the first field" —
@@ -124,6 +147,28 @@ Notes for the recipe:
   `ndk.abiFilters` is skipped for split builds, since AGP refuses it alongside
   ABI splits.
 
+## Reproducible builds
+
+F-Droid only accepts the GitHub release APK if its own build matches it byte
+for byte, apart from the signature. Java and Kotlin code and resources already
+match across JDK versions. The native libraries are the fragile part, because
+they record where and how they were built. The release workflow and the recipe
+keep these the same:
+
+| What | How |
+| --- | --- |
+| Source path | GitHub builds in `/home/runner/work/Rescripto/Rescripto`. The recipe moves the source there. llama.cpp and whisper.cpp embed source paths, and `libapp.so` embeds the plugin registrant's path. |
+| Android SDK and NDK path | F-Droid has the SDK in `/opt/android-sdk`. [`.github/scripts/setup-android-sdk.sh`](../.github/scripts/setup-android-sdk.sh) installs it there on GitHub too. |
+| Pub cache | Inside the source tree (`.pub-cache`) on both sides. `libdartjni.so` is built from the `jni` package there. |
+| Version stamps | llama.cpp and whisper.cpp would ask git for a commit count, hash and dirty flag. The plugins' `CMakeLists.txt` files set fixed values instead. |
+| Flutter, NDK, CMake | Flutter from `release.yml`, NDK `28.2.13676358` and CMake 3.22.1 on both sides. |
+
+To check a change before tagging a release, run the Release workflow by hand
+(**Actions → Release → Run workflow**). It builds the same APK unsigned and
+uploads it as the `unsigned-apk` artifact. Compare it with the APK from the
+fdroiddata merge request's `fdroid build` job artifacts. Apart from the
+signature files, every entry should be identical.
+
 ## Testing the build locally
 
 These are the same commands the recipe runs:
@@ -136,7 +181,7 @@ flutter build apk --release --split-per-abi --target-platform android-arm64
 Leave `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`
 and `ANDROID_KEY_PASSWORD` unset. The APK at
 `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` should be unsigned
-and have version code 192. To install
+and have version code 202. To install
 it on your own device, sign it with a debug key first:
 
 ```sh
@@ -151,21 +196,16 @@ that contains the recipe.
 
 ## Still to do by hand
 
-1. Fork fdroiddata on GitLab, add the recipe above as
-   `metadata/com.rescripto.rescripto.yml`, and open a merge request.
-2. Run `fdroid lint` and a local `fdroid build` first, or let the merge
-   request's CI pipeline do it, and fix anything it reports. The scanner
-   results and build time on F-Droid's servers can't be checked from this
-   repository.
-3. Answer the reviewer's questions, especially about NonFreeNet and the
+1. Follow the merge request,
+   [fdroiddata!49009](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/49009),
+   until it's merged. Its CI pipeline runs `fdroid lint` and `fdroid build`.
+2. Answer the reviewers' questions, especially about NonFreeNet and the
    downloadable models.
-4. Optional: reproducible builds. F-Droid can publish the APK signed with
-   your own key if its build matches yours byte for byte. That needs a
-   `Binaries:` URL in the recipe and a build pinned to the same Flutter, NDK
-   and build path. It hasn't been tested for Rescripto, so start without it.
-5. Add two to four phone screenshots to
+3. After each release, check that F-Droid's build still matches the GitHub
+   APK. A mismatch blocks that version on F-Droid.
+4. Add two to four phone screenshots to
    `fastlane/metadata/android/en-US/images/phoneScreenshots/` (the rewrite
    screen with a result, tones, the privacy screen and the models screen are
    good picks).
-6. Once the app is listed, add an F-Droid badge and link to the README's
+5. Once the app is listed, add an F-Droid badge and link to the README's
    Install section.
