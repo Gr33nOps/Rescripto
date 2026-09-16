@@ -31,16 +31,18 @@ merge request so the reviewer can decide whether it needs a note.
 
 ## Draft build recipe
 
-A starting point for `metadata/com.rescripto.rescripto.yml` in
-[fdroiddata](https://gitlab.com/fdroid/fdroiddata). Check it against the
-current fdroiddata templates for Flutter apps before submitting, since the
-Flutter srclib conventions change from time to time.
+The recipe submitted as `metadata/com.rescripto.rescripto.yml` in
+[fdroiddata](https://gitlab.com/fdroid/fdroiddata). It follows fdroiddata's
+[`templates/build-flutter.yml`](https://gitlab.com/fdroid/fdroiddata/-/blob/master/templates/build-flutter.yml),
+which reviewers ask new Flutter apps to use. Check it against the current
+template before each change, since the Flutter conventions change from time
+to time.
 
 ```yaml
 AntiFeatures:
   NonFreeNet:
-    en-US: Can send text to commercial cloud AI services when you turn on Cloud or Hybrid mode.
-
+    en-US: Can send text to commercial cloud AI services when you turn on Cloud or
+      Hybrid mode.
 Categories:
   - Writing
 License: Apache-2.0
@@ -53,35 +55,37 @@ AutoName: Rescripto
 
 RepoType: git
 Repo: https://github.com/Gr33nOps/Rescripto.git
-Binaries: https://github.com/Gr33nOps/Rescripto/releases/download/v%v/app-release.apk
 
 Builds:
   - versionName: 1.3.0
-    versionCode: 19
-    commit: <full commit hash of the release tag, not the tag name>
-    output: build/app/outputs/flutter-apk/app-release.apk
+    versionCode: 192
+    commit: <full commit hash, not the tag name>
+    output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
     srclibs:
-      - flutter@3.44.9
+      - flutter@stable
     rm:
       - ios
     prebuild:
+      - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" .github/workflows/release.yml)
+      - '[[ $flutterVersion ]]'
+      - git -C $$flutter$$ checkout -f $flutterVersion
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter config --no-analytics
-      - $$flutter$$/bin/flutter pub get
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
     scandelete:
       - .pub-cache
     build:
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --target-platform android-arm64
+      - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-arm64"
     ndk: 28.2.13676358
-
-AllowedAPKSigningKeys: <SHA-256 fingerprint from `apksigner verify --print-certs`>
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
+VercodeOperation:
+  - 10 * %c + 2
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
 CurrentVersion: 1.3.0
-CurrentVersionCode: 19
+CurrentVersionCode: 192
 ```
 
 Notes on fields above:
@@ -90,10 +94,19 @@ Notes on fields above:
   used across fdroiddata, not just alphabetical placement.
 - `commit:` must be the full 40-character commit hash, never a tag or branch
   name.
-- `Binaries:` plus `AllowedAPKSigningKeys` let F-Droid verify its build against
-  the signed APK already published on GitHub Releases (reproducible-build
-  verification). Get the fingerprint with:
-  `apksigner verify --print-certs app-release.apk`.
+- The Flutter version is pinned in one place: `flutter-version: '3.44.9'` in
+  `.github/workflows/release.yml`. The recipe reads it from there, so keep the
+  single quotes, and bumping Flutter for a release needs no fdroiddata change.
+- `--split-per-abi` makes `android/app/build.gradle.kts` set the version code
+  to `versionCode * 10 + ABI` (1 = armeabi-v7a, 2 = arm64-v8a, 3 = x86_64), so
+  1.3.0+19 becomes 192 for arm64. `VercodeOperation` tells F-Droid's auto
+  update the same thing. Only arm64 is built, so it has one entry. The GitHub
+  release isn't split and keeps the plain version code.
+- `--enforce-lockfile` fails the build if `pubspec.lock` is out of date, so
+  commit it after every dependency change.
+- There's no `Binaries:` or `AllowedAPKSigningKeys` yet. Those turn on
+  reproducible-build verification against the GitHub release APK, which fails
+  unless the build is byte-for-byte reproducible. That hasn't been set up.
 - `UpdateCheckData` takes exactly four `|`-separated fields:
   `<vercode-location>|<vercode-regex>|<versionName-location>|<versionName-regex>`.
   The third field is a literal `.`, meaning "same file as the first field" —
@@ -107,24 +120,27 @@ Notes for the recipe:
 - The build compiles llama.cpp and whisper.cpp from source. Expect it to take
   much longer than a typical Flutter app.
 - Only `arm64-v8a` is built. The ABI filter lives in
-  `android/app/build.gradle.kts` and both native plugins.
+  `android/app/build.gradle.kts` and both native plugins. The app's
+  `ndk.abiFilters` is skipped for split builds, since AGP refuses it alongside
+  ABI splits.
 
 ## Testing the build locally
 
 These are the same commands the recipe runs:
 
 ```sh
-flutter pub get
-flutter build apk --release --target-platform android-arm64
+flutter pub get --enforce-lockfile
+flutter build apk --release --split-per-abi --target-platform android-arm64
 ```
 
 Leave `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`
 and `ANDROID_KEY_PASSWORD` unset. The APK at
-`build/app/outputs/flutter-apk/app-release.apk` should be unsigned. To install
+`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` should be unsigned
+and have version code 192. To install
 it on your own device, sign it with a debug key first:
 
 ```sh
-apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android app-release.apk
+apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android app-arm64-v8a-release.apk
 ```
 
 To run F-Droid's own checks, install

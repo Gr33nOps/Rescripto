@@ -1,3 +1,5 @@
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -62,9 +64,13 @@ android {
         versionName = flutter.versionName
 
         // The complete native LLM and Whisper stack is currently verified
-        // only for 64-bit ARM.
-        ndk {
-            abiFilters += listOf("arm64-v8a")
+        // only for 64-bit ARM. AGP refuses ndk abiFilters alongside ABI
+        // splits, so a --split-per-abi build relies on its --target-platform
+        // (and the packaging excludes above) instead.
+        if (!project.hasProperty("split-per-abi")) {
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
         }
     }
 
@@ -92,6 +98,21 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
+    }
+}
+
+// `flutter build apk --split-per-abi` gives each ABI its own APK, so each one
+// needs its own version code: versionCode * 10 + the ABI's number. F-Droid's
+// build recipe relies on this scheme. Builds that aren't split keep the plain
+// versionCode.
+val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
+android.applicationVariants.configureEach {
+    val variant = this
+    variant.outputs.forEach { output ->
+        val abiVersionCode = abiCodes[output.filters.find { it.filterType == "ABI" }?.identifier]
+        if (abiVersionCode != null) {
+            (output as ApkVariantOutputImpl).versionCodeOverride = variant.versionCode * 10 + abiVersionCode
+        }
     }
 }
 
