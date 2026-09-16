@@ -37,6 +37,10 @@ current fdroiddata templates for Flutter apps before submitting, since the
 Flutter srclib conventions change from time to time.
 
 ```yaml
+AntiFeatures:
+  NonFreeNet:
+    en-US: Can send text to commercial cloud AI services when you turn on Cloud or Hybrid mode.
+
 Categories:
   - Writing
 License: Apache-2.0
@@ -49,15 +53,12 @@ AutoName: Rescripto
 
 RepoType: git
 Repo: https://github.com/Gr33nOps/Rescripto.git
-
-AntiFeatures:
-  NonFreeNet:
-    en-US: Can send text to commercial cloud AI services when you turn on Cloud or Hybrid mode.
+Binaries: https://github.com/Gr33nOps/Rescripto/releases/download/v%v/app-release.apk
 
 Builds:
   - versionName: 1.3.0
     versionCode: 19
-    commit: v1.3.0
+    commit: <full commit hash of the release tag, not the tag name>
     output: build/app/outputs/flutter-apk/app-release.apk
     srclibs:
       - flutter@3.44.9
@@ -74,12 +75,30 @@ Builds:
       - $$flutter$$/bin/flutter build apk --release --target-platform android-arm64
     ndk: 28.2.13676358
 
+AllowedAPKSigningKeys: <SHA-256 fingerprint from `apksigner verify --print-certs`>
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
-UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|pubspec.yaml|version:\s(.+)\+
+UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
 CurrentVersion: 1.3.0
 CurrentVersionCode: 19
 ```
+
+Notes on fields above:
+
+- `AntiFeatures` goes at the very top of the file — that's the actual convention
+  used across fdroiddata, not just alphabetical placement.
+- `commit:` must be the full 40-character commit hash, never a tag or branch
+  name.
+- `Binaries:` plus `AllowedAPKSigningKeys` let F-Droid verify its build against
+  the signed APK already published on GitHub Releases (reproducible-build
+  verification). Get the fingerprint with:
+  `apksigner verify --print-certs app-release.apk`.
+- `UpdateCheckData` takes exactly four `|`-separated fields:
+  `<vercode-location>|<vercode-regex>|<versionName-location>|<versionName-regex>`.
+  The third field is a literal `.`, meaning "same file as the first field" —
+  don't repeat the filename there, or `fdroid lint`/`checkupdates` will fail
+  with `ValueError: too many values to unpack`.
 
 Notes for the recipe:
 
