@@ -4,8 +4,8 @@ on:
   push:
     tags:
       - 'v*'
-  # A manual run builds the same APK without signing or publishing it and
-  # uploads it as an artifact, to check it against F-Droid's build.
+  # A manual run builds the same APK and AAB without signing or publishing
+  # them, and uploads the APK as an artifact to check against F-Droid's build.
   workflow_dispatch:
 
 permissions:
@@ -129,7 +129,6 @@ jobs:
           if-no-files-found: error
 
       - name: Build release App Bundle
-        if: github.ref_type == 'tag'
         timeout-minutes: 120
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}

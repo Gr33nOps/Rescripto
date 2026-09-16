@@ -13,7 +13,10 @@ sudo mkdir -p "$sdk"
 sudo chown "$(id -u):$(id -g)" "$sdk"
 
 { yes || true; } | "$sdkmanager" --sdk_root="$sdk" --licenses > /dev/null
+# cmdline-tools provides apkanalyzer, which `flutter build appbundle` uses to
+# check that native debug symbols were stripped.
 "$sdkmanager" --sdk_root="$sdk" \
+  "cmdline-tools;latest" \
   "platform-tools" \
   "platforms;android-36" \
   "build-tools;36.0.0" \
