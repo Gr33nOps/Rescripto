@@ -296,9 +296,9 @@ class _ModelTile extends StatelessWidget {
   }
 
   String _descriptor(AiModel model) {
-    if (model.sizeMb <= 900) return 'Fast · works well on most phones';
+    if (model.sizeMb <= 900) return 'Small model · speed varies by phone';
     if (model.sizeMb >= 2500) return 'Highest quality · needs more memory';
-    return 'Balanced quality and speed';
+    return 'Larger model · speed varies by phone';
   }
 }
 

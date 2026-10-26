@@ -5,6 +5,24 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.2] - 2026-10-26
+
+### Changed
+
+- Rewrite instructions now explicitly preserve the draft's language and time
+  format, including mixed-language passages. A clear translation or number
+  change is rejected before it reaches history. On-device rewrites can retry
+  a rejected draft by language passage; the original text remains available
+  if the model still cannot preserve it. Small models can still make mistakes;
+  review the result before using it.
+- Added a hint beside the intensity controls explaining that Full rewrite can
+  produce stronger tone changes, especially with small models. Simple mode also
+  explains where to find this setting.
+- Clarified the store description that preservation is an instruction to the
+  model, not a guarantee, and that results should be checked before use.
+- Clarified that on-device rewrites can take minutes on some phones and that
+  model speed varies by device.
+
 ## [1.3.1] - 2026-09-16
 
 ### Changed

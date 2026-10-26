@@ -10,12 +10,14 @@ import '../engine/engine_stage.dart';
 import '../engine/engine_target.dart';
 import '../engine/generation_handle.dart';
 import '../engine/generation_options.dart';
+import '../engine/prompt_spec.dart';
 import '../models/history_entry.dart';
 import '../models/network_log_entry.dart';
 import '../models/rewrite_output.dart';
 import '../models/rewrite_request.dart';
 import '../models/rewrite_result.dart';
 import '../services/config_store.dart';
+import '../services/language_fidelity.dart';
 import '../services/network/network_feature.dart';
 import '../services/network/network_log.dart';
 import '../services/prompt_builder.dart';
@@ -122,10 +124,16 @@ class RewriteController extends ChangeNotifier {
   EngineCapabilities get capabilities {
     final target = routing.target;
     if (target == null) {
-      return const EngineCapabilities(needsLocalInstall: false, requiresNetwork: false);
+      return const EngineCapabilities(
+        needsLocalInstall: false,
+        requiresNetwork: false,
+      );
     }
     return _registry.maybeResolve(target)?.capabilities ??
-        const EngineCapabilities(needsLocalInstall: false, requiresNetwork: false);
+        const EngineCapabilities(
+          needsLocalInstall: false,
+          requiresNetwork: false,
+        );
   }
 
   bool get canRewrite => _sourceText.trim().isNotEmpty && !_isRunning;
@@ -332,18 +340,23 @@ class RewriteController extends ChangeNotifier {
         maxOutputTokens: tone.maxOutputTokens,
         stopSequences: tone.stopSequences,
       );
+      final languageProfile = LanguageFidelity.inspect(request.sourceText);
 
       Future<RewriteOutput> attempt({
         bool strictRetry = false,
         bool unchangedRetry = false,
+        PromptSpec? passagePrompt,
       }) async {
-        final prompt = PromptBuilder.build(
-          request,
-          tone: tone,
-          audienceLabels: audienceLabels,
-          strictRetry: strictRetry,
-          unchangedRetry: unchangedRetry,
-        );
+        final prompt =
+            passagePrompt ??
+            PromptBuilder.build(
+              request,
+              tone: tone,
+              audienceLabels: audienceLabels,
+              sourceLanguageCues: languageProfile.promptCues,
+              strictRetry: strictRetry,
+              unchangedRetry: unchangedRetry,
+            );
         final started = engine.start(
           EngineRequest(target: target, prompt: prompt, options: options),
         );
@@ -430,7 +443,7 @@ class RewriteController extends ChangeNotifier {
         }
       }
 
-      final outputs = variants
+      var outputs = variants
           .map(
             (v) => RewriteOutput(
               text: v,
@@ -439,6 +452,102 @@ class RewriteController extends ChangeNotifier {
             ),
           )
           .toList();
+
+      if (outputs.any((variant) => languageProfile.rejects(variant.text))) {
+        if (target.engineId == 'local.llama' &&
+            request.variantCount == 1 &&
+            languageProfile.languages.length == 1 &&
+            languageProfile.languages.single != 'en' &&
+            languageProfile.promptCues.isNotEmpty) {
+          _streamingText = '';
+          notifyListeners();
+          final retryOutput = await attempt(
+            passagePrompt: PromptBuilder.buildPassage(
+              request,
+              tone: tone,
+              passageSource: request.sourceText,
+              languageCue: languageProfile.promptCues.single,
+              audienceLabels: audienceLabels,
+            ),
+          );
+          final retried = PromptBuilder.parseVariants(
+            retryOutput.text,
+            expected: 1,
+          );
+          if (retried.length != 1 ||
+              RefusalDetector.looksLikeRefusal(retried) ||
+              languageProfile.rejects(retried.single)) {
+            throw const RewriteFidelityException();
+          }
+          outputs = [
+            RewriteOutput(
+              text: retried.single,
+              generationTimeMs: retryOutput.generationTimeMs,
+              tokensGenerated: retryOutput.tokensGenerated,
+            ),
+          ];
+        } else {
+          final passages =
+              target.engineId == 'local.llama' && request.variantCount == 1
+              ? LanguageFidelity.mixedPassages(request.sourceText)
+              : null;
+          final editableCount =
+              passages?.where((part) => part.languageCode != null).length ?? 0;
+          if (passages == null || passages.length > 8 || editableCount > 4) {
+            throw const RewriteFidelityException();
+          }
+
+          final assembled = StringBuffer();
+          var generationMs = 0;
+          var generatedTokens = 0;
+          for (final part in passages) {
+            if (part.languageCode == null) {
+              assembled.write(part.original);
+              continue;
+            }
+            final partProfile = LanguageFidelity.inspect(part.sourceText);
+            final cue = partProfile.promptCues.firstOrNull;
+            if (cue == null) {
+              assembled.write(part.original);
+              continue;
+            }
+            _streamingText = '';
+            notifyListeners();
+            final partOutput = await attempt(
+              passagePrompt: PromptBuilder.buildPassage(
+                request,
+                tone: tone,
+                passageSource: part.sourceText,
+                languageCue: cue,
+                audienceLabels: audienceLabels,
+              ),
+            );
+            final partVariants = PromptBuilder.parseVariants(
+              partOutput.text,
+              expected: 1,
+            );
+            if (partVariants.length != 1 ||
+                RefusalDetector.looksLikeRefusal(partVariants) ||
+                partProfile.rejects(partVariants.single)) {
+              throw const RewriteFidelityException();
+            }
+            assembled.write(part.withRewrite(partVariants.single));
+            generationMs += partOutput.generationTimeMs;
+            generatedTokens += partOutput.tokensGenerated;
+          }
+          final recovered = assembled.toString();
+          if (languageProfile.rejects(recovered)) {
+            throw const RewriteFidelityException();
+          }
+          outputs = [
+            RewriteOutput(
+              text: recovered,
+              generationTimeMs: generationMs,
+              tokensGenerated: generatedTokens,
+            ),
+          ];
+        }
+      }
 
       final result = RewriteResult(
         outputs: outputs,

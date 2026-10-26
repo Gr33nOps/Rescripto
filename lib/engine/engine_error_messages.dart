@@ -33,6 +33,9 @@ String describeEngineError(EngineException error) => switch (error) {
     'The model wouldn’t rewrite this text, even on a second try. Small '
         'on-device models sometimes do that with ordinary writing. A '
         'different model in the Models tab usually helps.',
+  RewriteFidelityException() =>
+    'The model changed the draft’s language or numbers, so its result was '
+        'discarded. Your original text is still here. Try another model.',
   OutOfMemoryException() =>
     'There isn’t enough memory for this model. Try a smaller model, or a '
         'smaller context size in Settings > Performance.',

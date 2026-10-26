@@ -1,4 +1,4 @@
-<p>Paste a rough message, pick a tone, and Rescripto rewrites it into something you'd actually send. Your facts, names, numbers and dates stay as you wrote them, and the result doesn't get padded with greetings, filler or hype.</p>
+<p>Paste a rough message, pick a tone, and Rescripto rewrites it into something you'd actually send. It is instructed to preserve your language, facts, names, numbers and dates, without adding greetings, filler or hype. Models can still make mistakes, especially smaller on-device models, so check the result before using it.</p>
 
 <p>Rewriting runs on your phone. Download a model once (Gemma 3 1B, Llama 3.2 1B or 3B, or Qwen 2.5 1.5B) and it works offline, with no account.</p>
 

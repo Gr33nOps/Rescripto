@@ -72,6 +72,11 @@ final class ModelRefusedException extends EngineException {
   const ModelRefusedException();
 }
 
+/// A local model translated the draft or changed its numeric details.
+final class RewriteFidelityException extends EngineException {
+  const RewriteFidelityException();
+}
+
 /// The request was cancelled before it produced a result.
 final class GenerationCancelledException extends EngineException {
   const GenerationCancelledException();

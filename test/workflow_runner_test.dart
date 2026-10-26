@@ -106,6 +106,24 @@ void main() {
   }
 
   group('WorkflowRunner.run', () {
+    test('discards a translated local step before it reaches history', () async {
+      final future = runner.run(
+        oneStepWorkflow(),
+        'hallo, ich komm morgen nicht ins buero weil mein zug ausfaellt, '
+        'bin ab 13 uhr online',
+      );
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(
+          text: 'Hello, I cannot come to the office tomorrow because my '
+              'train is cancelled. I will be online at 13:00.',
+        ),
+      );
+
+      await expectLater(future, throwsA(isA<RewriteFidelityException>()));
+      expect(await storage.getHistory(), isEmpty);
+    });
+
     test('feeds step N\'s output as step N+1\'s input, in order', () async {
       final future = runner.run(twoStepWorkflow(), 'rough draft');
 

@@ -47,6 +47,12 @@ class RewriteControls extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 6),
+        Text(
+          'For a stronger change in tone, try Full rewrite. Small models may '
+          'make subtler changes.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 18),
         _SectionLabel(label: 'Length'),
         const SizedBox(height: 6),
