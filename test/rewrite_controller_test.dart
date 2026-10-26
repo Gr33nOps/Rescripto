@@ -145,6 +145,37 @@ void main() {
   });
 
   group('RewriteController.rewrite', () {
+    test('uses the compact prompt only for confident local English', () async {
+      controller.setSource(
+        'Hey sorry I cannot make the meeting on Tuesday at 3pm, '
+        'can we move it to Thursday 10am? I will bring the 12 reports from Maria',
+      );
+      controller.setIntensity(RewriteIntensity.full);
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the English draft'));
+      expect(localEngine.lastRequest!.prompt.system, contains('Express every point in fresh wording'));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: 'I cannot attend the meeting on Tuesday at 3pm. Could we reschedule it to Thursday 10am? I will bring the 12 reports from Maria.'),
+      );
+      await future;
+    });
+
+    test('keeps the multilingual prompt for a German local draft', () async {
+      controller.setSource(
+        'hallo, ich komm morgen nicht ins buero weil mein zug ausfaellt, '
+        'bin ab 13 uhr online',
+      );
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastRequest!.prompt.system, isNot(contains('Rewrite the English draft')));
+      expect(localEngine.lastRequest!.prompt.system, contains('Schreibe die gesamte Antwort auf Deutsch'));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: 'Hallo, ich komme morgen nicht ins Büro, weil mein Zug ausfällt, und ich bin ab 13 Uhr online.'),
+      );
+      await future;
+    });
+
     test('recovers a translated German draft with a native passage retry', () async {
       controller.setSource(
         'hallo, ich komm morgen nicht ins buero weil mein zug ausfaellt, '

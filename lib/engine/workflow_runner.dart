@@ -158,14 +158,26 @@ class WorkflowRunner extends ChangeNotifier {
       bool strictRetry = false,
       bool unchangedRetry = false,
     }) async {
-      final prompt = PromptBuilder.build(
-        request,
-        tone: tone,
-        audienceLabels: audienceLabels,
-        sourceLanguageCues: languageProfile.promptCues,
-        strictRetry: strictRetry,
-        unchangedRetry: unchangedRetry,
-      );
+      final useCompactEnglish =
+          step.target.engineId == 'local.llama' &&
+          languageProfile.languages.length == 1 &&
+          languageProfile.languages.single == 'en' &&
+          !strictRetry &&
+          !unchangedRetry;
+      final prompt = useCompactEnglish
+          ? PromptBuilder.buildEnglish(
+              request,
+              tone: tone,
+              audienceLabels: audienceLabels,
+            )
+          : PromptBuilder.build(
+              request,
+              tone: tone,
+              audienceLabels: audienceLabels,
+              sourceLanguageCues: languageProfile.promptCues,
+              strictRetry: strictRetry,
+              unchangedRetry: unchangedRetry,
+            );
       final handle = engine.start(
         EngineRequest(target: step.target, prompt: prompt, options: options),
       );

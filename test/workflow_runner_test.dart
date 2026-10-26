@@ -106,6 +106,20 @@ void main() {
   }
 
   group('WorkflowRunner.run', () {
+    test('uses compact English prompt for a confident local step', () async {
+      final future = runner.run(
+        oneStepWorkflow(intensity: RewriteIntensity.full),
+        'Hey sorry I cannot make the meeting on Tuesday at 3pm, '
+        'can we move it to Thursday 10am? I will bring the 12 reports from Maria',
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the English draft'));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: 'I cannot attend the meeting on Tuesday at 3pm. Could we reschedule it for Thursday 10am? I will bring the 12 reports from Maria.'),
+      );
+      await future;
+    });
+
     test('discards a translated local step before it reaches history', () async {
       final future = runner.run(
         oneStepWorkflow(),
