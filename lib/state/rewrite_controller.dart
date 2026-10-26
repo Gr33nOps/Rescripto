@@ -391,7 +391,14 @@ class RewriteController extends ChangeNotifier {
         });
 
         try {
-          return await started.done;
+          final completed = await started.done;
+          if (request.sourceText.startsWith('明日の会議に行けません。')) {
+            // ignore: avoid_print
+            print(
+              'QA_JA_OUTPUT strict=$strictRetry unchanged=$unchangedRetry passage=${passagePrompt != null}: ${completed.text}',
+            );
+          }
+          return completed;
         } finally {
           await subscription.cancel();
           _activeRequests.unregister(started);
@@ -574,6 +581,10 @@ class RewriteController extends ChangeNotifier {
     } on GenerationCancelledException {
       return RewriteResult.empty(request);
     } on EngineException catch (e) {
+      if (request.sourceText.startsWith('明日の会議に行けません。')) {
+        // ignore: avoid_print
+        print('QA_JA_ERROR: $e');
+      }
       _lastError = describeEngineError(e);
       _offerFallbackIfEligible(
         request: request,
