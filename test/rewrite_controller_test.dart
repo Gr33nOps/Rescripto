@@ -153,8 +153,8 @@ void main() {
       controller.setIntensity(RewriteIntensity.full);
       final future = controller.rewrite();
       await Future<void>.delayed(Duration.zero);
-      expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the English draft'));
-      expect(localEngine.lastRequest!.prompt.system, contains('Rephrase sentences substantially in the selected tone'));
+      expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the entire English draft'));
+      expect(localEngine.lastRequest!.prompt.system, contains('Rephrase each clause in the selected tone'));
       localEngine.lastHandle!.complete(
         const RewriteOutput(text: 'I cannot attend the meeting on Tuesday at 3pm. Could we reschedule it to Thursday 10am? I will bring the 12 reports from Maria.'),
       );
@@ -168,7 +168,7 @@ void main() {
       );
       final future = controller.rewrite();
       await Future<void>.delayed(Duration.zero);
-      expect(localEngine.lastRequest!.prompt.system, isNot(contains('Rewrite the English draft')));
+      expect(localEngine.lastRequest!.prompt.system, isNot(contains('Rewrite the entire English draft')));
       expect(localEngine.lastRequest!.prompt.system, contains('Schreibe die gesamte Antwort auf Deutsch'));
       localEngine.lastHandle!.complete(
         const RewriteOutput(text: 'Hallo, ich komme morgen nicht ins Büro, weil mein Zug ausfällt, und ich bin ab 13 Uhr online.'),
