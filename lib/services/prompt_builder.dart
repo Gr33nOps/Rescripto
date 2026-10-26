@@ -91,9 +91,9 @@ class PromptBuilder {
         'Improve phrasing and word choice to fit the tone. Repair run-on '
             'sentences and awkward wording.',
       RewriteIntensity.full =>
-        'Rephrase sentences substantially in the selected tone. Full changes '
-            'wording and structure, not formality. A casual rewrite must '
-            'still sound like a text to a friend.',
+        'Rephrase each clause in the selected tone, keeping its information '
+            'and order. Full is a wording change, not a summary. Keep a '
+            'phrase if changing it would lose a detail.',
     };
     final length = switch (request.length) {
       RewriteLength.shorter => 'cut filler and repetition, retaining all facts',
@@ -102,14 +102,17 @@ class PromptBuilder {
     };
     final buffer = StringBuffer()
       ..writeln(
-        'Rewrite the English draft so it sounds natural in the selected tone.',
+        'Rewrite the entire English draft. Preserving all its information '
+        'takes priority over tone and length.',
       )
       ..writeln('Tone: ${tone.instruction}')
       ..writeln('Strength: ${request.intensity.label}. $strength')
       ..writeln('Length: ${request.length.name}; $length.')
       ..writeln(
-        'Keep every fact, the speaker, uncertainty, requests and questions. '
-        'Keep who does what and who things come from or go to. '
+        'Keep every original clause, including apologies, inability to do '
+        'something, reasons and proposed alternatives. Preserve the speaker, '
+        'uncertainty, requests and questions. '
+        'Keep who things belong to, come from or go to. '
         'Copy names, numbers, prices, dates, times, units, URLs and identifiers '
         'exactly. Add no reasons, promises, greetings or sign-offs.',
       )
@@ -127,10 +130,10 @@ class PromptBuilder {
     }
     if (request.intensity == RewriteIntensity.full) {
       buffer.writeln(
-        'Full rewrite example: "i need help because this file will not open". '
-        'Casual: "This file won\'t open, so I need some help." '
-        'Formal: "I need assistance because this file will not open." '
-        'Actual draft tone: ${tone.instruction} '
+        'Full rewrite example: "i cannot send the 4 files from Omar today '
+        'because the upload failed twice can i send them tomorrow" becomes '
+        '"I won\'t be able to send the 4 files from Omar today because the '
+        'upload failed twice. Could I send them tomorrow?" '
         'Rewrite only the actual draft below.',
       );
     }
