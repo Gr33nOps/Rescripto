@@ -125,7 +125,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         # Same command as F-Droid's recipe, which needs the per-ABI APK and
         # its version code (versionCode * 10 + 2 for arm64-v8a).
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --build-number 33
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --build-number 34
 
       - name: Upload unsigned APK
         if: github.ref_type != 'tag'
