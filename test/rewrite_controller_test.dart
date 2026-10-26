@@ -154,7 +154,7 @@ void main() {
       final future = controller.rewrite();
       await Future<void>.delayed(Duration.zero);
       expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the English draft'));
-      expect(localEngine.lastRequest!.prompt.system, contains('Express every point in fresh wording'));
+      expect(localEngine.lastRequest!.prompt.system, contains('Rephrase sentences substantially in the selected tone'));
       localEngine.lastHandle!.complete(
         const RewriteOutput(text: 'I cannot attend the meeting on Tuesday at 3pm. Could we reschedule it to Thursday 10am? I will bring the 12 reports from Maria.'),
       );
