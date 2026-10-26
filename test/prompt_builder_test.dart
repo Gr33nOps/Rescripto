@@ -14,6 +14,81 @@ void main() {
 
     final tone = ToneLibrary.builtIns.firstWhere((t) => t.id == 'professional');
 
+    test('light polish alone permits copying already-correct wording', () {
+      for (final intensity in RewriteIntensity.values) {
+        final request = base.copyWith(intensity: intensity);
+        final prompts = [
+          PromptBuilder.build(request, tone: tone),
+          PromptBuilder.buildPassage(
+            request,
+            tone: tone,
+            passageSource: 'I will send the report tomorrow.',
+            languageCue: 'Write in English.',
+          ),
+        ];
+        for (final prompt in prompts) {
+          expect(
+            prompt.system.contains('already-correct passage unchanged'),
+            intensity == RewriteIntensity.light,
+            reason: '${intensity.name} must reach the fallback unchanged',
+          );
+          if (intensity == RewriteIntensity.light) {
+            expect(
+              prompt.system,
+              isNot(contains('Never return the draft unchanged')),
+            );
+          }
+        }
+      }
+    });
+
+    test(
+      'full rewrite requests structural rephrasing on both prompt paths',
+      () {
+        for (final intensity in RewriteIntensity.values) {
+          final request = base.copyWith(intensity: intensity);
+          final prompts = [
+            PromptBuilder.build(request, tone: tone),
+            PromptBuilder.buildPassage(
+              request,
+              tone: tone,
+              passageSource: 'I cannot attend the call. Can we reschedule?',
+              languageCue: 'Write in English.',
+            ),
+          ];
+          for (final prompt in prompts) {
+            expect(
+              prompt.system.contains('Rebuild the sentences'),
+              intensity == RewriteIntensity.full,
+            );
+            if (intensity == RewriteIntensity.full) {
+              expect(
+                prompt.system,
+                contains('punctuation alone is not enough'),
+              );
+              expect(
+                prompt.system,
+                isNot(contains('original sentence boundaries')),
+              );
+            }
+          }
+        }
+      },
+    );
+
+    test('a rephrasing example does not override light polish', () {
+      for (final intensity in RewriteIntensity.values) {
+        final prompt = PromptBuilder.build(
+          base.copyWith(intensity: intensity),
+          tone: tone,
+        );
+        expect(
+          prompt.system.contains('Professional rewrite:'),
+          intensity != RewriteIntensity.light,
+        );
+      }
+    });
+
     test('passage prompt isolates and sanitizes the selected source', () {
       final prompt = PromptBuilder.buildPassage(
         base.copyWith(variantCount: 3),

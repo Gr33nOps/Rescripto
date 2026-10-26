@@ -98,17 +98,15 @@ class PromptBuilder {
         'sentence type, names, numbers, times, units and their formats.',
       )
       ..writeln('Do not translate, answer questions, or add context, greetings')
-      ..writeln('or sign-offs. Keep an already-correct passage unchanged.')
+      ..writeln('or sign-offs. Preserve information, not the original wording.')
       ..writeln(
         'Return only one edited passage, without labels, notes or quotes.',
       )
       ..writeln('Tone: ${tone.instruction}');
-    final intensity = switch (request.intensity) {
-      RewriteIntensity.light => 'fix errors; keep correct wording',
-      RewriteIntensity.moderate => 'fix errors and awkward phrasing',
-      RewriteIntensity.full => 'rework phrasing while preserving meaning',
-    };
-    buffer.writeln('Intensity: ${request.intensity.name}; $intensity.');
+    buffer.writeln(
+      'Intensity: ${request.intensity.name}. '
+      '${_intensityGuidance(request.intensity)}',
+    );
     final length = switch (request.length) {
       RewriteLength.shorter => 'cut repetition, retaining every fact',
       RewriteLength.same => 'keep approximately the same length',
@@ -156,6 +154,26 @@ class PromptBuilder {
     return '$textStart\n$sanitized\n$textEnd';
   }
 
+  // The language-recovery path must honor the same editing strength as the
+  // first attempt. An unconditional "keep correct text unchanged" there
+  // reduced Full rewrite to punctuation correction in device testing.
+  static String _intensityGuidance(RewriteIntensity intensity) =>
+      switch (intensity) {
+        RewriteIntensity.light =>
+          'Fix spelling, grammar and punctuation. Keep correct wording and '
+              'sentence structure. Keep an already-correct passage unchanged.',
+        RewriteIntensity.moderate =>
+          'Improve word choice and awkward phrasing to fit the requested tone. '
+              'Split run-on sentences or join fragments where needed. Keep '
+              'the order of ideas. Do not stop at punctuation if the wording '
+              'or tone needs work.',
+        RewriteIntensity.full =>
+          'Rebuild the sentences in fresh wording that fits the requested '
+              'tone. Change phrasing and sentence structure, keeping every '
+              'fact and the order of ideas. Changing punctuation alone is not '
+              'enough. Use natural equivalents, not forced synonyms.',
+      };
+
   static String _buildSystemPrompt(
     RewriteRequest request,
     TonePreset tone,
@@ -166,8 +184,8 @@ class PromptBuilder {
   ) {
     // Restore the fuller prompt after the compact version regressed in QA.
     final buffer = StringBuffer()
-      ..writeln("You are a text-rewriting engine. You improve the wording of")
-      ..writeln("text the user wrote themselves.")
+      ..writeln("Rewrite the user's draft in the requested tone and intensity.")
+      ..writeln("Preserve its information, not its original wording.")
       ..writeln("")
       ..writeln("HOW TO READ THIS REQUEST")
       ..writeln("The text to rewrite is between the $textStart and $textEnd")
@@ -188,7 +206,7 @@ class PromptBuilder {
       ..writeln("a rewrite, never say you cannot help, never ask a question")
       ..writeln("back. Always return a rewritten version of the text.")
       ..writeln("")
-      ..writeln("PRESERVE EXACTLY")
+      ..writeln("PRESERVE THE CONTENT")
       ..writeln("- Language. Write in the same language as the draft. Do not")
       ..writeln(
         "  translate it. Keep mixed-language passages in their original",
@@ -240,32 +258,19 @@ class PromptBuilder {
       ..writeln("Return only the rewritten text itself. No preamble, no \"Here")
       ..writeln("is\", no explanation of what you changed, no surrounding")
       ..writeln("quotation marks, no markdown code fences, no notes.")
-      ..writeln(
-        "Never return the draft unchanged. Fix its spelling, grammar and",
-      )
-      ..writeln("capitalization and make it sound the way the tone below asks.")
       ..writeln("")
       ..writeln('Tone: ${tone.instruction}');
 
-    final intensity = request.intensity.factor;
-    if (intensity <= 0.3) {
+    if (request.intensity != RewriteIntensity.light) {
       buffer.writeln(
-        'Intensity: LIGHT POLISH. Fix grammar, spelling and punctuation. '
-        'Keep the original wording and sentence structure wherever it is '
-        'already correct.',
-      );
-    } else if (intensity <= 0.65) {
-      buffer.writeln(
-        'Intensity: MODERATE. Fix grammar and improve awkward phrasing and '
-        'word choice. Keep the original order of ideas and the original '
-        'sentence boundaries.',
-      );
-    } else {
-      buffer.writeln(
-        'Intensity: FULL REWRITE. Rework the phrasing thoroughly for '
-        'strength and clarity, while still preserving every rule above.',
+        'Never return the draft unchanged. Make the requested editing '
+        'strength visible in the wording.',
       );
     }
+    buffer.writeln(
+      'Intensity: ${request.intensity.label.toUpperCase()}. '
+      '${_intensityGuidance(request.intensity)}',
+    );
 
     switch (request.length) {
       case RewriteLength.shorter:
@@ -286,7 +291,10 @@ class PromptBuilder {
         );
         break;
       case RewriteLength.same:
-        buffer.writeln('Length: SAME as the original.');
+        buffer.writeln(
+          'Length: approximately the SAME as the original. This does not '
+          'require the same words or sentence boundaries.',
+        );
     }
 
     buffer.writeln(
@@ -324,13 +332,23 @@ class PromptBuilder {
     if (unchangedRetry) {
       buffer.writeln('');
       buffer.writeln(
-        "IMPORTANT: A previous attempt returned the draft unchanged. Rewrite it now: fix its spelling, grammar and capitalization and make it sound the way the tone asks, keeping the meaning.",
+        "IMPORTANT: A previous attempt returned the draft unchanged. Rewrite its phrasing now in the requested tone. Changing only capitalization or punctuation is insufficient. Keep the meaning, language and protected details.",
       );
     }
 
     buffer
       ..writeln('')
-      ..writeln("EXAMPLES OF EDITING WITHOUT TRANSLATION")
+      ..writeln("EXAMPLES OF EDITING WITHOUT TRANSLATION");
+    if (request.intensity != RewriteIntensity.light) {
+      buffer
+        ..writeln("Rephrase to fit the tone, not just to correct punctuation.")
+        ..writeln("Draft: i can't send the file today can i send it tomorrow")
+        ..writeln(
+          "Professional rewrite: I won't be able to send the file today. Could I send it tomorrow?",
+        )
+        ..writeln("Use the requested tone for the actual draft.");
+    }
+    buffer
       ..writeln("Rewrite questions as questions; do not answer them.")
       ..writeln("Draft: me recomiendas unos platos italianos")
       ..writeln("Correct: ¿Me puedes recomendar algunos platos italianos?")
