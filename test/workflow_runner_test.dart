@@ -113,7 +113,7 @@ void main() {
         'can we move it to Thursday 10am? I will bring the 12 reports from Maria',
       );
       await Future<void>.delayed(Duration.zero);
-      expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the English draft'));
+      expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the entire English draft'));
       localEngine.lastHandle!.complete(
         const RewriteOutput(text: 'I cannot attend the meeting on Tuesday at 3pm. Could we reschedule it for Thursday 10am? I will bring the 12 reports from Maria.'),
       );
