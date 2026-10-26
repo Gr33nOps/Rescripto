@@ -350,6 +350,44 @@ void main() {
       expect(identical(localEngine.lastHandle, firstHandle), isTrue);
     });
 
+    test('unchanged Japanese local output retries with a concise native prompt', () async {
+      controller.setSource('明日は休みです。会議は金曜日です。');
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: '明日は休みです。会議は金曜日です。'),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastRequest!.prompt.system, contains('Edit only the passage'));
+      expect(localEngine.lastRequest!.prompt.system, contains('日本語'));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: '明日はお休みです。会議は金曜日です。'),
+      );
+
+      final result = await future;
+      expect(result.primary.text, '明日はお休みです。会議は金曜日です。');
+    });
+
+    test('a rejected native retry does not start the same passage prompt again', () async {
+      controller.setSource('明日は休みです。会議は金曜日です。');
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: '明日は休みです。会議は金曜日です。'),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final nativeHandle = localEngine.lastHandle!;
+      nativeHandle.complete(
+        const RewriteOutput(text: 'I am off tomorrow. The meeting is on Friday.'),
+      );
+      await expectLater(
+        future.timeout(const Duration(seconds: 1)),
+        throwsA(isA<RewriteFidelityException>()),
+      );
+      expect(localEngine.lastHandle, same(nativeHandle));
+    });
+
     test('surfaces EngineNotAvailableException for an unregistered engine target', () async {
       final orphanController = RewriteController(
         registry: EngineRegistry(const []),

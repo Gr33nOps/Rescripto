@@ -323,6 +323,7 @@ class RewriteController extends ChangeNotifier {
     notifyListeners();
 
     var emittedAnyText = false;
+    var nativePassageAttempted = false;
 
     try {
       final engine = _registry.resolve(target);
@@ -447,7 +448,25 @@ class RewriteController extends ChangeNotifier {
         notifyListeners();
 
         try {
-          final retryOutput = await attempt(unchangedRetry: true);
+          final retryPrompt =
+              target.engineId == 'local.llama' &&
+                  request.variantCount == 1 &&
+                  languageProfile.languages.length == 1 &&
+                  languageProfile.languages.single != 'en' &&
+                  languageProfile.promptCues.isNotEmpty
+              ? PromptBuilder.buildPassage(
+                  request,
+                  tone: tone,
+                  passageSource: request.sourceText,
+                  languageCue: languageProfile.promptCues.single,
+                  audienceLabels: audienceLabels,
+                )
+              : null;
+          final retryOutput = await attempt(
+            passagePrompt: retryPrompt,
+            unchangedRetry: retryPrompt == null,
+          );
+          nativePassageAttempted = retryPrompt != null;
           final retried = PromptBuilder.parseVariants(
             retryOutput.text,
             expected: request.variantCount,
@@ -473,6 +492,9 @@ class RewriteController extends ChangeNotifier {
           .toList();
 
       if (outputs.any((variant) => languageProfile.rejects(variant.text))) {
+        if (nativePassageAttempted) {
+          throw const RewriteFidelityException();
+        }
         if (target.engineId == 'local.llama' &&
             request.variantCount == 1 &&
             languageProfile.languages.length == 1 &&
