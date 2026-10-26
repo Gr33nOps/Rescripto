@@ -324,6 +324,9 @@ class RewriteController extends ChangeNotifier {
 
     var emittedAnyText = false;
     var nativePassageAttempted = false;
+    final qaDiagnosticDraft =
+        request.sourceText.startsWith('明日の会議に行けません。') ||
+        request.sourceText.startsWith('Hey sorry I cannot make the meeting');
 
     try {
       final engine = _registry.resolve(target);
@@ -393,10 +396,10 @@ class RewriteController extends ChangeNotifier {
 
         try {
           final completed = await started.done;
-          if (request.sourceText.startsWith('明日の会議に行けません。')) {
+          if (qaDiagnosticDraft) {
             // ignore: avoid_print
             print(
-              'QA_JA_OUTPUT strict=$strictRetry unchanged=$unchangedRetry passage=${passagePrompt != null}: ${completed.text}',
+              'QA_REWRITE_OUTPUT strict=$strictRetry unchanged=$unchangedRetry passage=${passagePrompt != null} ms=${completed.generationTimeMs}: ${completed.text}',
             );
           }
           return completed;
@@ -603,9 +606,9 @@ class RewriteController extends ChangeNotifier {
     } on GenerationCancelledException {
       return RewriteResult.empty(request);
     } on EngineException catch (e) {
-      if (request.sourceText.startsWith('明日の会議に行けません。')) {
+      if (qaDiagnosticDraft) {
         // ignore: avoid_print
-        print('QA_JA_ERROR: $e');
+        print('QA_REWRITE_ERROR: $e');
       }
       _lastError = describeEngineError(e);
       _offerFallbackIfEligible(
