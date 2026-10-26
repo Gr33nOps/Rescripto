@@ -91,8 +91,9 @@ class PromptBuilder {
         'Improve phrasing and word choice to fit the tone. Repair run-on '
             'sentences and awkward wording.',
       RewriteIntensity.full =>
-        'Express every point in fresh wording. Rebuild sentence structure '
-            'so this reads as a new version, not a punctuation correction.',
+        'Rephrase sentences substantially in the selected tone. Full changes '
+            'wording and structure, not formality. A casual rewrite must '
+            'still sound like a text to a friend.',
     };
     final length = switch (request.length) {
       RewriteLength.shorter => 'cut filler and repetition, retaining all facts',
@@ -100,12 +101,15 @@ class PromptBuilder {
       RewriteLength.longer => 'use fuller wording without adding information',
     };
     final buffer = StringBuffer()
-      ..writeln('Rewrite the English draft in the selected tone.')
+      ..writeln(
+        'Rewrite the English draft so it sounds natural in the selected tone.',
+      )
       ..writeln('Tone: ${tone.instruction}')
       ..writeln('Strength: ${request.intensity.label}. $strength')
       ..writeln('Length: ${request.length.name}; $length.')
       ..writeln(
         'Keep every fact, the speaker, uncertainty, requests and questions. '
+        'Keep who does what and who things come from or go to. '
         'Copy names, numbers, prices, dates, times, units, URLs and identifiers '
         'exactly. Add no reasons, promises, greetings or sign-offs.',
       )
@@ -123,9 +127,11 @@ class PromptBuilder {
     }
     if (request.intensity == RewriteIntensity.full) {
       buffer.writeln(
-        'Full rewrite example: "the upload failed twice so i need help" '
-        'becomes "I need help because the upload has failed twice." '
-        'Rewrite only the actual draft below using the selected tone.',
+        'Full rewrite example: "i need help because this file will not open". '
+        'Casual: "This file won\'t open, so I need some help." '
+        'Formal: "I need assistance because this file will not open." '
+        'Actual draft tone: ${tone.instruction} '
+        'Rewrite only the actual draft below.',
       );
     }
     if (request.variantCount > 1) {
