@@ -31,6 +31,13 @@ jobs:
         with:
           persist-credentials: false
 
+      # This branch is a disposable device-test build. Keep the published
+      # application and the F-Droid build recipe on the unchanged PR branch.
+      - name: Isolate device QA package
+        run: |
+          sed -i 's/applicationId = "com.rescripto.rescripto"/applicationId = "com.rescripto.rescripto.qa"/' android/app/build.gradle.kts
+          sed -i 's/android:label="Rescripto"/android:label="Rescripto QA"/' android/app/src/main/AndroidManifest.xml
+
       - name: Setup Java
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
@@ -118,7 +125,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         # Same command as F-Droid's recipe, which needs the per-ABI APK and
         # its version code (versionCode * 10 + 2 for arm64-v8a).
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --build-number 30
 
       - name: Upload unsigned APK
         if: github.ref_type != 'tag'
