@@ -3,22 +3,19 @@ import 'package:provider/provider.dart';
 
 import '../core/app_messenger.dart';
 import '../services/network/network_policy.dart';
+import '../services/providers/provider_registry.dart';
 import '../services/routing/target_router.dart';
+import '../state/models_controller.dart';
 import '../state/rewrite_controller.dart';
+import '../state/settings_controller.dart';
 
 /// AppBar chip showing where the next rewrite would run, and why.
 ///
 /// Reads `RewriteController.routing`, recomputed fresh on every build (it's
 /// a plain getter, not cached) from whatever `TargetRouter` currently sees.
-/// Rebuilding on `RewriteController`'s own `notifyListeners()` alone isn't
-/// enough, though: `routing` also depends on `NetworkPolicy` (the kill
-/// switch, per-feature toggles), which is a separate `ChangeNotifier` that
-/// `RewriteController` doesn't forward. Without watching it directly here,
-/// this chip could keep showing a stale "Not ready"/"Cloud" state after a
-/// Privacy-settings change made on another screen, until something
-/// unrelated happened to touch `RewriteController`'s own state (typing a
-/// character, changing tone, etc.) and trigger a rebuild anyway. Watching
-/// both keeps the chip live off either source of change.
+/// Routing also depends on independent settings, model, provider and network
+/// notifiers. Watch each one here: the chip is a const child of RewriteScreen,
+/// so rebuilding that parent alone does not refresh a stale routing label.
 ///
 /// In Hybrid mode the label always names the actual side ("Hybrid ·
 /// On-device" / "Hybrid · Cloud"), never a bare "Hybrid" — a badge that
@@ -30,6 +27,9 @@ class ProcessingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsController>();
+    context.watch<ModelsController>();
+    context.watch<ProviderRegistry>();
     context.watch<NetworkPolicy>();
     final decision = context.watch<RewriteController>().routing;
     final scheme = Theme.of(context).colorScheme;
