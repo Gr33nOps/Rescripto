@@ -493,3 +493,45 @@ fallback on this phone. Gemma was restored as the active QA model afterward.
 
 CI on the documentation commit `8e74ffe` passed as well. The versioned app
 code and release-style build remain at `e8331b9`.
+
+## October 27 release-gate continuation
+
+On Redmi 12, Llama 3.2 3B Q4_K_M (1.9 GB) passed its model-file
+verification. The exact reviewer English draft in Professional / Full
+returned after 111,856 ms: `Can we reschedule the meeting from Tuesday at
+3pm to Thursday at 10am? I will bring the 12 reports from Maria.` The app
+saved it, but it omitted the speaker's explicit inability to attend. Casual
+/ Full took 121,112 ms and returned `Hey, I won't be able to make the meeting
+on Tuesday at 3pm. Can we move it to Thursday at 10am? I will bring the
+reports from Maria that are due today.` It dropped `12` and invented `due
+today`; the app rejected it with `RewriteFidelityException`. The 3B model is
+neither a fast nor a dependable English default on this reference phone.
+
+An encrypted backup exported through Android's share sheet to Download as
+`rescripto-backup-20261027-1349.rescriptobackup`. The QA app picked that file,
+decrypted it using the test passphrase, and previewed 14 tones, 6 audiences,
+1 workflow, 0 cloud providers, and 0 history items. Settings-only restore was
+confirmed and returned to the Backup screen; the other content sections were
+left unchecked. This covers an actual exported-file round trip, though it
+does not prove a cross-device restore.
+
+With explicit QA-app Backup sync permission and a local WebDAV test endpoint,
+the app's connection test returned `Connected successfully.` Sync sent
+`PROPFIND`, `PUT`, then `PROPFIND`; the server stored a 6,763-byte encrypted
+backup and the app showed a `Last synced` timestamp. After the server copy
+was advanced, the app warned `The server copy has changed`, offered review
+and overwrite choices, and downloaded (`GET`) then applied the server's copy
+only after confirmation. This proves protocol and conflict behavior against
+the local endpoint, not compatibility with a real Nextcloud account.
+
+With explicit QA-app Cloud rewriting permission, the custom
+OpenAI-compatible endpoint connection test returned `Connected successfully.`
+The phone sent `POST /v1/chat/completions` to the local streaming test server
+and displayed its fixed output, `Hello, I can send the report tomorrow.` The
+QA app was returned to Local mode with Gemma 3 1B active. This does not test
+a paid cloud provider or measure its rewrite quality.
+
+The first intentional voice test produced an empty draft. The user confirmed
+they missed the recording window, so it is inconclusive and requires a retry.
+Selected-text return remains unverified end to end. The production app on the
+phone remains v1.3.0; tests used the separate v1.3.2 QA package.

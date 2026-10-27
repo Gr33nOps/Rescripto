@@ -79,123 +79,135 @@ class _ResultViewState extends State<ResultView> {
         : outputs[selectedIndex].text;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Rewrite result',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (outputs.length > 1)
-                  Semantics(
-                    identifier: 'variant_selector',
-                    child: SegmentedButton<int>(
-                      segments: [
-                        for (var i = 0; i < outputs.length; i++)
-                          ButtonSegment(
-                            value: i,
-                            label: Semantics(
-                              identifier: 'variant_${i + 1}',
-                              child: Text('V${i + 1}'),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Rewrite result',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (outputs.length > 1)
+                    Semantics(
+                      identifier: 'variant_selector',
+                      child: SegmentedButton<int>(
+                        segments: [
+                          for (var i = 0; i < outputs.length; i++)
+                            ButtonSegment(
+                              value: i,
+                              label: Semantics(
+                                identifier: 'variant_${i + 1}',
+                                child: Text('V${i + 1}'),
+                              ),
                             ),
+                        ],
+                        selected: {selectedIndex},
+                        showSelectedIcon: false,
+                        onSelectionChanged: (s) {
+                          setState(() => _variantIndex = s.first);
+                          _notifySelection(s.first);
+                        },
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ),
+                  Semantics(
+                    identifier: 'result_view_toggle',
+                    child: SegmentedButton<bool>(
+                      segments: [
+                        ButtonSegment(
+                          value: true,
+                          label: Semantics(
+                            identifier: 'show_original',
+                            child: const Text('Original'),
                           ),
+                        ),
+                        ButtonSegment(
+                          value: false,
+                          label: Semantics(
+                            identifier: 'show_rewrite',
+                            child: const Text('Rewrite'),
+                          ),
+                        ),
                       ],
-                      selected: {selectedIndex},
+                      selected: {_showOriginal},
                       showSelectedIcon: false,
-                      onSelectionChanged: (s) {
-                        setState(() => _variantIndex = s.first);
-                        _notifySelection(s.first);
-                      },
+                      onSelectionChanged: (s) =>
+                          setState(() => _showOriginal = s.first),
                       style: const ButtonStyle(
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
                   ),
-                Semantics(
-                  identifier: 'result_view_toggle',
-                  child: SegmentedButton<bool>(
-                    segments: [
-                      ButtonSegment(
-                        value: true,
-                        label: Semantics(
-                          identifier: 'show_original',
-                          child: const Text('Original'),
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: false,
-                        label: Semantics(
-                          identifier: 'show_rewrite',
-                          child: const Text('Rewrite'),
-                        ),
-                      ),
-                    ],
-                    selected: {_showOriginal},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (s) =>
-                        setState(() => _showOriginal = s.first),
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 120),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: SelectableText(
+                  text,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    height: 1.5,
+                    color: _showOriginal
+                        ? scheme.onSurfaceVariant
+                        : scheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (!_showOriginal && outputs.isNotEmpty) ...[
+                Text(
+                  'Check this against your original before sending. AI can '
+                  'change who does what, names, dates or numbers.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Semantics(
+                    label: 'Copy displayed text',
+                    identifier: 'copy_result',
+                    child: IconButton(
+                      tooltip: 'Copy',
+                      onPressed: () => _copy(text),
+                      icon: const Icon(Icons.copy_outlined),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 120),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: SelectableText(
-                text,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  height: 1.5,
-                  color: _showOriginal
-                      ? scheme.onSurfaceVariant
-                      : scheme.onSurface,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Semantics(
-                  label: 'Copy displayed text',
-                  identifier: 'copy_result',
-                  child: IconButton(
-                    tooltip: 'Copy',
-                    onPressed: () => _copy(text),
-                    icon: const Icon(Icons.copy_outlined),
+                  Semantics(
+                    label: 'Share displayed text',
+                    identifier: 'share_result',
+                    child: IconButton(
+                      tooltip: 'Share',
+                      onPressed: () => _share(text),
+                      icon: const Icon(Icons.share_outlined),
+                    ),
                   ),
-                ),
-                Semantics(
-                  label: 'Share displayed text',
-                  identifier: 'share_result',
-                  child: IconButton(
-                    tooltip: 'Share',
-                    onPressed: () => _share(text),
-                    icon: const Icon(Icons.share_outlined),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -54,6 +54,21 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('warns users to check a generated rewrite', (tester) async {
+    await tester.pumpWidget(_host(_result(1)));
+
+    expect(
+      find.textContaining('Check this against your original before sending'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Original'));
+    await tester.pump();
+    expect(
+      find.textContaining('Check this against your original before sending'),
+      findsNothing,
+    );
+  });
+
   testWidgets('wraps result controls on a narrow large-text viewport', (
     tester,
   ) async {
