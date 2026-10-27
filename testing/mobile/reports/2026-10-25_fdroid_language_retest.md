@@ -479,3 +479,17 @@ timeout in the encrypted-backup round-trip test while test files were running
 concurrently. That exact test passed in 3 seconds when rerun alone. The
 production branch's Linux CI and release-style build both passed at
 `e8331b9`; no production release or F-Droid recipe update has been made.
+
+Llama 3.2 1B (English, Q4_K_M, 770 MB) was downloaded over Wi-Fi and passed
+the app's file verification. On the exact reviewer English draft,
+Professional / Full returned `I won't be able to make the meeting on Tuesday
+at 3pm, could we move it to Thursday 10am? I will bring the 12 reports from
+Maria` in 34,843 ms. The app saved it, and the observed facts remained, but
+the edit was slight and still informal. Casual / Full returned `I won't be
+able to make the meeting on Tuesday at 3pm. Would it be possible to move it
+to Thursday 10am?` in 34,341 ms, omitting the reports, count, and Maria; the
+app rejected it. Llama is therefore not a demonstrated stronger English
+fallback on this phone. Gemma was restored as the active QA model afterward.
+
+CI on the documentation commit `8e74ffe` passed as well. The versioned app
+code and release-style build remain at `e8331b9`.

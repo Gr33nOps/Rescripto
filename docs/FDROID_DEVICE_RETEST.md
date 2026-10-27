@@ -19,6 +19,10 @@ for the inputs, complete outputs, model versions, timings, and screenshots.
   rewrite in about 35 seconds. Qwen omitted or changed facts, and the app
   rejected both of its generated rewrites. Professional / Full also produced
   two immediate empty responses until the QA app was restarted.
+- Llama 3.2 1B was downloaded and verified as an English-only alternative.
+  Professional / Full preserved the facts but was a slight, informal edit;
+  Casual / Full omitted the reports and was rejected. It did not improve the
+  English tone and fidelity tradeoff in these runs.
 - Japanese exposed a semantic failure: Gemma changed “I cannot attend the
   meeting” to “the meeting cannot be held” while retaining Japanese script,
   date, time, and number. The current guard cannot detect that meaning change.
