@@ -557,3 +557,10 @@ tomorrow. Please move my meeting to Lutersday at 10.` The user confirmed they
 had spoken both sentences, so the first sentence was expected. The model
 misheard `Thursday` as `Lutersday`; microphone capture, transcription, and
 insertion into the draft worked, but this is not an accurate speech result.
+
+At `7f35e94`, the Windows Flutter suite passed all 476 tests and
+`flutter analyze --no-pub` reported no issues. The Android arm64 release-style
+APK build also completed (`app-release.apk`, 12.9 MB). Flutter warned that four
+plugins still apply the Kotlin Gradle Plugin and will need migration before a
+future Flutter version; the warning did not fail this build. The build is a
+packaging check, not a release authorization or a signed-publication test.
