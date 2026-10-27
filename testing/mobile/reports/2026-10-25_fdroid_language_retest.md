@@ -535,3 +535,18 @@ The first intentional voice test produced an empty draft. The user confirmed
 they missed the recording window, so it is inconclusive and requires a retry.
 Selected-text return remains unverified end to end. The production app on the
 phone remains v1.3.0; tests used the separate v1.3.2 QA package.
+
+The phone's Android package manager lists both Rescripto and Rescripto QA as
+`ACTION_PROCESS_TEXT` handlers. In a temporary Google Keep note, selecting
+all text exposed MIUI's text-action overflow, but its menu displayed only Ask
+Gemini, Read aloud, Search DuckDuckGo, and Nextcloud Assistant. Neither
+Rescripto entry appeared, so the insertion round trip could not be exercised
+through this phone's selection menu. The temporary note was moved to the bin,
+and automatic screen rotation was restored. This is a device-specific
+integration gap to investigate before claiming selected-text return works.
+
+The 3B Professional result demonstrated that number and script checks alone
+can miss a dropped attendance constraint. An English missed-meeting check was
+added to reject this exact class of loss while accepting equivalent “can't
+attend” and “have to miss” wording. It is a narrow safety check, not a general
+meaning verifier, and the phone's earlier result predates this code change.

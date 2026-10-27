@@ -141,6 +141,15 @@ class LanguageProfile {
     ).allMatches(output).map((m) => m.group(0)!).toList();
     if (!_sameItems(sourceNumbers, outputNumbers)) return true;
 
+    // Small models can keep every date and name while silently dropping the
+    // reason for a reschedule. Reject that observed loss when both texts use
+    // an explicit English missed-meeting construction.
+    if (languages.contains('en') &&
+        _missedMeeting.hasMatch(source) &&
+        !_missedMeeting.hasMatch(output)) {
+      return true;
+    }
+
     final sourceScripts = <String>{};
     for (final part in LanguageFidelity._parts(source)) {
       final script = LanguageFidelity._detector.dominantScript(part);
@@ -189,6 +198,11 @@ class LanguageProfile {
     ).allMatches(text);
     return markers.length >= 2;
   }
+
+  static final RegExp _missedMeeting = RegExp(
+    r"\b(?:(?:can't|cannot|won't|will not|unable to|not able to)\b.{0,35}\b(?:attend|make|come to)\b.{0,20}\bmeeting\b|(?:miss|missing)\b.{0,20}\bmeeting\b)",
+    caseSensitive: false,
+  );
 
   static bool _sameItems(List<String> a, List<String> b) {
     if (a.length != b.length) return false;

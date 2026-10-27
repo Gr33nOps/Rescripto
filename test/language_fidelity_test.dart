@@ -154,6 +154,34 @@ void main() {
     );
   });
 
+  test('English rewrite cannot omit an explicit missed meeting', () {
+    final profile = LanguageFidelity.inspect(
+      "I won't be able to make the meeting on Tuesday at 3pm. "
+      'Can we move it to Thursday at 10am? I will bring the 12 reports from Maria.',
+    );
+    expect(
+      profile.rejects(
+        'Can we reschedule the meeting from Tuesday at 3pm to Thursday at '
+        '10am? I will bring the 12 reports from Maria.',
+      ),
+      isTrue,
+    );
+    expect(
+      profile.rejects(
+        "I can't attend the meeting on Tuesday at 3pm. Could we move it "
+        'to Thursday at 10am? I will bring the 12 reports from Maria.',
+      ),
+      isFalse,
+    );
+    expect(
+      profile.rejects(
+        'I have to miss the meeting on Tuesday at 3pm. Could we move it '
+        'to Thursday at 10am? I will bring the 12 reports from Maria.',
+      ),
+      isFalse,
+    );
+  });
+
   test('ambiguous short text is not assigned a guessed language', () {
     final profile = LanguageFidelity.inspect('Hi Maria');
     expect(profile.languages, isEmpty);
