@@ -79,7 +79,10 @@ class SpeechService {
         wavPath,
         onProgress: onProgress,
       );
-      return SpeechResult(text: result.text.trim(), language: result.language);
+      return SpeechResult(
+        text: normalizeLocalTranscript(result.text),
+        language: result.language,
+      );
     } finally {
       await _deleteRecording(wavPath);
     }
@@ -118,4 +121,15 @@ class SpeechService {
     final file = File(path);
     if (await file.exists()) await file.delete();
   }
+}
+
+/// Whisper can emit its silence marker as if it were spoken text.
+/// An entirely silent result should leave the editor untouched.
+String normalizeLocalTranscript(String text) {
+  final trimmed = text.trim();
+  if (RegExp(r'^(?:\s*\[\s*silence\s*\]\s*)+$', caseSensitive: false)
+      .hasMatch(trimmed)) {
+    return '';
+  }
+  return trimmed;
 }

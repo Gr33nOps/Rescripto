@@ -145,6 +145,154 @@ void main() {
   });
 
   group('RewriteController.rewrite', () {
+    test('uses the compact prompt only for confident local English', () async {
+      controller.setSource(
+        'Hey sorry I cannot make the meeting on Tuesday at 3pm, '
+        'can we move it to Thursday 10am? I will bring the 12 reports from Maria',
+      );
+      controller.setIntensity(RewriteIntensity.full);
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastRequest!.prompt.system, contains('Rewrite the entire English draft'));
+      expect(localEngine.lastRequest!.prompt.system, contains('Rephrase each clause in the selected tone'));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: 'I cannot attend the meeting on Tuesday at 3pm. Could we reschedule it to Thursday 10am? I will bring the 12 reports from Maria.'),
+      );
+      await future;
+    });
+
+    test('keeps the multilingual prompt for a German local draft', () async {
+      controller.setSource(
+        'hallo, ich komm morgen nicht ins buero weil mein zug ausfaellt, '
+        'bin ab 13 uhr online',
+      );
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastRequest!.prompt.system, isNot(contains('Rewrite the entire English draft')));
+      expect(localEngine.lastRequest!.prompt.system, contains('Schreibe die gesamte Antwort auf Deutsch'));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: 'Hallo, ich komme morgen nicht ins Büro, weil mein Zug ausfällt, und ich bin ab 13 Uhr online.'),
+      );
+      await future;
+    });
+
+    test('recovers a translated German draft with a native passage retry', () async {
+      controller.setSource(
+        'hallo, ich komm morgen nicht ins buero weil mein zug ausfaellt, '
+        'bin ab 13 uhr online',
+      );
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      final firstHandle = localEngine.lastHandle!;
+      firstHandle.complete(
+        const RewriteOutput(
+          text: 'Hallo, your train will be delayed tomorrow. '
+              'You will be online at 13:00.',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastHandle, isNot(same(firstHandle)));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(
+          text: 'Hallo, ich komme morgen nicht ins Büro, weil mein Zug '
+              'ausfällt, bin ab 13 Uhr online.',
+        ),
+      );
+
+      final result = await future;
+      expect(result.primary.text, contains('mein Zug ausfällt'));
+      expect(result.primary.text, isNot(contains('delayed')));
+    });
+
+    test('recovers a mixed draft by editing its German passage alone', () async {
+      controller.setSource(
+        'Hi Maria, ich bin ab 13 uhr online. See you tomorrow.',
+      );
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      final firstHandle = localEngine.lastHandle!;
+      firstHandle.complete(
+        const RewriteOutput(
+          text: 'Hi Maria, online starting at 13:00. See you tomorrow.',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastHandle, isNot(same(firstHandle)));
+      expect(localEngine.lastRequest!.prompt.user, contains('ich bin ab 13 uhr online.'));
+      expect(localEngine.lastRequest!.prompt.user, isNot(contains('Hi Maria')));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: 'Ich bin ab 13 Uhr online.'),
+      );
+
+      final result = await future;
+      expect(result.primary.text,
+          'Hi Maria, ich bin ab 13 Uhr online. See you tomorrow.');
+      expect(controller.lastResult?.primary.text, result.primary.text);
+    });
+
+    test('does not save a translated passage after mixed fallback', () async {
+      controller.setSource(
+        'Hi Maria, ich bin ab 13 uhr online. See you tomorrow.',
+      );
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(
+          text: 'Hi Maria, online starting at 13:00. See you tomorrow.',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: 'I will be online at 13:00.'),
+      );
+
+      await expectLater(future, throwsA(isA<RewriteFidelityException>()));
+      expect(controller.lastResult, isNull);
+    });
+
+    test('does not present a German draft translated into English', () async {
+      controller.setSource(
+        'hallo, ich komm morgen nicht ins buero weil mein zug ausfaellt, '
+        'bin ab 13 uhr online',
+      );
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(
+          text: 'Hallo, I will not be able to come to the office tomorrow '
+              'because my train has broken down. I will be online at 13:00.',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(
+          text: 'I will not be in the office tomorrow because the train '
+              'was cancelled. I will be online at 13:00.',
+        ),
+      );
+
+      await expectLater(future, throwsA(isA<RewriteFidelityException>()));
+      expect(controller.lastResult, isNull);
+    });
+
+    test('keeps a German rewrite in German', () async {
+      controller.setSource(
+        'hallo, ich komm morgen nicht ins buero weil mein zug ausfaellt, '
+        'bin ab 13 uhr online',
+      );
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(
+          text: 'Hallo, ich komme morgen nicht ins Büro, weil mein Zug '
+              'ausfällt, und ich bin ab 13 Uhr online.',
+        ),
+      );
+
+      final result = await future;
+      expect(result.primary.text, startsWith('Hallo, ich komme'));
+    });
+
     test(
       'stage reaches streaming while running instead of sticking on preparing',
       () async {
@@ -200,6 +348,44 @@ void main() {
       final result = await future;
       expect(result.primary.text, 'please rewrite this');
       expect(identical(localEngine.lastHandle, firstHandle), isTrue);
+    });
+
+    test('unchanged Japanese local output retries with a concise native prompt', () async {
+      controller.setSource('明日は休みです。会議は金曜日です。');
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: '明日は休みです。会議は金曜日です。'),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(localEngine.lastRequest!.prompt.system, contains('Edit only the passage'));
+      expect(localEngine.lastRequest!.prompt.system, contains('日本語'));
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: '明日はお休みです。会議は金曜日です。'),
+      );
+
+      final result = await future;
+      expect(result.primary.text, '明日はお休みです。会議は金曜日です。');
+    });
+
+    test('a rejected native retry does not start the same passage prompt again', () async {
+      controller.setSource('明日は休みです。会議は金曜日です。');
+      final future = controller.rewrite();
+      await Future<void>.delayed(Duration.zero);
+      localEngine.lastHandle!.complete(
+        const RewriteOutput(text: '明日は休みです。会議は金曜日です。'),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final nativeHandle = localEngine.lastHandle!;
+      nativeHandle.complete(
+        const RewriteOutput(text: 'I am off tomorrow. The meeting is on Friday.'),
+      );
+      await expectLater(
+        future.timeout(const Duration(seconds: 1)),
+        throwsA(isA<RewriteFidelityException>()),
+      );
+      expect(localEngine.lastHandle, same(nativeHandle));
     });
 
     test('surfaces EngineNotAvailableException for an unregistered engine target', () async {

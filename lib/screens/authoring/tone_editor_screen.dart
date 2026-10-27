@@ -499,10 +499,12 @@ class _GenerationSlider extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 44,
+            width: 72,
             child: Text(
               display,
               textAlign: TextAlign.end,
+              maxLines: 1,
+              softWrap: false,
               style: TextStyle(color: color),
             ),
           ),

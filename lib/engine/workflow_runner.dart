@@ -5,6 +5,7 @@ import '../models/rewrite_request.dart';
 import '../models/workflow_definition.dart';
 import '../models/workflow_step.dart';
 import '../services/config_store.dart';
+import '../services/language_fidelity.dart';
 import '../services/prompt_builder.dart';
 import '../services/refusal_detector.dart';
 import '../services/storage_service.dart';
@@ -131,7 +132,9 @@ class WorkflowRunner extends ChangeNotifier {
     await engine.prepare(step.target);
 
     final tone = _configStore.toneById(step.toneId);
-    final audienceLabels = step.audience.map((id) => _configStore.audienceById(id).label).toList();
+    final audienceLabels = step.audience
+        .map((id) => _configStore.audienceById(id).label)
+        .toList();
     final request = RewriteRequest(
       sourceText: inputText,
       toneId: step.toneId,
@@ -149,18 +152,32 @@ class WorkflowRunner extends ChangeNotifier {
       maxOutputTokens: tone.maxOutputTokens,
       stopSequences: tone.stopSequences,
     );
+    final languageProfile = LanguageFidelity.inspect(inputText);
 
     Future<List<String>> attempt({
       bool strictRetry = false,
       bool unchangedRetry = false,
     }) async {
-      final prompt = PromptBuilder.build(
-        request,
-        tone: tone,
-        audienceLabels: audienceLabels,
-        strictRetry: strictRetry,
-        unchangedRetry: unchangedRetry,
-      );
+      final useCompactEnglish =
+          step.target.engineId == 'local.llama' &&
+          languageProfile.languages.length == 1 &&
+          languageProfile.languages.single == 'en' &&
+          !strictRetry &&
+          !unchangedRetry;
+      final prompt = useCompactEnglish
+          ? PromptBuilder.buildEnglish(
+              request,
+              tone: tone,
+              audienceLabels: audienceLabels,
+            )
+          : PromptBuilder.build(
+              request,
+              tone: tone,
+              audienceLabels: audienceLabels,
+              sourceLanguageCues: languageProfile.promptCues,
+              strictRetry: strictRetry,
+              unchangedRetry: unchangedRetry,
+            );
       final handle = engine.start(
         EngineRequest(target: step.target, prompt: prompt, options: options),
       );
@@ -220,6 +237,9 @@ class WorkflowRunner extends ChangeNotifier {
       }
     }
 
+    if (languageProfile.rejects(variants.first)) {
+      throw const RewriteFidelityException();
+    }
     return variants.first;
   }
 

@@ -136,6 +136,14 @@ class _RewriteScreenState extends State<RewriteScreen> {
               selectedId: controller.toneId,
               onChanged: controller.setTone,
             ),
+            if (!isPro) ...[
+              const SizedBox(height: 6),
+              Text(
+                'For a stronger change in tone, switch to Pro mode and try '
+                'Full rewrite. Small models may make subtler changes.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             if (isPro) ...[
               const SizedBox(height: 20),
               RewriteControls(
@@ -616,6 +624,17 @@ class _StreamingPanel extends StatelessWidget {
               Text(
                 'The first rewrite after opening the app takes longer while '
                 'the model loads.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+            if (!cancelling &&
+                stage == EngineStage.streaming &&
+                capabilities.needsLocalInstall) ...[
+              const SizedBox(height: 8),
+              Text(
+                'On some phones, an on-device rewrite can take a few minutes.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),

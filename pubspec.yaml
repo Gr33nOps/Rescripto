@@ -1,7 +1,7 @@
 name: rescripto
 description: "Rescripto - private on-device AI rewriting with locally stored content and downloadable models."
 publish_to: 'none'
-version: 1.3.1+20
+version: 1.3.2+21
 
 environment:
   sdk: ^3.12.2
@@ -54,6 +54,8 @@ dependencies:
 
   # Formatting.
   intl: ^0.20.2
+  # Offline language drift check for small on-device rewrite models.
+  betto_lang_detector: 0.1.0-dev.1
 
   # Encrypted backup (Phase 4): Argon2id key derivation + AES-GCM, pure Dart
   # so it's testable on the host without a platform channel.

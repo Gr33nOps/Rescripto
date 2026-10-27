@@ -19,7 +19,8 @@ draft build recipe, and the steps that still need a person.
 
 ## Anti-features to declare
 
-- **NonFreeNet**: optional. In Cloud or Hybrid mode, text and recordings can
+- **NonFreeNet**: local use requires downloading an AI model from Hugging Face.
+  In optional Cloud or Hybrid mode, text and recordings can
   go to commercial AI services (OpenAI, Anthropic, Google, Groq, xAI and
   others). All of it is off until the user turns it on and adds their own
   API key.
@@ -41,8 +42,8 @@ to time.
 ```yaml
 AntiFeatures:
   NonFreeNet:
-    en-US: Can send text to commercial cloud AI services when you turn on Cloud or
-      Hybrid mode.
+    en-US: Requires downloading an AI model from Hugging Face for local use and can
+      send text to commercial cloud AI services in Cloud or Hybrid mode.
 Categories:
   - Writing
 License: Apache-2.0
