@@ -1,0 +1,4 @@
+- Local rewrites better preserve the draft's language and reject clear translation or number changes
+- A result reminder asks you to compare AI text with the original before sending
+- Full rewrite can show stronger tone changes; local model quality and speed vary by device
+- Silence-only dictation no longer inserts a silence marker

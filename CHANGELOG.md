@@ -5,7 +5,7 @@ All notable changes to Rescripto are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
-## [1.3.2] - 2026-10-26
+## [1.3.2] - 2026-10-27
 
 ### Changed
 
@@ -22,6 +22,11 @@ and this project uses [Semantic Versioning](https://semver.org/).
   model, not a guarantee, and that results should be checked before use.
 - Clarified that on-device rewrites can take minutes on some phones and that
   model speed varies by device.
+- Added an on-screen reminder to compare AI results with the original before
+  sending. A missed-meeting safeguard also rejects an English rewrite that
+  silently drops the speaker's inability to attend.
+- Silence-only local dictation no longer adds a `[ Silence ]` marker to the
+  draft.
 
 ## [1.3.1] - 2026-09-16
 

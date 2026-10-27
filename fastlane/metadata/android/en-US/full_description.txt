@@ -8,7 +8,7 @@
 <li>In Pro mode, set how much to change, shorter or longer, who it's for, extra instructions, and up to three versions.</li>
 <li>Dictate with whisper.cpp running on the phone.</li>
 <li>Chain rewrite steps into workflows.</li>
-<li>Rewrite selected text from any app's text menu, share text in, or start from a Quick Settings tile.</li>
+<li>Rewrite selected text from Android's text menu when available, share text in, or start from a Quick Settings tile.</li>
 <li>Search and reuse past rewrites. History stays on the phone.</li>
 <li>Export encrypted backups, keep automatic weekly backups, or sync an encrypted copy to your own WebDAV server.</li>
 </ul>
