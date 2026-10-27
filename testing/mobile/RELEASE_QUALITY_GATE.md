@@ -17,18 +17,23 @@ Full returns only punctuation changes, if Casual and Professional are
 indistinguishable, or if the selected tone reads as its opposite. Record
 repeats separately; one successful sample cannot erase a failed repeat.
 
-The release bar for English is zero critical failures among saved outputs,
-successful rewrites for every core case, and visibly different Casual and
-Professional wording in most Full runs. A typical short English message
-should complete within 60 seconds on the reference Redmi 12; record the
-median and slowest run. If this bar is not met, keep the affected model or
-strength marked as limited and do not claim dependable tone control.
+These labels measure model behavior; they are not a promise of 100% accuracy.
+Release requires that each English core case can be submitted, returns a
+result or a clear recoverable failure, and leaves the original available for
+comparison. A known repeatable material error that the app silently presents
+as safe still needs a targeted guard, a model/setting limitation, or a clear
+user-facing review step. Record tone differences and elapsed time, and do
+not advertise dependable tone control or a speed guarantee where the device
+results do not support one. An occasional imperfect rewrite is acceptable
+when the app explains the limitation and the user can inspect and reject it.
 
-For non-English languages, retain the original script and language, all
-material facts, and the requested tone. The cases below are smoke tests,
-not evidence for every language. A fluent reviewer should score any language
-named as reliable in the store listing. Otherwise label local multilingual
-output as best effort and keep the result-level review warning.
+For non-English languages, test whether the model retains the original
+script, language, material facts, and requested tone. These cases are smoke
+tests, not evidence for every language; failures must be recorded rather than
+hidden by a successful repeat. A fluent reviewer should score any language
+named as reliable in the store listing. Otherwise describe local multilingual
+output as best effort and keep the result-level review warning. Do not claim
+that every language or mixed-language draft behaves equally well.
 
 ## Core English corpus
 
@@ -56,7 +61,10 @@ output as best effort and keep the result-level review warning.
 
 The remaining feature gate covers intentional spoken dictation, encrypted
 backup export and restore, selected-text return, cloud routing, and encrypted
-WebDAV sync. For any feature lacking real credentials, test against a local
-protocol-compatible endpoint and clearly record that a real provider was not
-exercised. The F-Droid release gate then requires a tagged immutable source
-commit, signed APK, and passing reproducibility comparison for that APK.
+WebDAV sync. Speech recognition is also fallible: verify capture and insertion,
+and require the draft to stay editable before rewrite. For any feature lacking
+real credentials, test against a local protocol-compatible endpoint and
+clearly record that a real provider was not exercised. Mark a device-specific
+selected-text menu limitation as such; do not claim an end-to-end pass without
+one. The F-Droid release gate then requires a tagged immutable source commit,
+signed APK, and passing reproducibility comparison for that APK.

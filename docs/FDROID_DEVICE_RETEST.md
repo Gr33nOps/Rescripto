@@ -29,20 +29,26 @@ for the inputs, complete outputs, model versions, timings, and screenshots.
   Do not claim that all languages or tones are accurate.
 - A silent dictation recording previously appended Whisper's `[ Silence ]`
   marker. The QA build now leaves the draft untouched for a silence-only
-  transcript. History, sharing, Quick Settings, custom tones and audiences,
-  privacy controls, and a one-step workflow were also exercised. Backup
-  export reached Android's share sheet, but restore was not tested on-device.
+  transcript. A spoken retry captured and inserted both sentences the user
+  said, but misheard “Thursday” as “Lutersday.” The draft remained editable.
+  History, sharing, Quick Settings, custom tones and audiences, privacy
+  controls, and a one-step workflow were also exercised.
 
-Production CI and a release-style build pass at `e8331b9`. The full Windows
-test suite had one 30-second timeout in an encrypted-backup round trip while
-files ran concurrently; that test passed in 3 seconds on its own. Cloud
-providers, WebDAV, and the selected-text return flow still lack end-to-end
-phone coverage. No 1.3.2 release or F-Droid recipe update has been published.
+At `fc7dbab`, 476 Windows Flutter tests and analysis pass, and an Android
+arm64 release-style APK builds. Encrypted backup export/restore, WebDAV
+conflict handling, and a mock OpenAI-compatible cloud stream were exercised
+on the phone against local endpoints. Real cloud and Nextcloud accounts were
+not tested. Android registers Rescripto for selected-text processing, but
+this Redmi's selection menu did not expose it, so insertion back into another
+app remains unverified. No 1.3.2 release or F-Droid recipe update has been
+published.
 
 ## Release gate
 
-Before updating the F-Droid recipe, obtain a tested immutable release and
-verify reproducibility against its signed APK. Keep the model-specific English
-and Japanese limitations visible to reviewers; a saved local result does not
-guarantee semantic accuracy. Capture actual phone screenshots for the listing
-if the optional screenshot request is addressed.
+Local model output is best effort; 100% semantic or tone accuracy is not a
+release requirement. Keep the English, Japanese, speech, and selected-text
+limitations visible to reviewers and users, and do not claim universal
+language support. Before updating the F-Droid recipe, obtain a tested
+immutable release and verify reproducibility against its signed APK. Capture
+actual phone screenshots for the listing if the optional screenshot request
+is addressed.
