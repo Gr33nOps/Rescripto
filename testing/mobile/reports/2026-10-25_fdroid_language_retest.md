@@ -550,3 +550,10 @@ can miss a dropped attendance constraint. An English missed-meeting check was
 added to reject this exact class of loss while accepting equivalent “can't
 attend” and “have to miss” wording. It is a narrow safety check, not a general
 meaning verifier, and the phone's earlier result predates this code change.
+
+The spoken-dictation retry recorded and transcribed on device with the
+downloaded Whisper base model. The draft became `Hi, I can send the report
+tomorrow. Please move my meeting to Lutersday at 10.` The user confirmed they
+had spoken both sentences, so the first sentence was expected. The model
+misheard `Thursday` as `Lutersday`; microphone capture, transcription, and
+insertion into the draft worked, but this is not an accurate speech result.
